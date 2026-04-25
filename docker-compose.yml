@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  nexos:
+    build: .
+    container_name: nexos-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ALLOWED_ORIGINS=http://localhost:3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.nexos.description=NexOS AI Productivity OS"
+      - "com.nexos.version=2.0"
+
+  # Optional: Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    container_name: nexos-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      nexos:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - production   # Only starts with: docker-compose --profile production up
