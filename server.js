@@ -82,13 +82,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/debug', (req, res) => {
-  res.json({
-    hasKey: !!process.env.GEMINI_API_KEY,
-    keyStart: process.env.GEMINI_API_KEY?.slice(0,8) || 'MISSING'
-  });
-});
-
 // ── Gemini AI Proxy ───────────────────────────────────────────────────────────
 const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_URL = (key) =>
