@@ -158,7 +158,10 @@ app.post('/api/complete', aiLimiter, async (req, res) => {
         ],
       }),
     });
-    if (!upstream.ok) throw new Error(`Gemini ${upstream.status}`);
+    if (!upstream.ok) {
+  const errText = await upstream.text();
+  return res.status(500).json({ error: `Gemini ${upstream.status}`, detail: errText });
+}
     const data = await upstream.json();
     const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
     return res.json({ text });
