@@ -1,7 +1,7 @@
 {
   "name": "nexos-ai-productivity-os",
   "version": "2.0.0",
-  "description": "NexOS \u2014 AI-Powered Personal Productivity Operating System with Kanban, Pomodoro, Habit Tracker, Smart Notes, Analytics, and Claude AI Coach",
+  "description": "NexOS \u2014 AI-Powered Personal Productivity Operating System with Kanban, Pomodoro, Habit Tracker, Smart Notes, Analytics, and the NexAI Gemini assistant",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -16,8 +16,8 @@
     "kanban",
     "pomodoro",
     "habit-tracker",
-    "claude",
-    "anthropic",
+    "gemini",
+    "google-ai",
     "dashboard",
     "nodejs",
     "express"

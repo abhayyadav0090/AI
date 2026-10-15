@@ -1,6 +1,6 @@
 /**
  * NexOS — Backend Server
- * Express.js API proxy for Anthropic Claude + static file serving
+ * Express.js API proxy for Google Gemini + static file serving
  * Handles: API key security, rate limiting, CORS, compression
  */
 

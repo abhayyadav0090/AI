@@ -5,7 +5,7 @@
 ![NexOS Banner](https://img.shields.io/badge/NexOS-AI%20Productivity%20OS-a78bfa?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNS0xMC01LTEwIDV6Ii8+PC9zdmc+)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js)
 ![Express](https://img.shields.io/badge/Express-4.x-000000?style=for-the-badge&logo=express)
-![Anthropic](https://img.shields.io/badge/Claude-Sonnet%204-cc785c?style=for-the-badge)
+![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-22d3ee?style=for-the-badge)
 
 **A full-stack, AI-powered productivity operating system built with vanilla JS, Node.js/Express, and the Google Gemini API.**
@@ -57,7 +57,7 @@ Built as a showcase of full-stack web development, modern UX design, and practic
 - **Productivity Score** — composite SVG ring score (0–100) based on all modules
 - **Weekly Task Velocity** — line chart comparing task throughput
 
-### 🤖 AI Coach (Powered by Gemini)
+### 🤖 NexAI (Powered by Gemini)
 - Full conversation history with context awareness
 - Receives live snapshot of your tasks, habits, focus time, and notes
 - Suggested prompts: analyze your week, prioritize tasks, plan your day, suggest habits
@@ -82,7 +82,7 @@ Built as a showcase of full-stack web development, modern UX design, and practic
 | **Charts** | Chart.js 4.x |
 | **Fonts** | Syne (display), Outfit (body), JetBrains Mono (data) |
 | **Backend** | Node.js 18+, Express 4.x |
-| **AI** | Anthropic Gemini API |
+| **AI** | Google Gemini API |
 | **Security** | Helmet.js, express-rate-limit, CORS |
 | **Performance** | Compression middleware, Morgan logging |
 | **Storage** | localStorage (client-side persistence, no database required) |
@@ -92,15 +92,7 @@ Built as a showcase of full-stack web development, modern UX design, and practic
 
 ## ⚡ Quick Start
 
-### Option A — Frontend Only (No backend needed)
-The app works 100% in the browser. You'll need to add your Anthropic API key directly in `public/app.js` (search for `callClaude`). Not recommended for production.
-
-```bash
-# Just open index.html in your browser — done!
-open public/index.html
-```
-
-### Option B — Full Stack (Recommended)
+### Full Stack Setup
 
 ```bash
 # 1. Clone the repo
@@ -112,7 +104,7 @@ npm install
 
 # 3. Set up environment variables
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Edit .env and add your GEMINI_API_KEY
 
 # 4. Start the development server
 npm run dev
@@ -134,20 +126,20 @@ npm install -g @railway/cli
 railway login
 railway init
 railway up
-railway variables set ANTHROPIC_API_KEY=your_key_here
+railway variables set GEMINI_API_KEY=your_key_here
 ```
 
 ### Deploy to Render
 1. Connect your GitHub repo at [render.com](https://render.com)
 2. Set **Build Command**: `npm install`
 3. Set **Start Command**: `npm start`
-4. Add environment variable: `ANTHROPIC_API_KEY`
+4. Add environment variable: `GEMINI_API_KEY`
 
 ### Deploy to Fly.io
 ```bash
 # Install flyctl, then:
 fly launch
-fly secrets set ANTHROPIC_API_KEY=your_key_here
+fly secrets set GEMINI_API_KEY=your_key_here
 fly deploy
 ```
 
@@ -201,13 +193,13 @@ All endpoints are prefixed with `/api`.
 Returns server status and uptime.
 
 ### `POST /api/chat`
-Proxies multi-turn conversation to Claude.
+Proxies multi-turn conversation to Google Gemini.
 
 **Body:**
 ```json
 {
   "messages": [{ "role": "user", "content": "Hello" }],
-  "system": "You are a productivity coach.",
+  "system": "You are a helpful productivity assistant.",
   "max_tokens": 1000
 }
 ```
@@ -227,7 +219,7 @@ Single-shot prompt completion.
 
 - **No framework** — Vanilla JS keeps the bundle zero-dependency on the frontend, loads instantly, and demonstrates DOM mastery without abstraction layers.
 - **localStorage persistence** — No database needed; all user data lives client-side, making the app privacy-first and deployment-simple.
-- **Backend as API proxy** — The Node.js server keeps the Anthropic API key secret and adds rate limiting; the frontend can also call Claude directly when running standalone.
+- **Backend as API proxy** — The Node.js server keeps the Gemini API key secret and adds rate limiting, so the key is never exposed to the browser.
 - **Modular JS** — Each feature (kanban, pomodoro, habits, notes, analytics, AI) is a self-contained section in `app.js` with a clear state → render → event pattern.
 - **CSS Variables design system** — Every color, spacing, and font is a variable; the entire theme switches in one class toggle.
 
@@ -235,9 +227,9 @@ Single-shot prompt completion.
 
 ## 📸 Screenshots
 
-| Dashboard | Kanban Board | AI Coach |
+| Dashboard | Kanban Board | NexAI |
 |:---:|:---:|:---:|
-| Stats, widgets, mini timer | Drag-and-drop task columns | Claude-powered chat |
+| Stats, widgets, mini timer | Drag-and-drop task columns | Gemini-powered chat |
 
 | Habit Tracker | Analytics | Focus Timer |
 |:---:|:---:|:---:|
@@ -269,7 +261,7 @@ MIT © 2025 — Free to use, modify, and deploy. Attribution appreciated.
 ---
 
 <div align="center">
-  Built with ☕ and ✦ Claude AI · <strong>NexOS v2.0</strong>
+  Built with ☕ and ✦ Google Gemini · <strong>NexOS v2.0</strong>
 </div>
 
 

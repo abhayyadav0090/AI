@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    NexOS — Complete App Logic
-   Modules: State, Kanban, Pomodoro, Habits, Notes, Analytics, AI Coach
+   Modules: State, Kanban, Pomodoro, Habits, Notes, Analytics, NexAI
 ═══════════════════════════════════════════════════════ */
 
 // ═══════════════════════════ STATE ═══════════════════════════
@@ -167,7 +167,7 @@ async function startApp(user) {
 function seedDemo() {
   state.tasks = [
     { id: uid(), title: 'Set up NexOS workspace', col: 'done', priority: 'high', desc: 'Customize settings and add first habits', due: today() },
-    { id: uid(), title: 'Plan weekly goals', col: 'inprogress', priority: 'high', desc: 'Use AI Coach to prioritize tasks', due: today() },
+    { id: uid(), title: 'Plan weekly goals', col: 'inprogress', priority: 'high', desc: 'Use NexAI to prioritize tasks', due: today() },
     { id: uid(), title: 'Complete morning routine', col: 'todo', priority: 'medium', desc: '', due: today() },
     { id: uid(), title: 'Deep work session (2h)', col: 'todo', priority: 'high', desc: 'No distractions, phone away', due: today() },
     { id: uid(), title: 'Review and reflect', col: 'review', priority: 'low', desc: 'End of day review', due: today() },
@@ -179,7 +179,7 @@ function seedDemo() {
     { id: uid(), name: 'No social media before noon', color: '#f59e0b', checks: {}, streak: 0 },
   ];
   state.notes = [
-    { id: uid(), title: 'Welcome to NexOS ✦', content: 'This is your AI-powered productivity OS. Use the Kanban board to track tasks, the Focus Timer for deep work, and the AI Coach for personalized guidance.\n\n**Getting Started:**\n- Add your tasks in the Kanban board\n- Build habits in the Habit Tracker\n- Ask the AI Coach anything about your productivity', tags: ['welcome'], pinned: true, created: Date.now() },
+    { id: uid(), title: 'Welcome to NexOS ✦', content: 'This is your AI-powered productivity OS. Use the Kanban board to track tasks, the Focus Timer for deep work, and the NexAI for personalized guidance.\n\n**Getting Started:**\n- Add your tasks in the Kanban board\n- Build habits in the Habit Tracker\n- Ask the NexAI anything about your productivity', tags: ['welcome'], pinned: true, created: Date.now() },
     { id: uid(), title: 'Productivity Tips', content: 'Key principles:\n1. Focus on one thing at a time\n2. Time-block your calendar\n3. Review weekly, not daily\n4. Build systems, not goals', tags: ['tips'], pinned: false, created: Date.now() - 86400000 },
   ];
   saveState();
@@ -244,7 +244,7 @@ function switchView(name) {
   const navItem = document.querySelector(`[data-view="${name}"]`);
   if (navItem) navItem.classList.add('active');
   const breadcrumb = document.getElementById('breadcrumb');
-  const labels = { dashboard: 'Dashboard', kanban: 'Kanban Board', pomodoro: 'Focus Timer', habits: 'Habit Tracker', notes: 'Smart Notes', analytics: 'Analytics', ai: 'AI Coach' };
+  const labels = { dashboard: 'Dashboard', kanban: 'Kanban Board', pomodoro: 'Focus Timer', habits: 'Habit Tracker', notes: 'Smart Notes', analytics: 'Analytics', ai: 'NexAI' };
   if (breadcrumb) breadcrumb.textContent = labels[name] || name;
   if (name === 'dashboard') { renderDashboard(); updateStats(); }
   if (name === 'analytics') renderAnalytics();
@@ -437,7 +437,7 @@ async function aiSuggestTask() {
   const descInput = document.getElementById('modal-desc-input');
   descInput.value = 'AI is generating a description…';
   try {
-    const res = await callClaude(`For the task "${title}", write a concise 1-2 sentence actionable description and suggest a priority (low/medium/high). Format: DESCRIPTION: ... | PRIORITY: ...`);
+    const res = await callAI(`For the task "${title}", write a concise 1-2 sentence actionable description and suggest a priority (low/medium/high). Format: DESCRIPTION: ... | PRIORITY: ...`);
     const match = res.match(/DESCRIPTION:\s*(.+?)\s*\|\s*PRIORITY:\s*(low|medium|high)/i);
     if (match) {
       descInput.value = match[1];
@@ -842,7 +842,7 @@ async function summarizeNote() {
   const original = note.content;
   contentEl.value = 'AI is summarizing…';
   try {
-    const summary = await callClaude(`Summarize this note concisely in 2-3 sentences:\n\n${note.content}`);
+    const summary = await callAI(`Summarize this note concisely in 2-3 sentences:\n\n${note.content}`);
     note.content = `## AI Summary\n${summary}\n\n---\n\n${original}`;
     contentEl.value = note.content;
     saveState(); updateWordCount();
@@ -965,7 +965,7 @@ function renderVelocityChart(days) {
   });
 }
 
-// ═══════════════════════════ AI COACH ═══════════════════════════
+// ═══════════════════════════ NEXAI ASSISTANT ═══════════════════════════
 let chatHistory = [];
 
 function buildSystemContext() {
@@ -974,7 +974,7 @@ function buildSystemContext() {
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
   const doneHabits = state.habits.filter(h => h.checks[today()]);
   const recentNotes = state.notes.slice(0, 3);
-  return `You are NexOS AI Coach, an intelligent, empathetic productivity assistant. You have full context of the user's data.
+  return `You are NexAI, the intelligent, empathetic assistant inside NexOS, built on Google Gemini. You have full context of the user's data.
 
 Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
@@ -1010,7 +1010,7 @@ async function sendMessage() {
   const sendBtn = document.getElementById('chat-send-btn');
   if (sendBtn) { sendBtn.disabled = true; document.getElementById('send-icon').textContent = '⏳'; }
   try {
-    const reply = await callClaudeWithHistory(chatHistory, buildSystemContext());
+    const reply = await callAIWithHistory(chatHistory, buildSystemContext());
     removeTyping();
     chatHistory.push({ role: 'assistant', content: reply });
     appendChatMsg('assistant', reply);
@@ -1085,9 +1085,9 @@ async function getDailyInsight() {
   if (btn) btn.textContent = '…';
   if (text) text.textContent = 'Generating insight…';
   try {
-    const insight = await callClaude(
+    const insight = await callAI(
       `Based on this productivity snapshot, give ONE sharp, actionable insight in 1-2 sentences:\n${buildSystemContext()}`,
-      'You are a concise productivity coach. One key insight only.'
+      'You are a concise productivity assistant. One key insight only.'
     );
     if (text) text.textContent = insight;
     if (btn) btn.textContent = 'Refresh';
@@ -1097,60 +1097,28 @@ async function getDailyInsight() {
   }
 }
 
-// ═══════════════════════════ CLAUDE API ═══════════════════════════
-// Automatically uses the backend proxy when served via Node.js server,
-// or falls back to direct Anthropic API for standalone (local file) use.
-const IS_BACKEND = window.location.protocol !== 'file:';
-const API_BASE   = IS_BACKEND ? '' : 'https://api.anthropic.com';
-
-async function callClaude(prompt, systemPrompt = 'You are a helpful productivity assistant.') {
-  if (IS_BACKEND) {
-    // Use secure server-side proxy (API key never exposed to browser)
-    const response = await fetch('/api/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, system: systemPrompt })
-    });
-    if (!response.ok) throw new Error('API error: ' + response.status);
-    const data = await response.json();
-    return data.text || '';
-  } else {
-    // Standalone mode: direct call (for local dev only — add your key below)
-    const STANDALONE_KEY = ''; // Add your Anthropic API key for local standalone use
-    if (!STANDALONE_KEY) throw new Error('No API key configured. Run the server or add a key for standalone mode.');
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': STANDALONE_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: systemPrompt, messages: [{ role: 'user', content: prompt }] })
-    });
-    if (!response.ok) throw new Error('API error: ' + response.status);
-    const data = await response.json();
-    return data.content.map(b => b.text || '').join('');
-  }
+// =========================== AI API (Google Gemini) ===========================
+// All AI calls go through the secure backend proxy, so the API key never reaches the browser.
+async function callAI(prompt, systemPrompt = 'You are a helpful productivity assistant.') {
+  const response = await fetch('/api/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, system: systemPrompt })
+  });
+  if (!response.ok) throw new Error('API error: ' + response.status);
+  const data = await response.json();
+  return data.text || '';
 }
 
-async function callClaudeWithHistory(history, systemPrompt) {
-  if (IS_BACKEND) {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history.slice(-20), system: systemPrompt, max_tokens: 1000 })
-    });
-    if (!response.ok) throw new Error('API error: ' + response.status);
-    const data = await response.json();
-    return data.text || '';
-  } else {
-    const STANDALONE_KEY = '';
-    if (!STANDALONE_KEY) throw new Error('No API key configured. Run the server or add a key for standalone mode.');
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': STANDALONE_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: systemPrompt, messages: history.slice(-20) })
-    });
-    if (!response.ok) throw new Error('API error: ' + response.status);
-    const data = await response.json();
-    return data.content.map(b => b.text || '').join('');
-  }
+async function callAIWithHistory(history, systemPrompt) {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: history.slice(-20), system: systemPrompt })
+  });
+  if (!response.ok) throw new Error('API error: ' + response.status);
+  const data = await response.json();
+  return data.text || '';
 }
 
 // ═══════════════════════════ HELPERS ═══════════════════════════

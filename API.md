@@ -37,7 +37,7 @@ Multi-turn conversational AI endpoint. Proxies to Gemini.
     { "role": "assistant", "content": "Sure! Tell me about your tasks..." },
     { "role": "user",      "content": "I have 5 tasks due today..." }
   ],
-  "system": "You are a productivity coach with access to the user's task data...",
+  "system": "You are a productivity assistant with access to the user's task data...",
   "max_tokens": 1000
 }
 ```
@@ -110,14 +110,5 @@ Returns app name and version.
 
 When running with the backend, `app.js` calls `/api/chat` and `/api/complete` instead of hitting Gemini directly. The API key is never exposed to the browser.
 
-**Standalone mode** (no backend): the frontend calls `https://api.anthropic.com/v1/messages` directly. Requires the API key to be embedded in the JS — only use for local development, never deploy publicly.
+There is no standalone mode. All AI calls go through the backend, which calls Google Gemini with `GEMINI_API_KEY`.
 
-To switch between modes, update the fetch target in `callClaude()` and `callClaudeWithHistory()` in `app.js`:
-
-```javascript
-// Backend mode (default in production)
-const endpoint = '/api/chat';
-
-// Standalone mode (local dev only)
-const endpoint = 'https://api.anthropic.com/v1/messages';
-```

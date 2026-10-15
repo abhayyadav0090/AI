@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NexOS — AI Productivity Operating System</title>
+<title>NexOS — AI Productivity Workspace</title>
+<meta name="description" content="NexOS is an AI productivity workspace with Kanban tasks, focus timer, habit tracker and smart notes. Powered by Google Gemini.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NexOS">
+<meta property="og:title" content="NexOS — Plan your day and stay focused">
+<meta property="og:description" content="AI workspace with tasks, focus timer, habits and notes. Powered by Google Gemini. Try it and share your feedback.">
+<meta property="og:url" content="https://ai-aqit.onrender.com">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="NexOS — Plan your day and stay focused">
+<meta name="twitter:description" content="AI workspace with tasks, focus timer, habits and notes. Powered by Google Gemini.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -60,7 +69,7 @@
         <span class="nav-icon">◬</span><span class="nav-label">Analytics</span>
       </button>
       <button class="nav-item" data-view="ai" onclick="switchView('ai')">
-        <span class="nav-icon">✦</span><span class="nav-label">AI Coach</span>
+        <span class="nav-icon">✦</span><span class="nav-label">NexAI</span>
         <span class="nav-badge">AI</span>
       </button>
     </div>
@@ -100,7 +109,7 @@
             <p class="view-subtitle" id="dashboard-date">Loading…</p>
           </div>
           <div class="header-actions">
-            <button class="btn-primary" onclick="switchView('ai')">✦ Ask AI Coach</button>
+            <button class="btn-primary" onclick="switchView('ai')">✦ Ask NexAI</button>
           </div>
         </div>
 
@@ -479,11 +488,11 @@
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ AI COACH ═══════════════════════════════════ -->
+      <!-- ═══════════════════════════════════ NEXAI ASSISTANT ═══════════════════════════════════ -->
       <section id="view-ai" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">AI Coach <span class="ai-badge-title">✦ AI Powered</span></h1>
+            <h1 class="view-title">NexAI <span class="ai-badge-title">✦ Powered by Gemini</span></h1>
             <p class="view-subtitle">Your intelligent productivity companion</p>
           </div>
           <div class="header-actions">
@@ -498,7 +507,7 @@
               <div class="chat-msg assistant">
                 <div class="msg-avatar">✦</div>
                 <div class="msg-bubble">
-                  <p>Hello! I'm your AI productivity coach, powered by Claude. I have full context of your tasks, habits, notes, and focus sessions.</p>
+                  <p>Hello! I'm NexAI, your productivity assistant, powered by Google Gemini. I have full context of your tasks, habits, notes, and focus sessions.</p>
                   <p>Ask me anything — I can help you plan your day, review your progress, suggest improvements, or just think through challenges with you.</p>
                 </div>
               </div>
@@ -512,7 +521,7 @@
                 <button class="prompt-chip" onclick="sendSuggestedPrompt('What habits should I add based on productivity research?')">✨ Suggest habits</button>
               </div>
               <div class="chat-input-row">
-                <textarea id="chat-input" placeholder="Ask your AI coach anything…" class="chat-textarea" onkeydown="handleChatKey(event)" rows="1"></textarea>
+                <textarea id="chat-input" placeholder="Ask NexAI anything…" class="chat-textarea" onkeydown="handleChatKey(event)" rows="1"></textarea>
                 <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">
                   <span id="send-icon">↑</span>
                 </button>

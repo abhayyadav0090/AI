@@ -12,7 +12,7 @@
 │  │  Kanban  │ │Pomodoro  │ │ Habits   │ │  Notes   │          │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
 │  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐       │
-│  │Analytics │ │Dashboard │ │       AI Coach            │       │
+│  │Analytics │ │Dashboard │ │       NexAI            │       │
 │  └──────────┘ └──────────┘ └──────────────────────────┘       │
 │                                    │                            │
 │                            localStorage ◄── State Manager      │
@@ -34,8 +34,8 @@
                                      │ HTTPS
                                      ▼
                           ┌─────────────────────┐
-                          │  Anthropic Claude   │
-                          │   (claude-sonnet-4) │
+                          │  Google Gemini     │
+                          │   (gemini flash)  │
                           └─────────────────────┘
 ```
 
@@ -66,10 +66,10 @@ Each module follows: **State → Render → Event**
 No virtual DOM, no framework — just direct, performant DOM manipulation.
 
 ### AI Integration
-The AI Coach module:
+The NexAI module:
 1. Builds a rich system prompt from current `state` (`buildSystemContext()`)
 2. Maintains a local `chatHistory` array for multi-turn context
-3. Sends history + system prompt to `/api/chat` (backend) or directly to Anthropic (standalone mode)
+3. Sends history + system prompt to `/api/chat` (backend proxy to Google Gemini)
 4. Streams the response back and appends to the chat UI
 
 ### Data Flow
@@ -83,7 +83,7 @@ Event Handler (in app.js)
     ├──► saveState() → localStorage
     └──► render*() → DOM update
               │
-              └──► (if AI call) → /api/chat → Claude → appendChatMsg()
+              └──► (if AI call) → /api/chat → Gemini → appendChatMsg()
 ```
 
 ## Security Model
@@ -130,7 +130,7 @@ Event Handler (in app.js)
 - [ ] Calendar view with drag scheduling
 - [ ] Markdown export for notes
 - [ ] PWA with offline support + install prompt
-- [ ] Claude streaming (SSE) for AI responses
+- [ ] Gemini streaming (SSE) for AI responses
 - [ ] Multi-user mode with JWT auth
 - [ ] PostgreSQL backend for data persistence
 - [ ] Mobile app via Capacitor
