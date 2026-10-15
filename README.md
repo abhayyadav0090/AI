@@ -8,7 +8,7 @@
 ![Anthropic](https://img.shields.io/badge/Claude-Sonnet%204-cc785c?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-22d3ee?style=for-the-badge)
 
-**A full-stack, AI-powered productivity operating system built with vanilla JS, Node.js/Express, and the Anthropic Claude API.**
+**A full-stack, AI-powered productivity operating system built with vanilla JS, Node.js/Express, and the Google Gemini API.**
 
 [🚀 Live Demo](#) · [📸 Screenshots](#screenshots) · [🛠 Tech Stack](#tech-stack) · [⚡ Quick Start](#quick-start)
 
@@ -57,7 +57,7 @@ Built as a showcase of full-stack web development, modern UX design, and practic
 - **Productivity Score** — composite SVG ring score (0–100) based on all modules
 - **Weekly Task Velocity** — line chart comparing task throughput
 
-### 🤖 AI Coach (Powered by Claude)
+### 🤖 AI Coach (Powered by Gemini)
 - Full conversation history with context awareness
 - Receives live snapshot of your tasks, habits, focus time, and notes
 - Suggested prompts: analyze your week, prioritize tasks, plan your day, suggest habits
@@ -82,7 +82,7 @@ Built as a showcase of full-stack web development, modern UX design, and practic
 | **Charts** | Chart.js 4.x |
 | **Fonts** | Syne (display), Outfit (body), JetBrains Mono (data) |
 | **Backend** | Node.js 18+, Express 4.x |
-| **AI** | Anthropic Claude Sonnet 4 API |
+| **AI** | Anthropic Gemini API |
 | **Security** | Helmet.js, express-rate-limit, CORS |
 | **Performance** | Compression middleware, Morgan logging |
 | **Storage** | localStorage (client-side persistence, no database required) |
@@ -271,3 +271,36 @@ MIT © 2025 — Free to use, modify, and deploy. Attribution appreciated.
 <div align="center">
   Built with ☕ and ✦ Claude AI · <strong>NexOS v2.0</strong>
 </div>
+
+
+---
+
+## 🔐 Login, Database & Deployment
+
+NexOS uses **Google Sign-In** and saves each user's data in **MongoDB Atlas**.
+
+### Environment variables
+
+| Name | Where to get it |
+|---|---|
+| `MONGO_URI` | MongoDB Atlas > Connect > Drivers (add database name `nexos` before `?`) |
+| `GOOGLE_CLIENT_ID` | Google Cloud Console > APIs & Services > Credentials > OAuth client ID (Web) |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
+| `JWT_SECRET` | Any long random string (Render generates it automatically via `render.yaml`) |
+| `ALLOWED_ORIGINS` | Your site URL, e.g. `https://your-app.onrender.com` |
+
+In Google Cloud Console add your site URL (and `http://localhost:3000`) under **Authorized JavaScript origins**.
+In MongoDB Atlas > Network Access, allow `0.0.0.0/0`.
+
+### Run locally
+```bash
+cp .env.example .env   # fill in the values
+npm install
+npm run dev
+```
+
+### Deploy on Render
+New > Blueprint (uses `render.yaml`) or New > Web Service. Build: `npm install`, Start: `npm start`. Add the env variables above.
+
+### Deploy on Vercel
+Import the GitHub repo. `vercel.json` is already included. Add the same env variables in Project Settings > Environment Variables.

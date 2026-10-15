@@ -15,20 +15,142 @@ let state = {
   currentNoteId: null,
 };
 
-function loadState() {
+let currentUser = null;
+let saveTimer = null;
+
+// Load this user's data from MongoDB (via the server)
+async function loadState() {
   try {
-    const saved = localStorage.getItem(STATE_KEY);
-    if (saved) state = { ...state, ...JSON.parse(saved) };
+    const res = await fetch('/api/state');
+    if (!res.ok) throw new Error('status ' + res.status);
+    const { state: saved } = await res.json();
+    if (saved) {
+      state = { ...state, ...saved };
+    } else {
+      // First login: bring over any data saved in this browser before accounts existed
+      const old = localStorage.getItem(STATE_KEY);
+      if (old) {
+        state = { ...state, ...JSON.parse(old) };
+        await pushState();
+        localStorage.removeItem(STATE_KEY);
+      }
+    }
   } catch (e) { console.warn('State load failed', e); }
 }
 
+// Same name as before, so every existing saveState() call keeps working.
+// It waits 600ms after the last change, then sends everything to the server.
 function saveState() {
-  try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (e) {}
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushState, 600);
+}
+
+async function pushState() {
+  if (!currentUser) return;
+  try {
+    const body = JSON.stringify({ state });
+    await fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: body.length < 60000, // lets the save finish if the tab is closing
+    });
+  } catch (e) { console.warn('State save failed', e); }
+}
+
+// Save right away if the user switches tab or closes the page
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    pushState();
+  }
+});
+
+// ═══════════════════════════ AUTH ═══════════════════════════
+async function checkLogin() {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) return await res.json();
+  } catch (e) {}
+  return null;
+}
+
+function waitForGoogle() {
+  return new Promise(resolve => {
+    const t = setInterval(() => {
+      if (window.google && google.accounts && google.accounts.id) {
+        clearInterval(t);
+        resolve();
+      }
+    }, 100);
+  });
+}
+
+async function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const errEl = document.getElementById('login-error');
+  try {
+    const cfg = await (await fetch('/api/config')).json();
+    if (!cfg.googleClientId) { errEl.textContent = 'Google client ID is not configured on the server.'; return; }
+    await waitForGoogle();
+    google.accounts.id.initialize({ client_id: cfg.googleClientId, callback: handleGoogleLogin });
+    google.accounts.id.renderButton(document.getElementById('google-btn'), {
+      theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill',
+    });
+  } catch (e) { errEl.textContent = 'Could not load Google sign-in.'; }
+}
+
+async function handleGoogleLogin(response) {
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+    if (!res.ok) throw new Error('login failed');
+    startApp(await res.json());
+  } catch (e) { errEl.textContent = 'Sign-in failed. Please try again.'; }
+}
+
+async function logout() {
+  await pushState();
+  await fetch('/api/auth/logout', { method: 'POST' });
+  if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
+  location.reload();
+}
+
+function showUser(user) {
+  document.getElementById('user-name').textContent = user.name || 'You';
+  const av = document.getElementById('user-avatar');
+  if (user.picture) {
+    const img = document.createElement('img');
+    img.src = user.picture;
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    av.textContent = '';
+    av.appendChild(img);
+  } else {
+    av.textContent = (user.name || 'U')[0].toUpperCase();
+  }
 }
 
 // ═══════════════════════════ INIT ═══════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  loadState();
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await checkLogin();
+  if (user) startApp(user);
+  else showLogin();
+});
+
+async function startApp(user) {
+  currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  showUser(user);
+  await loadState();
   applyTheme();
   startClock();
   setGreeting();
@@ -40,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateContextPanel();
   // Seed demo data if first time
   if (!state.tasks.length && !state.habits.length && !state.notes.length) seedDemo();
-});
+}
 
 function seedDemo() {
   state.tasks = [

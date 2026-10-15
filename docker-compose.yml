@@ -9,7 +9,10 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MONGO_URI=${MONGO_URI}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=http://localhost:3000
     restart: unless-stopped
     healthcheck:

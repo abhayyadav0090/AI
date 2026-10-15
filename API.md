@@ -25,7 +25,7 @@ Returns server health status.
 
 ## `POST /api/chat`
 
-Multi-turn conversational AI endpoint. Proxies to Claude Sonnet 4.
+Multi-turn conversational AI endpoint. Proxies to Gemini.
 
 **Rate limit:** 20 requests/minute per IP.
 
@@ -64,8 +64,8 @@ Multi-turn conversational AI endpoint. Proxies to Claude Sonnet 4.
 |---|---|
 | 400 | Missing or malformed `messages` array |
 | 429 | Rate limit exceeded |
-| 500 | Server error / Anthropic API error |
-| 503 | Anthropic API unavailable |
+| 500 | Server error / Gemini API error |
+| 503 | Gemini API unavailable |
 
 ---
 
@@ -108,7 +108,7 @@ Returns app name and version.
 
 ## Frontend ↔ Backend Integration
 
-When running with the backend, `app.js` calls `/api/chat` and `/api/complete` instead of hitting Anthropic directly. The API key is never exposed to the browser.
+When running with the backend, `app.js` calls `/api/chat` and `/api/complete` instead of hitting Gemini directly. The API key is never exposed to the browser.
 
 **Standalone mode** (no backend): the frontend calls `https://api.anthropic.com/v1/messages` directly. Requires the API key to be embedded in the JS — only use for local development, never deploy publicly.
 
