@@ -5,63 +5,197 @@
 
 // ═══════════════════════════ STATE ═══════════════════════════
 const STATE_KEY = 'nexos_v2';
+const CACHE_KEY = 'nexos_cache_v2';
+const PENDING_SYNC_KEY = 'nexos_pending_sync_v2';
+let stateLoadedOk = false;
+let clockTimer = null;
+let dueNotificationTimer = null;
 let state = {
   tasks: [],
   habits: [],
   notes: [],
   pomodoroLog: [], // [{date, minutes}]
   pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
+  dailyPlan: null,
+  dueNotificationsSeen: {},
   theme: 'dark',
   currentNoteId: null,
-  seeded: false,    // starter data has been offered once (so deleted samples never come back)
-  hideGuide: false, // "Getting started" card dismissed
+  seeded: false,
+  hideGuide: false,
   usedAI: false,
 };
 
 let currentUser = null;
 let saveTimer = null;
 
-// Load this user's data from MongoDB (via the server)
-async function loadState() {
-  try {
-    const res = await fetch('/api/state');
-    if (!res.ok) throw new Error('status ' + res.status);
-    const { state: saved } = await res.json();
-    if (saved) {
-      state = { ...state, ...saved };
-    } else {
-      // First login: bring over any data saved in this browser before accounts existed
-      const old = localStorage.getItem(STATE_KEY);
-      if (old) {
-        state = { ...state, ...JSON.parse(old) };
-        await pushState();
-        localStorage.removeItem(STATE_KEY);
-      }
-    }
-  } catch (e) { console.warn('State load failed', e); }
+// Load the signed-in user's data from MongoDB, with a browser cache as a fallback.
+function normalizeState(saved, replace = false) {
+  const defaults = {
+    tasks: [], habits: [], notes: [], pomodoroLog: [],
+    pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
+    dailyPlan: null, dueNotificationsSeen: {}, theme: 'dark', currentNoteId: null,
+    seeded: false, hideGuide: false, usedAI: false
+  };
+  const incoming = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  const next = { ...defaults, ...(replace ? {} : state), ...incoming };
+  const safeId = (value) => {
+    const id = String(value || '');
+    return /^[a-zA-Z0-9_-]{1,120}$/.test(id) ? id : uid();
+  };
+  const validCols = ['todo', 'inprogress', 'review', 'done'];
+  const validPriorities = ['low', 'medium', 'high'];
+  const taskIds = new Set();
+  next.tasks = (Array.isArray(next.tasks) ? next.tasks : []).filter(t => t && typeof t === 'object').map(t => {
+    let id = safeId(t.id);
+    if (taskIds.has(id)) id = uid();
+    taskIds.add(id);
+    const col = validCols.includes(t.col) ? t.col : 'todo';
+    const priority = validPriorities.includes(t.priority) ? t.priority : 'medium';
+    return {
+      ...t, id, title: String(t.title || 'Untitled task'),
+      desc: String(t.desc || ''), col, priority,
+      due: /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || '')) ? String(t.due) : '',
+      created: Number.isFinite(Number(t.created)) ? Number(t.created) : Date.now()
+    };
+  });
+  const habitIds = new Set();
+  next.habits = (Array.isArray(next.habits) ? next.habits : []).filter(h => h && typeof h === 'object').map(h => {
+    let id = safeId(h.id);
+    if (habitIds.has(id)) id = uid();
+    habitIds.add(id);
+    const checks = h.checks && typeof h.checks === 'object' && !Array.isArray(h.checks) ? h.checks : {};
+    return {
+      ...h, id, name: String(h.name || 'Untitled habit'),
+      color: /^#[0-9a-f]{3,8}$/i.test(String(h.color || '')) ? h.color : '#a78bfa',
+      checks, streak: Math.max(0, Number(h.streak) || 0)
+    };
+  });
+  const noteIds = new Set();
+  next.notes = (Array.isArray(next.notes) ? next.notes : []).filter(n => n && typeof n === 'object').map(n => {
+    let id = safeId(n.id);
+    if (noteIds.has(id)) id = uid();
+    noteIds.add(id);
+    const tags = Array.isArray(n.tags)
+      ? n.tags.map(t => String(t).trim().replace(/[^\p{L}\p{N}_ -]/gu, '').slice(0, 40)).filter(Boolean).slice(0, 30)
+      : [];
+    return {
+      ...n, id, title: String(n.title || 'Untitled Note'),
+      content: String(n.content || ''), tags,
+      pinned: !!n.pinned,
+      created: Number.isFinite(Number(n.created)) ? Number(n.created) : Date.now()
+    };
+  });
+  next.pomodoroLog = (Array.isArray(next.pomodoroLog) ? next.pomodoroLog : [])
+    .filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || '')) &&
+      Number.isFinite(Number(l.minutes)) && Number(l.minutes) >= 0)
+    .map(l => ({ date: String(l.date), minutes: Number(l.minutes) }));
+  next.pomodoroStats = {
+    ...defaults.pomodoroStats,
+    ...(next.pomodoroStats && typeof next.pomodoroStats === 'object' ? next.pomodoroStats : {})
+  };
+  next.dueNotificationsSeen = next.dueNotificationsSeen &&
+    typeof next.dueNotificationsSeen === 'object' && !Array.isArray(next.dueNotificationsSeen)
+    ? next.dueNotificationsSeen : {};
+  next.theme = next.theme === 'light' ? 'light' : 'dark';
+  next.seeded = !!next.seeded;
+  next.hideGuide = !!next.hideGuide;
+  next.usedAI = !!next.usedAI;
+  next.currentNoteId = next.notes.some(n => n.id === next.currentNoteId)
+    ? next.currentNoteId : (next.notes[0]?.id || null);
+
+  if (next.dailyPlan && typeof next.dailyPlan === 'object') {
+    const allIds = {
+      task: new Set(next.tasks.map(t => t.id)),
+      habit: new Set(next.habits.map(h => h.id))
+    };
+    next.dailyPlan = {
+      ...next.dailyPlan,
+      date: String(next.dailyPlan.date || ''),
+      items: (Array.isArray(next.dailyPlan.items) ? next.dailyPlan.items : [])
+        .filter(i => i && ['task', 'habit'].includes(i.type) && allIds[i.type].has(String(i.id)))
+        .map(i => ({
+          type: i.type, id: String(i.id),
+          start: /^\d{2}:\d{2}$/.test(String(i.start || '')) ? String(i.start) : '09:00',
+          duration: Math.min(240, Math.max(5, Number(i.duration) || 25))
+        }))
+    };
+  } else {
+    next.dailyPlan = null;
+  }
+  return next;
 }
 
-// Same name as before, so every existing saveState() call keeps working.
-// It waits 600ms after the last change, then sends everything to the server.
+function cacheState() {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(state)); } catch (_) {}
+}
+
+async function loadState() {
+  try {
+    const res = await fetch('/api/state', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('status ' + res.status);
+    const { state: saved } = await res.json();
+    stateLoadedOk = true;
+    const cached = localStorage.getItem(CACHE_KEY);
+    const hasPendingLocalChanges = localStorage.getItem(PENDING_SYNC_KEY) === '1';
+
+    if (saved && hasPendingLocalChanges && cached) {
+      state = normalizeState(JSON.parse(cached), true);
+      await pushState();
+    } else if (saved) {
+      state = normalizeState(saved, true);
+      try { localStorage.removeItem(PENDING_SYNC_KEY); } catch (_) {}
+    } else {
+      const old = localStorage.getItem(STATE_KEY);
+      if (old && !hasPendingLocalChanges) {
+        state = normalizeState(JSON.parse(old), true);
+        await pushState();
+        localStorage.removeItem(STATE_KEY);
+      } else if (cached) {
+        state = normalizeState(JSON.parse(cached), true);
+        await pushState();
+        localStorage.removeItem(STATE_KEY);
+      } else {
+        state = normalizeState({}, true);
+      }
+    }
+    cacheState();
+  } catch (e) {
+    console.warn('State load failed; using browser cache if available.', e);
+    const cached = localStorage.getItem(CACHE_KEY) || localStorage.getItem(STATE_KEY);
+    if (cached) {
+      try { state = normalizeState(JSON.parse(cached), true); }
+      catch (_) { state = normalizeState({}, true); }
+    }
+  }
+}
+
 function saveState() {
+  cacheState();
+  try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
   clearTimeout(saveTimer);
   saveTimer = setTimeout(pushState, 600);
 }
 
 async function pushState() {
-  if (!currentUser) return;
+  if (!currentUser || !stateLoadedOk) return;
   try {
     const body = JSON.stringify({ state });
-    await fetch('/api/state', {
+    const res = await fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body,
-      keepalive: body.length < 60000, // lets the save finish if the tab is closing
+      keepalive: body.length < 60000
     });
-  } catch (e) { console.warn('State save failed', e); }
+    if (!res.ok) throw new Error('status ' + res.status);
+    cacheState();
+    try { localStorage.removeItem(PENDING_SYNC_KEY); } catch (_) {}
+  } catch (e) {
+    try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
+    console.warn('State save failed; local cache retained.', e);
+  }
 }
 
-// Save right away if the user switches tab or closes the page
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && saveTimer) {
     clearTimeout(saveTimer);
@@ -96,13 +230,18 @@ async function showLogin() {
   const errEl = document.getElementById('login-error');
   try {
     const cfg = await (await fetch('/api/config')).json();
-    if (!cfg.googleClientId) { errEl.textContent = 'Google client ID is not configured on the server.'; return; }
+    if (!cfg.googleClientId) {
+      errEl.textContent = 'Google client ID is not configured on the server.';
+      return;
+    }
     await waitForGoogle();
     google.accounts.id.initialize({ client_id: cfg.googleClientId, callback: handleGoogleLogin });
     google.accounts.id.renderButton(document.getElementById('google-btn'), {
-      theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill',
+      theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill'
     });
-  } catch (e) { errEl.textContent = 'Could not load Google sign-in.'; }
+  } catch (e) {
+    errEl.textContent = 'Could not load Google sign-in.';
+  }
 }
 
 async function handleGoogleLogin(response) {
@@ -112,11 +251,13 @@ async function handleGoogleLogin(response) {
     const res = await fetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential: response.credential }),
+      body: JSON.stringify({ credential: response.credential })
     });
     if (!res.ok) throw new Error('login failed');
     startApp(await res.json());
-  } catch (e) { errEl.textContent = 'Sign-in failed. Please try again.'; }
+  } catch (e) {
+    errEl.textContent = 'Sign-in failed. Please try again.';
+  }
 }
 
 async function logout() {
@@ -154,12 +295,13 @@ async function startApp(user) {
   document.getElementById('app').style.display = '';
   showUser(user);
   await loadState();
-  // Starter data is offered only once per account. If the user deletes it, it stays deleted.
-  if (!state.seeded) {
+
+  if (!state.seeded && stateLoadedOk) {
     if (!state.tasks.length && !state.habits.length && !state.notes.length) seedStarter();
     state.seeded = true;
     saveState();
   }
+
   applyTheme();
   startClock();
   setGreeting();
@@ -168,37 +310,43 @@ async function startApp(user) {
   renderHabits();
   renderNotes();
   renderAnalytics();
+  renderPomTimer();
+  renderPomoStats();
   updateContextPanel();
-  initChat(); // loads saved chats in the background
+  updateNotifButtonUI();
+  checkDueNotifications();
+  if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
+  initChat();
 }
 
-// Small starter set that explains the app. Every item is flagged `sample: true`
-// so "Clear sample data" can remove them without touching the user's own items.
 function seedStarter() {
   const now = Date.now();
   state.tasks = [
     { id: uid(), sample: true, title: 'Add your first task', col: 'todo', priority: 'medium', desc: 'Type a title at the top of this page and press Add.', due: '', created: now },
     { id: uid(), sample: true, title: 'Start a 25-minute focus session', col: 'todo', priority: 'high', desc: 'Open Focus Timer and press play.', due: '', created: now },
-    { id: uid(), sample: true, title: 'Drag this card to Done', col: 'inprogress', priority: 'low', desc: 'Drag cards between columns to track progress.', due: '', created: now },
+    { id: uid(), sample: true, title: 'Drag this card to Done', col: 'inprogress', priority: 'low', desc: 'Drag cards between columns to track progress.', due: '', created: now }
   ];
   state.habits = [
     { id: uid(), sample: true, name: 'Drink water', color: '#06b6d4', checks: {}, streak: 0 },
-    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#a78bfa', checks: {}, streak: 0 },
+    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#a78bfa', checks: {}, streak: 0 }
   ];
   state.notes = [
-    { id: uid(), sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in 25-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.', tags: ['welcome'], pinned: true, created: now },
+    {
+      id: uid(), sample: true, title: 'Welcome to NexOS',
+      content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in 25-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.',
+      tags: ['welcome'], pinned: true, created: now
+    }
   ];
 }
 
-// Items from the first version of NexOS had no `sample` flag, so match them by their old titles.
 const LEGACY_SAMPLES = {
   tasks: ['Set up NexOS workspace', 'Plan weekly goals', 'Complete morning routine', 'Deep work session (2h)', 'Review and reflect'],
   habits: ['Morning meditation', 'Exercise 30 min', 'Read 20 pages', 'No social media before noon'],
-  notes: ['Productivity Tips'],
+  notes: ['Productivity Tips']
 };
-const isSampleTask  = t => !!t.sample || LEGACY_SAMPLES.tasks.includes(t.title);
+const isSampleTask = t => !!t.sample || LEGACY_SAMPLES.tasks.includes(t.title);
 const isSampleHabit = h => !!h.sample || LEGACY_SAMPLES.habits.includes(h.name);
-const isSampleNote  = n => !!n.sample || LEGACY_SAMPLES.notes.includes(n.title) || (n.title || '').startsWith('Welcome to NexOS');
+const isSampleNote = n => !!n.sample || LEGACY_SAMPLES.notes.includes(n.title) || (n.title || '').startsWith('Welcome to NexOS');
 
 function clearSampleData() {
   if (!confirm('Remove the sample tasks, habits and notes? Anything you created yourself stays.')) return;
@@ -206,23 +354,35 @@ function clearSampleData() {
   state.habits = state.habits.filter(h => !isSampleHabit(h));
   state.notes = state.notes.filter(n => !isSampleNote(n));
   if (!state.notes.some(n => n.id === state.currentNoteId)) state.currentNoteId = null;
+  state.dailyPlan = null;
   saveState();
-  renderDashboard(); renderKanban(); renderHabits(); renderNotes(); renderAnalytics(); updateContextPanel();
+  renderDashboard();
+  renderKanban();
+  renderHabits();
+  renderNotes();
+  renderAnalytics();
+  updateContextPanel();
 }
 
-function hideGuide() { state.hideGuide = true; saveState(); renderGuide(); }
+function hideGuide() {
+  state.hideGuide = true;
+  saveState();
+  renderGuide();
+}
 
-// "Getting started" checklist on the Dashboard. Steps tick themselves as the user does them.
 function renderGuide() {
   const el = document.getElementById('guide-card');
   if (!el) return;
-  if (state.hideGuide) { el.style.display = 'none'; return; }
+  if (state.hideGuide) {
+    el.style.display = 'none';
+    return;
+  }
   const steps = [
-    { label: 'Add your first task',     view: 'kanban',   done: state.tasks.some(t => !isSampleTask(t)) },
-    { label: 'Finish a focus session',  view: 'pomodoro', done: state.pomodoroLog.length > 0 },
-    { label: 'Check off a habit',       view: 'habits',   done: state.habits.some(h => Object.values(h.checks || {}).some(Boolean)) },
-    { label: 'Write your own note',     view: 'notes',    done: state.notes.some(n => !isSampleNote(n)) },
-    { label: 'Ask NexAI something',     view: 'ai',       done: !!state.usedAI || chatList.length > 0 },
+    { label: 'Add your first task', view: 'kanban', done: state.tasks.some(t => !isSampleTask(t)) },
+    { label: 'Finish a focus session', view: 'pomodoro', done: state.pomodoroLog.length > 0 },
+    { label: 'Check off a habit', view: 'habits', done: state.habits.some(h => Object.values(h.checks || {}).some(Boolean)) },
+    { label: 'Write your own note', view: 'notes', done: state.notes.some(n => !isSampleNote(n)) },
+    { label: 'Ask NexAI something', view: 'ai', done: !!state.usedAI || chatList.length > 0 }
   ];
   const doneCount = steps.filter(s => s.done).length;
   const hasSamples = state.tasks.some(isSampleTask) || state.habits.some(isSampleHabit) || state.notes.some(isSampleNote);
@@ -246,10 +406,9 @@ function renderGuide() {
     </div>`;
   el.style.display = '';
 }
-
 // ═══════════════════════════ UTILS ═══════════════════════════
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-// Local calendar date as YYYY-MM-DD (the old code used UTC, so the day changed at 5:30 AM in India).
+
 function dateKey(d) {
   const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return x.toISOString().split('T')[0];
@@ -258,7 +417,7 @@ function today() { return dateKey(new Date()); }
 function fmtDate(iso) {
   if (!iso) return '';
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(iso); // plain dates are local, not UTC
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(iso);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function dayKey(offset = 0) {
@@ -276,7 +435,9 @@ function startClock() {
     const el = document.getElementById('topbar-clock');
     if (el) el.textContent = `${h}:${m}:${s}`;
   };
-  tick(); setInterval(tick, 1000);
+  tick();
+  if (clockTimer) clearInterval(clockTimer);
+  clockTimer = setInterval(tick, 1000);
 }
 
 function setGreeting() {
@@ -285,7 +446,9 @@ function setGreeting() {
   const el = document.getElementById('greeting-time');
   if (el) el.textContent = greet;
   const dateEl = document.getElementById('dashboard-date');
-  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
 }
 
 // ═══════════════════════════ THEME ═══════════════════════════
@@ -307,12 +470,14 @@ function switchView(name) {
   const navItem = document.querySelector(`[data-view="${name}"]`);
   if (navItem) navItem.classList.add('active');
   const breadcrumb = document.getElementById('breadcrumb');
-  const labels = { dashboard: 'Dashboard', kanban: 'Kanban Board', pomodoro: 'Focus Timer', habits: 'Habit Tracker', notes: 'Smart Notes', analytics: 'Analytics', ai: 'NexAI' };
+  const labels = {
+    dashboard: 'Dashboard', kanban: 'Kanban Board', pomodoro: 'Focus Timer',
+    habits: 'Habit Tracker', notes: 'Smart Notes', analytics: 'Analytics', ai: 'NexAI'
+  };
   if (breadcrumb) breadcrumb.textContent = labels[name] || name;
   if (name === 'dashboard') { renderDashboard(); updateStats(); }
   if (name === 'analytics') renderAnalytics();
   if (name === 'ai') updateContextPanel();
-  // close sidebar on mobile
   if (window.innerWidth < 900) document.getElementById('sidebar').classList.remove('open');
 }
 
@@ -324,7 +489,7 @@ function toggleSidebar() {
 function renderDashboard() {
   updateStats();
   renderGuide();
-  // Tasks
+
   const taskList = document.getElementById('dash-tasks-list');
   const priorityTasks = state.tasks.filter(t => t.col !== 'done').slice(0, 5);
   if (priorityTasks.length) {
@@ -337,11 +502,11 @@ function renderDashboard() {
   } else {
     taskList.innerHTML = '<div class="empty-state">No active tasks. Add some in Kanban!</div>';
   }
-  // Habits
+
   const habitList = document.getElementById('dash-habits-list');
   if (state.habits.length) {
     habitList.innerHTML = state.habits.slice(0, 4).map(h => {
-      const done = h.checks[today()];
+      const done = !!(h.checks && h.checks[today()]);
       return `<div class="dash-habit-item">
         <div style="display:flex;align-items:center;gap:8px">
           <div style="width:8px;height:8px;border-radius:50%;background:${h.color};flex-shrink:0"></div>
@@ -353,7 +518,7 @@ function renderDashboard() {
   } else {
     habitList.innerHTML = '<div class="empty-state">No habits tracked yet.</div>';
   }
-  // Notes
+
   const notesList = document.getElementById('dash-notes-list');
   const recentNotes = [...state.notes].sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 4);
   if (recentNotes.length) {
@@ -375,15 +540,12 @@ function openNoteFromDash(id) {
 function updateStats() {
   const activeTasks = state.tasks.filter(t => t.col !== 'done').length;
   document.getElementById('stat-tasks-val').textContent = activeTasks;
-  // Focus time today
   const todayLog = state.pomodoroLog.filter(l => l.date === today());
   const focusMins = todayLog.reduce((s, l) => s + l.minutes, 0);
   document.getElementById('stat-focus-val').textContent = focusMins + 'm';
-  // Habits today
   const doneHabits = state.habits.filter(h => h.checks[today()]).length;
   const pct = state.habits.length ? Math.round((doneHabits / state.habits.length) * 100) : 0;
   document.getElementById('stat-habits-val').textContent = pct + '%';
-  // Notes
   document.getElementById('stat-notes-val').textContent = state.notes.length;
 }
 
@@ -400,7 +562,10 @@ function addTask() {
   input.value = '';
   saveState();
   renderKanban();
+  renderDashboard();
   updateStats();
+  updateContextPanel();
+  checkDueNotifications();
 }
 
 function renderKanban() {
@@ -421,6 +586,8 @@ function renderKanban() {
             <span class="priority-chip priority-${t.priority}">${t.priority}</span>
             ${t.due ? `<span class="task-due">${fmtDate(t.due)}</span>` : ''}
             <div class="task-card-actions">
+              <button class="task-move-btn" onclick="moveTaskStep('${t.id}',-1)" title="Move to previous stage" ${['todo'].includes(t.col) ? 'disabled' : ''}>←</button>
+              <button class="task-move-btn" onclick="moveTaskStep('${t.id}',1)" title="Move to next stage" ${['done'].includes(t.col) ? 'disabled' : ''}>→</button>
               <button class="task-action-btn" onclick="openTaskModal('${t.id}')" title="Edit">✎</button>
               <button class="task-action-btn" onclick="deleteTask('${t.id}')" title="Delete">✕</button>
             </div>
@@ -430,6 +597,16 @@ function renderKanban() {
   });
 }
 
+function moveTaskStep(id, direction) {
+  const cols = ['todo', 'inprogress', 'review', 'done'];
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  const nextIndex = cols.indexOf(task.col) + (Number(direction) || 0);
+  if (nextIndex < 0 || nextIndex >= cols.length) return;
+  setTaskCol(task, cols[nextIndex]);
+  saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
+}
+
 function dragStart(id) {
   dragId = id;
   setTimeout(() => { const el = document.getElementById('task-' + id); if (el) el.classList.add('dragging'); }, 0);
@@ -437,7 +614,6 @@ function dragStart(id) {
 function dragEnd() {
   if (dragId) { const el = document.getElementById('task-' + dragId); if (el) el.classList.remove('dragging'); }
 }
-// Moves a task to a column and remembers when it was completed (used by the Analytics chart).
 function setTaskCol(task, col) {
   if (task.col === col) return;
   task.col = col;
@@ -448,18 +624,28 @@ function dropTask(e, col) {
   e.preventDefault();
   if (!dragId) return;
   const task = state.tasks.find(t => t.id === dragId);
-  if (task) { setTaskCol(task, col); saveState(); renderKanban(); updateStats(); }
+  if (task) {
+    setTaskCol(task, col);
+    saveState(); renderKanban(); renderDashboard(); updateStats();
+    updateContextPanel(); renderAnalytics(); checkDueNotifications();
+  }
   dragId = null;
   document.querySelectorAll('.col-cards').forEach(c => c.classList.remove('drag-over'));
 }
+
 function dropOnCard(e, targetId) {
   e.preventDefault(); e.stopPropagation();
   if (!dragId || dragId === targetId) return;
   const target = state.tasks.find(t => t.id === targetId);
   const source = state.tasks.find(t => t.id === dragId);
-  if (target && source) { setTaskCol(source, target.col); saveState(); renderKanban(); updateStats(); }
+  if (target && source) {
+    setTaskCol(source, target.col);
+    saveState(); renderKanban(); renderDashboard(); updateStats();
+    updateContextPanel(); renderAnalytics(); checkDueNotifications();
+  }
   dragId = null;
 }
+
 document.addEventListener('dragover', e => {
   const col = e.target.closest('.col-cards');
   document.querySelectorAll('.col-cards').forEach(c => c.classList.remove('drag-over'));
@@ -468,7 +654,8 @@ document.addEventListener('dragover', e => {
 
 function deleteTask(id) {
   state.tasks = state.tasks.filter(t => t.id !== id);
-  saveState(); renderKanban(); updateStats();
+  if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'task' && item.id === id));
+  saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); checkDueNotifications();
 }
 
 // Task Modal
@@ -481,6 +668,8 @@ function openTaskModal(id) {
   document.getElementById('modal-title-input').value = task.title;
   document.getElementById('modal-desc-input').value = task.desc || '';
   document.getElementById('modal-priority-input').value = task.priority;
+  const stageInput = document.getElementById('modal-col-input');
+  if (stageInput) stageInput.value = task.col;
   document.getElementById('modal-due-input').value = task.due || '';
   document.getElementById('task-modal').classList.add('is-open');
 }
@@ -494,14 +683,18 @@ function saveTaskModal() {
   if (!editingTaskId) return;
   const task = state.tasks.find(t => t.id === editingTaskId);
   if (!task) return;
-  delete task.sample; // edited by the user, so it is no longer a sample
+  delete task.sample;
   task.title = document.getElementById('modal-title-input').value.trim() || task.title;
   task.desc = document.getElementById('modal-desc-input').value;
   task.priority = document.getElementById('modal-priority-input').value;
   task.due = document.getElementById('modal-due-input').value;
-  saveState(); renderKanban();
+  const newCol = document.getElementById('modal-col-input')?.value;
+  if (['todo', 'inprogress', 'review', 'done'].includes(newCol)) setTaskCol(task, newCol);
+  if (task.col === 'done' && !task.doneAt) task.doneAt = Date.now();
+  saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); checkDueNotifications();
   document.getElementById('task-modal').classList.remove('is-open');
 }
+
 async function aiSuggestTask() {
   const titleInput = document.getElementById('modal-title-input');
   const title = titleInput.value.trim();
@@ -534,9 +727,16 @@ function setMode(mode) {
 }
 
 function updateDurations() {
-  pomDurations.focus = parseInt(document.getElementById('focus-duration')?.value || 25);
-  pomDurations.short = parseInt(document.getElementById('short-duration')?.value || 5);
-  pomDurations.long = parseInt(document.getElementById('long-duration')?.value || 15);
+  const readDuration = (id, fallback, min, max) => {
+    const el = document.getElementById(id);
+    const raw = parseInt(el?.value || fallback, 10);
+    const value = Number.isFinite(raw) ? Math.min(max, Math.max(min, raw)) : fallback;
+    if (el && String(value) !== el.value) el.value = value;
+    return value;
+  };
+  pomDurations.focus = readDuration('focus-duration', 25, 1, 60);
+  pomDurations.short = readDuration('short-duration', 5, 1, 30);
+  pomDurations.long = readDuration('long-duration', 15, 1, 60);
   if (!pomState.running) {
     pomState.remaining = pomDurations[pomState.mode] * 60;
     renderPomTimer();
@@ -544,6 +744,7 @@ function updateDurations() {
 }
 
 function togglePomodoro() {
+  if (!pomState.running && pomState.remaining <= 0) pomState.remaining = (pomDurations[pomState.mode] || 25) * 60;
   pomState.running = !pomState.running;
   const btn = document.getElementById('pomo-play-btn');
   const miniBtn = document.getElementById('mini-play-btn');
@@ -555,20 +756,22 @@ function togglePomodoro() {
     if (btn) btn.textContent = '▶';
     if (miniBtn) miniBtn.textContent = '▶';
     clearInterval(pomTimer);
-  }
+       }
 }
 
 function togglePomodoroFromDash() { togglePomodoro(); }
 
 function pomTick() {
-  if (pomState.remaining > 0) {
+  if (pomState.remaining > 1) {
     pomState.remaining--;
     renderPomTimer();
-  } else {
-    clearInterval(pomTimer);
-    pomState.running = false;
-    pomSessionComplete();
+    return;
   }
+  pomState.remaining = 0;
+  renderPomTimer();
+  clearInterval(pomTimer);
+  pomState.running = false;
+  pomSessionComplete();
 }
 
 function pomSessionComplete() {
@@ -586,9 +789,7 @@ function pomSessionComplete() {
       state.pomodoroStats.longestStreak = pomState.sessionCount;
     }
     saveState(); updateStats();
-    // Play sound
     if (document.getElementById('sound-enabled')?.checked) playBeep();
-    // Auto-start break
     if (document.getElementById('auto-start')?.checked) {
       const nextMode = pomState.sessionCount % 4 === 0 ? 'long' : 'short';
       setMode(nextMode);
@@ -618,12 +819,23 @@ function playBeep() {
 function resetPomodoro() {
   clearInterval(pomTimer); pomState.running = false;
   pomState.remaining = pomDurations[pomState.mode] * 60;
-  document.getElementById('pomo-play-btn').textContent = '▶';
-  document.getElementById('mini-play-btn').textContent = '▶';
+  const playBtn = document.getElementById('pomo-play-btn');
+  const miniBtn = document.getElementById('mini-play-btn');
+  if (playBtn) playBtn.textContent = '▶';
+  if (miniBtn) miniBtn.textContent = '▶';
   renderPomTimer();
 }
 
-function skipPomodoro() { pomSessionComplete(); resetPomodoro(); }
+function skipPomodoro() {
+  clearInterval(pomTimer);
+  pomState.running = false;
+  const nextMode = pomState.mode === 'focus' ? 'short' : 'focus';
+  setMode(nextMode);
+  const btn = document.getElementById('pomo-play-btn');
+  const miniBtn = document.getElementById('mini-play-btn');
+  if (btn) btn.textContent = '▶';
+  if (miniBtn) miniBtn.textContent = '▶';
+}
 
 function renderPomTimer() {
   const total = pomDurations[pomState.mode] * 60;
@@ -640,14 +852,14 @@ function renderPomTimer() {
   const modeLabels = { focus: 'Focus Session', short: 'Short Break', long: 'Long Break' };
   const labelEl = document.getElementById('pomo-mode-label');
   if (labelEl) labelEl.textContent = modeLabels[pomState.mode];
-  // Mini timer
+
   const miniTime = document.getElementById('mini-timer-display');
   if (miniTime) miniTime.textContent = timeStr;
   const miniRing = document.getElementById('mini-ring-fg');
   if (miniRing) miniRing.style.strokeDashoffset = 264 * (1 - pct);
   const miniLabel = document.getElementById('mini-session-label');
   if (miniLabel) miniLabel.textContent = pomState.mode === 'focus' ? 'Focus' : 'Break';
-  // Session dots
+
   const dots = document.getElementById('session-dots');
   if (dots) {
     dots.innerHTML = Array.from({ length: 4 }, (_, i) =>
@@ -677,7 +889,7 @@ function addHabit() {
   if (!name) { input.focus(); return; }
   state.habits.push({ id: uid(), name, color, checks: {}, streak: 0 });
   input.value = '';
-  saveState(); renderHabits(); updateStats();
+  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel();
 }
 
 function renderHabits() {
@@ -699,6 +911,7 @@ function renderHabits() {
   }
   if (list) {
     list.innerHTML = state.habits.map(h => {
+      h.checks = h.checks && typeof h.checks === 'object' ? h.checks : {};
       const streak = calcStreak(h);
       return `<div class="habit-row">
         <div class="habit-name-cell">
@@ -729,7 +942,7 @@ function toggleHabit(id, dateKey) {
   if (!h) return;
   h.checks[dateKey] = !h.checks[dateKey];
   h.streak = calcStreak(h);
-  saveState(); renderHabits(); updateStats();
+  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
 }
 
 function calcStreak(h) {
@@ -737,7 +950,7 @@ function calcStreak(h) {
   let d = new Date();
   while (true) {
     const key = dateKey(d);
-    if (h.checks[key]) { streak++; d.setDate(d.getDate() - 1); }
+    if (h.checks && h.checks[key]) { streak++; d.setDate(d.getDate() - 1); }
     else break;
     if (streak > 365) break;
   }
@@ -746,14 +959,15 @@ function calcStreak(h) {
 
 function deleteHabit(id) {
   state.habits = state.habits.filter(h => h.id !== id);
-  saveState(); renderHabits(); updateStats();
+  if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'habit' && item.id === id));
+  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
 }
 
 function renderHeatmap() {
   const grid = document.getElementById('heatmap-grid');
   if (!grid) return;
+  grid.innerHTML = '';
   const weeks = 12; const days = 7;
-  const cells = [];
   for (let w = 0; w < weeks; w++) {
     const weekEl = document.createElement('div');
     weekEl.className = 'heatmap-week';
@@ -777,7 +991,7 @@ function newNote() {
   const note = { id: uid(), title: 'Untitled Note', content: '', tags: [], pinned: false, created: Date.now() };
   state.notes.unshift(note);
   state.currentNoteId = note.id;
-  saveState(); renderNotes(); renderNoteEditor();
+  saveState(); renderNotes(); renderNoteEditor(); updateContextPanel();
 }
 
 function renderNotes() {
@@ -790,7 +1004,7 @@ function renderNotes() {
     return (b.created || 0) - (a.created || 0);
   });
   if (filter === 'pinned') notes = notes.filter(n => n.pinned);
-  if (filter === 'tagged') notes = notes.filter(n => n.tags.length > 0);
+  if (filter === 'tagged') notes = notes.filter(n => Array.isArray(n.tags) && n.tags.length > 0);
   if (!notes.length) {
     list.innerHTML = '<div class="empty-state" style="padding:24px">No notes found.</div>';
   } else {
@@ -798,7 +1012,7 @@ function renderNotes() {
       <div class="note-list-item ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNote('${n.id}')">
         <div class="note-list-title">${n.pinned ? '📌 ' : ''}${escHtml(n.title)}</div>
         <div class="note-list-preview">${escHtml(n.content.slice(0, 60)) || 'Empty note'}</div>
-        ${n.tags.length ? `<div class="note-list-tags">${n.tags.map(t => `<span class="note-tag">#${escHtml(t)}</span>`).join('')}</div>` : ''}
+        ${(Array.isArray(n.tags) && n.tags.length) ? `<div class="note-list-tags">${n.tags.map(t => `<span class="note-tag">#${escHtml(t)}</span>`).join('')}</div>` : ''}
       </div>`).join('');
   }
   updateStats();
@@ -821,6 +1035,7 @@ function renderNoteEditor() {
   contentEl.value = note.content;
   if (pinBtn) pinBtn.style.opacity = note.pinned ? '1' : '0.4';
   if (tagsRow) {
+    note.tags = Array.isArray(note.tags) ? note.tags : [];
     tagsRow.innerHTML = note.tags.map(t => `
       <span class="note-tag" style="cursor:pointer" onclick="removeTag('${escHtml(t)}')">#${escHtml(t)} ✕</span>`).join('');
   }
@@ -830,11 +1045,11 @@ function renderNoteEditor() {
 function saveCurrentNote() {
   const note = state.notes.find(n => n.id === state.currentNoteId);
   if (!note) return;
-  delete note.sample; // edited by the user, so it is no longer a sample
+  delete note.sample;
   note.title = document.getElementById('note-title-input').value || 'Untitled';
   note.content = document.getElementById('note-content').value;
   note.updated = Date.now();
-  saveState(); renderNotes();
+  saveState(); renderNotes(); updateContextPanel();
   flashSaved();
 }
 
@@ -854,7 +1069,7 @@ function deleteCurrentNote() {
   if (!state.currentNoteId) return;
   state.notes = state.notes.filter(n => n.id !== state.currentNoteId);
   state.currentNoteId = state.notes[0]?.id || null;
-  saveState(); renderNotes();
+  saveState(); renderNotes(); updateContextPanel();
   if (!state.currentNoteId) {
     const titleEl = document.getElementById('note-title-input');
     const contentEl = document.getElementById('note-content');
@@ -864,15 +1079,17 @@ function deleteCurrentNote() {
 }
 
 function addTagToNote() {
-  const tag = prompt('Add tag:')?.trim().toLowerCase();
+  const rawTag = prompt('Add tag:')?.trim().toLowerCase();
+  if (!rawTag) return;
+  const tag = rawTag.replace(/[^\p{L}\p{N}_ -]/gu, '').slice(0, 40).trim();
   if (!tag) return;
   const note = state.notes.find(n => n.id === state.currentNoteId);
-  if (note && !note.tags.includes(tag)) { note.tags.push(tag); saveState(); renderNotes(); renderNoteEditor(); }
+  if (note && !note.tags.includes(tag)) { note.tags.push(tag); saveState(); renderNotes(); renderNoteEditor(); updateContextPanel(); }
 }
 
 function removeTag(tag) {
   const note = state.notes.find(n => n.id === state.currentNoteId);
-  if (note) { note.tags = note.tags.filter(t => t !== tag); saveState(); renderNoteEditor(); }
+  if (note) { note.tags = note.tags.filter(t => t !== tag); saveState(); renderNotes(); renderNoteEditor(); }
 }
 
 function updateWordCount() {
@@ -886,12 +1103,14 @@ document.addEventListener('input', e => {
   if (e.target.id === 'note-content') updateWordCount();
 });
 
-function searchNotes() {
-  const query = document.getElementById('notes-search').value.toLowerCase();
+function searchNotes() {  
+   const query = (document.getElementById('notes-search')?.value || '').toLowerCase();
   const list = document.getElementById('notes-list');
   if (!list) return;
   const notes = state.notes.filter(n =>
-    n.title.toLowerCase().includes(query) || n.content.toLowerCase().includes(query)
+    String(n.title || '').toLowerCase().includes(query) ||
+    String(n.content || '').toLowerCase().includes(query) ||
+    (Array.isArray(n.tags) && n.tags.some(t => t.toLowerCase().includes(query)))
   ).sort((a, b) => (b.created || 0) - (a.created || 0));
   list.innerHTML = notes.map(n => `
     <div class="note-list-item ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNote('${n.id}')">
@@ -902,7 +1121,7 @@ function searchNotes() {
 
 function filterNotes(filter, btn) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   const list = document.getElementById('notes-list');
   if (list) list.dataset.filter = filter;
   renderNotes();
@@ -919,19 +1138,37 @@ async function summarizeNote() {
     note.content = `## AI Summary\n${summary}\n\n---\n\n${original}`;
     contentEl.value = note.content;
     saveState(); updateWordCount();
-  } catch (e) { contentEl.value = original; alert('Could not summarize.'); }
+  } catch (e) {
+    contentEl.value = original;
+    alert('Could not summarize.');
+  }
 }
 
 // ═══════════════════════════ ANALYTICS ═══════════════════════════
 let focusChartInstance = null, donutChartInstance = null, velocityChartInstance = null;
 
 function renderAnalytics() {
-  const days = parseInt(document.getElementById('analytics-range')?.value || 7);
-  renderFocusChart(days);
-  renderTaskDonut();
+  const rawDays = parseInt(document.getElementById('analytics-range')?.value || 7, 10);
+  const days = [7, 14, 30].includes(rawDays) ? rawDays : 7;
+  if (typeof window.Chart !== 'undefined') {
+    document.querySelectorAll('.chart-unavailable').forEach(el => el.remove());
+    renderFocusChart(days);
+    renderTaskDonut();
+    renderVelocityChart(days);
+  } else {
+    ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
+      const canvas = document.getElementById(id);
+      if (canvas && canvas.parentElement && !canvas.parentElement.querySelector('.chart-unavailable')) {
+        const msg = document.createElement('div');
+        msg.className = 'chart-unavailable empty-state';
+        msg.textContent = 'Charts could not load. Check your connection and refresh.';
+        canvas.parentElement.appendChild(msg);
+      }
+    });
+  }
   renderHabitBars();
   renderProductivityScore();
-  renderVelocityChart(days);
+  renderWeeklyReview();
 }
 
 function renderFocusChart(days) {
@@ -948,8 +1185,22 @@ function renderFocusChart(days) {
   if (focusChartInstance) focusChartInstance.destroy();
   focusChartInstance = new Chart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'Focus (min)', data, backgroundColor: 'rgba(167,139,250,0.5)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    data: {
+      labels,
+      datasets: [{
+        label: 'Focus (min)', data,
+        backgroundColor: 'rgba(167,139,250,0.5)',
+        borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
   });
 }
 
@@ -978,7 +1229,10 @@ function renderTaskDonut() {
 function renderHabitBars() {
   const container = document.getElementById('habit-bars');
   if (!container) return;
-  if (!state.habits.length) { container.innerHTML = '<div class="empty-state">No habits yet.</div>'; return; }
+  if (!state.habits.length) {
+    container.innerHTML = '<div class="empty-state">No habits yet.</div>';
+    return;
+  }
   const totalDays = 30;
   container.innerHTML = state.habits.map(h => {
     let done = 0;
@@ -1017,7 +1271,11 @@ function renderProductivityScore() {
   if (val) val.textContent = score;
   const desc = document.getElementById('score-desc');
   if (desc) {
-    desc.textContent = score >= 80 ? '🔥 Outstanding productivity!' : score >= 60 ? '⚡ Great momentum!' : score >= 40 ? '📈 Keep building.' : score > 0 ? '🌱 Just getting started.' : 'Complete tasks and habits to build your score.';
+    desc.textContent = score >= 80 ? '🔥 Outstanding productivity!' :
+      score >= 60 ? '⚡ Great momentum!' :
+      score >= 40 ? '📈 Keep building.' :
+      score > 0 ? '🌱 Just getting started.' :
+      'Complete tasks and habits to build your score.';
   }
 }
 
@@ -1034,17 +1292,30 @@ function renderVelocityChart(days) {
   if (velocityChartInstance) velocityChartInstance.destroy();
   velocityChartInstance = new Chart(canvas, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Tasks Completed', data, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)', borderWidth: 2, pointRadius: 3, tension: 0.4, fill: true }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tasks Completed', data,
+        borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)',
+        borderWidth: 2, pointRadius: 3, tension: 0.4, fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
   });
 }
 
 // =========================== NEXAI ASSISTANT ===========================
-// Chats are saved on the server (MongoDB), so they survive refreshes and new devices.
-let chatList = [];        // [{ id, title, updatedAt }] newest first
-let activeChatId = null;  // null = a new chat that is not saved yet
-let chatBusy = false;     // true while waiting for a reply
-let welcomeHtml = '';     // the welcome bubble, copied from the page on first load
+let chatList = [];
+let activeChatId = null;
+let chatBusy = false;
+let welcomeHtml = '';
 
 function buildSystemContext() {
   const tasksActive = state.tasks.filter(t => t.col !== 'done');
@@ -1052,17 +1323,17 @@ function buildSystemContext() {
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
   const doneHabits = state.habits.filter(h => h.checks[today()]);
   const recentNotes = state.notes.slice(0, 3);
-  return `You are NexAI, the intelligent, empathetic assistant inside NexOS, built on Google Gemini. You have full context of the user's data.
+  return `You are NexAI, the intelligent assistant inside NexOS, built on Google Gemini. You have full context of the user's data.
 
 Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
 TASKS:
 - Active tasks (${tasksActive.length}): ${tasksActive.map(t => `"${t.title}" [${t.priority}/${t.col}]`).join(', ') || 'None'}
-- Completed today (${tasksDone.length}): ${tasksDone.map(t => t.title).slice(0, 5).join(', ') || 'None'}
+- Completed tasks: ${tasksDone.map(t => t.title).slice(0, 5).join(', ') || 'None'}
 
 FOCUS:
 - Today's focus time: ${focusMins} minutes
-- Total pomodoro sessions today: ${state.pomodoroLog.filter(l => l.date === today()).length}
+- Total Pomodoro sessions today: ${state.pomodoroLog.filter(l => l.date === today()).length}
 
 HABITS (today):
 - Done: ${doneHabits.map(h => h.name).join(', ') || 'None yet'}
@@ -1073,8 +1344,7 @@ NOTES (recent titles):
 ${recentNotes.map(n => `- "${n.title}"`).join('\n') || 'None'}
 
 Be concise, warm, and actionable. Use emojis sparingly. Format responses clearly.
-
-You can only give advice. You cannot change the user's tasks, habits or notes, so tell them what to do in the app instead of saying you did it.`;
+You can give advice, but cannot change tasks, habits or notes directly.`;
 }
 
 async function initChat() {
@@ -1108,14 +1378,17 @@ function timeAgo(ts) {
 function renderChatList() {
   const el = document.getElementById('chat-list');
   if (!el) return;
-  if (!chatList.length) { el.innerHTML = '<div class="chat-list-empty">Your chats will appear here.</div>'; return; }
+  if (!chatList.length) {
+    el.innerHTML = '<div class="chat-list-empty">Your chats will appear here.</div>';
+    return;
+  }
   el.innerHTML = chatList.map(c => `
     <div class="chat-list-item ${c.id === activeChatId ? 'active' : ''}" onclick="openChat('${escHtml(c.id)}')">
       <div class="chat-list-main">
         <div class="chat-list-title">${escHtml(c.title)}</div>
         <div class="chat-list-date">${timeAgo(c.updatedAt)}</div>
       </div>
-      <button class="chat-list-del" title="Delete chat" onclick="event.stopPropagation(); deleteChat('${escHtml(c.id)}')">\u2715</button>
+      <button class="chat-list-del" title="Delete chat" onclick="event.stopPropagation(); deleteChat('${escHtml(c.id)}')">✕</button>
     </div>`).join('');
 }
 
@@ -1197,7 +1470,6 @@ async function sendMessage() {
     upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
     if (!state.usedAI) { state.usedAI = true; saveState(); }
   } catch (e) {
-    // Nothing was saved on the server, so undo the message and put the text back to retry.
     removeTyping();
     userDiv?.remove();
     input.value = msg;
@@ -1217,13 +1489,12 @@ function sendSuggestedPrompt(text) {
   sendMessage();
 }
 
-// Escapes the text first (so AI output can never inject HTML), then applies simple formatting.
 function formatChat(text) {
   return escHtml(text)
     .replace(/^#{1,6}[ \t]+(.+)$/gm, '<strong>$1</strong>')
-    .replace(/^[ \t]*[*-][ \t]+/gm, '\u2022 ')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
+    .replace(/^[ \t]*[*-][ \t]+/gm, '• ')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')    
+     .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
     .replace(/`([^`\n]+)`/g, '<code style="background:var(--bg-card);padding:2px 5px;border-radius:3px;font-family:var(--font-mono);font-size:12px">$1</code>')
     .replace(/\n/g, '<br>');
 }
@@ -1245,13 +1516,18 @@ function showTyping() {
   const messages = document.getElementById('chat-messages');
   if (!messages) return;
   const div = document.createElement('div');
-  div.className = 'chat-msg assistant'; div.id = 'typing-indicator';
+  div.className = 'chat-msg assistant';
+  div.id = 'typing-indicator';
   div.innerHTML = `<div class="msg-avatar">\u2726</div><div class="msg-bubble"><div class="typing-indicator"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;
   messages.appendChild(div);
   scrollChat();
 }
+
 function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
-function scrollChat() { const m = document.getElementById('chat-messages'); if (m) m.scrollTop = m.scrollHeight; }
+function scrollChat() {
+  const m = document.getElementById('chat-messages');
+  if (m) m.scrollTop = m.scrollHeight;
+}
 
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -1268,7 +1544,10 @@ function updateContextPanel() {
   const done = state.tasks.filter(t => t.col === 'done').length;
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
   const doneHabits = state.habits.filter(h => h.checks[today()]).length;
-  const setCtx = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const setCtx = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
   setCtx('ctx-tasks', `${active} active, ${done} done`);
   setCtx('ctx-focus', `${focusMins} min today`);
   setCtx('ctx-habits', `${doneHabits}/${state.habits.length} done`);
@@ -1293,10 +1572,576 @@ async function getDailyInsight() {
   }
 }
 
+// ═══════════════════════════ NOTIFICATIONS ═══════════════════════════
+function updateNotifButtonUI() {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  if (!('Notification' in window)) {
+    btn.disabled = true;
+    btn.title = 'Notifications are not supported in this browser';
+    btn.textContent = '🔕';
+    return;
+  }
+  btn.disabled = false;
+  const permission = Notification.permission;
+  btn.textContent = permission === 'granted' ? '🔔' : permission === 'denied' ? '🔕' : '🔔';
+  btn.title = permission === 'granted' ? 'Notifications enabled' :
+    permission === 'denied' ? 'Notifications blocked by browser settings' :
+    'Enable task due-date notifications';
+  btn.setAttribute('aria-label', btn.title);
+}
+
+async function enableNotifications() {
+  if (!('Notification' in window)) {
+    alert('This browser does not support desktop notifications.');
+    updateNotifButtonUI();
+    return;
+  }
+  try {
+    let permission = Notification.permission;
+    if (permission === 'default') permission = await Notification.requestPermission();
+    updateNotifButtonUI();
+    if (permission === 'granted') {
+      checkDueNotifications();
+    } else if (permission === 'denied') {
+      alert('Notifications are blocked by your browser. You can enable them in this site’s browser settings.');
+    }
+  } catch (e) {
+    console.warn('Could not enable notifications.', e);
+    alert('Could not enable notifications in this browser.');
+  }
+}
+
+function checkDueNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'granted' || !Array.isArray(state.tasks)) return;
+  const todayKey = today();
+  const seen = state.dueNotificationsSeen && typeof state.dueNotificationsSeen === 'object'
+    ? state.dueNotificationsSeen : (state.dueNotificationsSeen = {});
+  const dueTasks = state.tasks.filter(t => t.col !== 'done' && t.due && t.due <= todayKey)
+    .filter(t => !seen[`${todayKey}_${t.id}`]).slice(0, 3);
+  dueTasks.forEach(task => {
+    const isOverdue = task.due < todayKey;
+    try {
+      const notification = new Notification(isOverdue ? 'Overdue task' : 'Task due today', {
+        body: task.title,
+        tag: `nexos-${todayKey}-${task.id}`,
+        silent: false
+      });
+      notification.onclick = () => {
+        window.focus();
+        switchView('kanban');
+        try { openTaskModal(task.id); } catch (_) {}
+        notification.close();
+      };
+      seen[`${todayKey}_${task.id}`] = true;
+    } catch (e) {
+      console.warn('Could not display a notification.', e);
+    }
+  });
+  if (dueTasks.length) saveState();
+}
+
+// ═══════════════════════════ JSON BACKUP / RESTORE ═══════════════════════════
+function exportData() {
+  try {
+    const payload = {
+      app: 'NexOS',
+      formatVersion: 2,
+      exportedAt: new Date().toISOString(),
+      state
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `nexos-backup-${today()}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error('Export failed.', e);
+    alert('Could not export your NexOS backup.');
+  }
+}
+
+async function importData(event) {
+  const input = event?.target || document.getElementById('import-file-input');
+  const file = input?.files?.[0];
+  if (!file) return;
+  try {
+    const raw = await file.text();
+    const parsed = JSON.parse(raw);
+    const incoming = parsed && parsed.state && typeof parsed.state === 'object' ? parsed.state : parsed;
+    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming) ||
+        !['tasks', 'habits', 'notes'].some(key => Array.isArray(incoming[key]))) {
+      throw new Error('This file does not look like a NexOS JSON backup.');
+    }
+    if (!confirm('Restore this backup? Your current NexOS tasks, habits, notes and settings will be replaced. This cannot be undone unless you export a backup first.')) return;
+    state = normalizeState(incoming, true);
+    state.seeded = true;
+    if (!state.currentNoteId && state.notes.length) state.currentNoteId = state.notes[0].id;
+    cacheState();
+    saveState();
+    applyTheme();
+    renderDashboard();
+    renderKanban();
+    renderHabits();
+    renderNotes();
+    renderAnalytics();
+    renderPomTimer();
+    renderPomoStats();
+    updateContextPanel();
+    updateNotifButtonUI();
+    checkDueNotifications();
+    alert('NexOS backup restored.');
+  } catch (e) {
+    console.error('Import failed.', e);
+    alert(e.message && e.message.includes('does not look') ? e.message : 'Could not import this file. Make sure it is a valid NexOS JSON backup.');
+  } finally {
+    if (input) input.value = '';
+  }
+}
+
+// ═══════════════════════════ GLOBAL SEARCH ═══════════════════════════
+function openSearchModal() {
+  const modal = document.getElementById('search-modal');
+  const input = document.getElementById('global-search-input');
+  if (!modal || !input) return;
+  modal.classList.add('is-open');
+  input.value = '';
+  runGlobalSearch();
+  setTimeout(() => input.focus(), 0);
+}
+
+function closeSearchModal(event) {
+  if (!event || event.target?.id === 'search-modal' || event.target?.closest?.('.modal-close')) {
+    document.getElementById('search-modal')?.classList.remove('is-open');
+  }
+}
+
+function runGlobalSearch() {
+  const query = (document.getElementById('global-search-input')?.value || '').trim().toLowerCase();
+  const resultsEl = document.getElementById('global-search-results');
+  if (!resultsEl) return;
+  if (!query) {
+    resultsEl.innerHTML = '<div class="empty-state">Search task titles, descriptions, note content or tags.</div>';
+    return;
+  }
+
+  const tasks = state.tasks.filter(t =>
+    `${t.title || ''} ${t.desc || ''} ${t.priority || ''} ${t.col || ''}`.toLowerCase().includes(query)
+  ).slice(0, 12);
+  const notes = state.notes.filter(n =>
+    `${n.title || ''} ${n.content || ''} ${(Array.isArray(n.tags) ? n.tags : []).join(' ')}`.toLowerCase().includes(query)
+  ).slice(0, 12);
+
+  const rows = [
+    ...tasks.map(t => ({ type: 'task', id: t.id, title: t.title || 'Untitled task', detail: `${t.col} · ${t.priority} priority` })),
+    ...notes.map(n => ({
+      type: 'note', id: n.id, title: n.title || 'Untitled note',
+      detail: Array.isArray(n.tags) && n.tags.length ? `Tags: ${n.tags.join(', ')}` : 'Note'
+    }))
+  ];
+  if (!rows.length) {
+    resultsEl.innerHTML = '<div class="empty-state">No matches found.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = rows.map(r => `
+    <div class="search-result-item" role="button" tabindex="0" data-search-type="${r.type}" data-search-id="${escHtml(r.id)}">
+      <div style="min-width:0">
+        <div style="color:var(--text-primary);font-size:13px">${escHtml(r.title)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${escHtml(r.detail)}</div>
+      </div>
+      <span class="search-result-type">${r.type}</span>
+    </div>`).join('');
+
+  resultsEl.querySelectorAll('[data-search-type]').forEach(el => {
+    const activate = () => {
+      const id = el.getAttribute('data-search-id');
+      const type = el.getAttribute('data-search-type');
+      closeSearchModal();
+      if (type === 'task') {
+        switchView('kanban');
+        openTaskModal(id);
+      } else {
+        const searchInput = document.getElementById('notes-search');
+        if (searchInput) searchInput.value = '';
+        switchView('notes');
+        const list = document.getElementById('notes-list');
+        if (list) list.dataset.filter = 'all';
+        document.querySelectorAll('.filter-btn').forEach((btn, i) => btn.classList.toggle('active', i === 0));
+        openNote(id);
+      }
+    };
+    el.addEventListener('click', activate);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+    });
+  });
+}
+
+// ═══════════════════════════ PLAN MY DAY ═══════════════════════════
+function clockMinutes(date = new Date()) { return date.getHours() * 60 + date.getMinutes(); }
+function timeLabel(totalMinutes) {
+  const safe = ((Math.floor(totalMinutes) % 1440) + 1440) % 1440;
+  const hour24 = Math.floor(safe / 60);
+  const minute = safe % 60;
+  return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+function parseTimeMinutes(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : 9 * 60;
+}
+
+function openPlanModal() {
+  const modal = document.getElementById('plan-modal');
+  if (!modal) return;
+  modal.classList.add('is-open');
+  const planItemsValid = state.dailyPlan && Array.isArray(state.dailyPlan.items) && state.dailyPlan.items.every(item =>
+    item.type === 'task' ? state.tasks.some(t => t.id === item.id) :
+    item.type === 'habit' ? state.habits.some(h => h.id === item.id) : false
+  );
+  if (!state.dailyPlan || state.dailyPlan.date !== today() || !Array.isArray(state.dailyPlan.items) || !planItemsValid) buildQuickLocalPlan(true);
+  else renderPlanItems();
+}
+
+function closePlanModal(event) {
+  if (!event || event.target?.id === 'plan-modal' || event.target?.closest?.('.modal-close')) {
+    document.getElementById('plan-modal')?.classList.remove('is-open');
+  }
+}
+
+function buildQuickLocalPlan(silent = false) {
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  const tasks = state.tasks.filter(t => t.col !== 'done').sort((a, b) => {
+    const p = (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1);
+    if (p) return p;
+    if (a.due && b.due && a.due !== b.due) return a.due.localeCompare(b.due);
+    if (a.due && !b.due) return -1;
+    if (!a.due && b.due) return 1;
+    return (a.created || 0) - (b.created || 0);
+  });
+  const items = [];
+  tasks.forEach(t => items.push({
+    type: 'task', id: t.id,
+    duration: Math.min(180, Math.max(10, Number(t.estimateMinutes) || ({ high: 45, medium: 30, low: 20 }[t.priority] || 30)))
+  }));
+  state.habits.forEach(h => items.push({
+    type: 'habit', id: h.id,
+    duration: Math.min(60, Math.max(5, Number(h.estimateMinutes) || 10))
+  }));
+
+  let cursor = Math.max(8 * 60, Math.ceil(clockMinutes() / 15) * 15);
+  if (cursor > 21 * 60) cursor = 9 * 60;
+  let tasksSincePause = 0;
+  items.forEach(item => {
+    item.start = timeLabel(cursor);
+    cursor += item.duration;
+    if (item.type === 'task') {
+      tasksSincePause++;
+      if (tasksSincePause % 2 === 0) cursor += 5;
+    } else cursor += 5;
+  });
+  state.dailyPlan = { date: today(), items, generatedAt: Date.now(), mode: 'local', aiSummary: '' };
+  saveState();
+  renderPlanItems();
+  if (!silent) {
+    const status = document.getElementById('plan-status-text');
+    if (status) status.textContent = items.length
+      ? 'Quick plan sorted by priority, due date and estimated effort.'
+      : 'No open tasks or habits were found. Add tasks or habits to build a plan.';
+  }
+}
+
+function renderPlanItems() {
+  const list = document.getElementById('plan-items-list');
+  const status = document.getElementById('plan-status-text');
+  if (!list) return;
+  const plan = state.dailyPlan;
+  const items = plan && Array.isArray(plan.items) ? plan.items : [];
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state">No items in today’s plan. Add tasks or habits, then auto-sort.</div>';
+  } else {
+    list.innerHTML = items.map((item, index) => {
+      const record = item.type === 'task'
+        ? state.tasks.find(t => t.id === item.id)
+        : state.habits.find(h => h.id === item.id);
+      if (!record) return '';
+      const done = item.type === 'task'
+        ? record.col === 'done'
+        : !!(record.checks && record.checks[today()]);
+      const detail = item.type === 'task' ? `${record.priority || 'medium'} priority` : 'Daily habit';
+      return `<div class="plan-item ${done ? 'done' : ''}">
+        <div class="plan-time">${escHtml(item.start || '09:00')}<br>${Math.max(5, Number(item.duration) || 25)} min</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:500;color:var(--text-primary)">${escHtml(record.title || record.name || 'Untitled')}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${escHtml(detail)}</div>
+        </div>
+        <button class="btn-sm" type="button" data-plan-index="${index}" title="${done ? 'Mark as not done' : 'Mark as done'}">${done ? '✓ Done' : 'Mark done'}</button>
+      </div>`;
+    }).join('') || '<div class="empty-state">The planned items no longer exist. Rebuild the plan.</div>';
+  }
+  if (status) {
+    if (plan?.aiSummary) status.textContent = plan.aiSummary;
+    else if (plan?.mode === 'ai') status.textContent = 'AI schedule created from your open tasks and habits.';
+    else status.textContent = 'Your focused schedule is ordered by priority and due date. Mark items done here to update NexOS.';
+  }
+  list.querySelectorAll('[data-plan-index]').forEach(button => {
+    button.addEventListener('click', () => {
+      const item = state.dailyPlan?.items?.[Number(button.getAttribute('data-plan-index'))];
+      if (item) togglePlanItem(item.type, item.id);    
+    });
+  });
+}
+
+function togglePlanItem(type, id) {
+  if (type === 'task') {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return;
+    setTaskCol(task, task.col === 'done' ? 'todo' : 'done');
+  } else if (type === 'habit') {
+    const habit = state.habits.find(h => h.id === id);
+    if (!habit) return;
+    habit.checks = habit.checks && typeof habit.checks === 'object' ? habit.checks : {};
+    habit.checks[today()] = !habit.checks[today()];
+    habit.streak = calcStreak(habit);
+  } else {
+    return;
+  }
+  saveState();
+  renderPlanItems();
+  renderDashboard();
+  renderKanban();
+  renderHabits();
+  updateStats();
+  updateContextPanel();
+  renderAnalytics();
+}
+
+async function generateAIPlan(force = true) {
+  const button = document.getElementById('plan-ai-btn');
+  const status = document.getElementById('plan-status-text');
+  if (button?.disabled) return;
+  if (!state.dailyPlan || state.dailyPlan.date !== today()) buildQuickLocalPlan(true);
+
+  const baseItems = (state.dailyPlan?.items || []).map(item => {
+    const record = item.type === 'task'
+      ? state.tasks.find(t => t.id === item.id)
+      : state.habits.find(h => h.id === item.id);
+    if (!record) return null;
+    return {
+      type: item.type,
+      id: item.id,
+      title: record.title || record.name,
+      duration: item.duration,
+      priority: item.type === 'task' ? record.priority : 'habit',
+      due: item.type === 'task' ? (record.due || '') : ''
+    };
+  }).filter(Boolean);
+
+  if (!baseItems.length) {
+    buildQuickLocalPlan(false);
+    return;
+  }
+
+  const oldLabel = button?.textContent;
+  if (button) { button.disabled = true; button.textContent = 'Planning…'; }
+  if (status) status.textContent = 'NexAI is arranging your day…';
+
+  try {
+    const prompt = `Create a realistic schedule for today. Current local time: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}. Every item must appear exactly once. Use the supplied IDs exactly. Respect due dates and prioritize high-priority tasks. Return ONLY a JSON array of objects with fields: type (task or habit), id, start (24-hour HH:MM), duration (minutes). Items: ${JSON.stringify(baseItems)}`;
+
+    const reply = await callAI(
+      prompt,
+      'You are an expert productivity planner. Return valid JSON only, with no markdown fence or commentary. Do not invent or omit IDs. Keep duration between 5 and 180 minutes. Start at or after the current local time when practical.'
+    );
+
+    const match = reply.match(/\[[\s\S]*\]/);
+    let proposed = null;
+    if (match) {
+      try { proposed = JSON.parse(match[0]); } catch (_) {}
+    }
+
+    const allowed = new Map(baseItems.map(i => [`${i.type}:${i.id}`, i]));
+    const used = new Set();
+    const parsed = [];
+
+    if (Array.isArray(proposed)) {
+      proposed.forEach(p => {
+        if (!p || !['task', 'habit'].includes(p.type)) return;
+        const key = `${p.type}:${String(p.id || '')}`;
+        if (!allowed.has(key) || used.has(key)) return;
+
+        const original = allowed.get(key);
+        const durationNum = Number(p.duration);
+        const duration = Math.min(180, Math.max(
+          5,
+          Number.isFinite(durationNum) ? durationNum : original.duration
+        ));
+        const start = /^\d{2}:\d{2}$/.test(String(p.start || '')) &&
+          Number(p.start.slice(0, 2)) < 24 &&
+          Number(p.start.slice(3, 5)) < 60
+          ? p.start : '09:00';
+
+        parsed.push({ type: original.type, id: original.id, duration, start });
+        used.add(key);
+      });
+    }
+
+    let cursor = parsed.length
+      ? Math.max(...parsed.map(p => parseTimeMinutes(p.start) + p.duration)) + 5
+      : Math.max(8 * 60, Math.ceil(clockMinutes() / 15) * 15);
+
+    baseItems.forEach(item => {
+      const key = `${item.type}:${item.id}`;
+      if (!used.has(key)) {
+        parsed.push({
+          type: item.type,
+          id: item.id,
+          duration: item.duration,
+          start: timeLabel(cursor)
+        });
+        cursor += item.duration + 5;
+      }
+    });
+
+    if (parsed.length && proposed) {
+      parsed.sort((a, b) => parseTimeMinutes(a.start) - parseTimeMinutes(b.start));
+      state.dailyPlan = {
+        date: today(),
+        items: parsed,
+        generatedAt: Date.now(),
+        mode: 'ai',
+        aiSummary: 'AI arranged your tasks and habits. Mark items done here to update your workspace.'
+      };
+    } else {
+      state.dailyPlan.aiSummary =
+        `AI suggestion (your local schedule is preserved): ${String(reply).slice(0, 500)}`;
+    }
+
+    saveState();
+    renderPlanItems();
+  } catch (e) {
+    console.warn('AI planning failed.', e);
+    if (status) status.textContent =
+      `${e.userMessage || 'AI planning is unavailable right now.'} Your local schedule is preserved.`;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = oldLabel || '✦ Generate with AI';
+    }
+  }
+}
+
+// ═══════════════════════════ WEEKLY REVIEW ═══════════════════════════
+function getPeriodStats(startOffset, endOffset) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + startOffset);
+
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  end.setDate(end.getDate() + endOffset);
+
+  const startKey = dateKey(start);
+  const endKey = dateKey(end);
+  const focus = state.pomodoroLog
+    .filter(l => l.date >= startKey && l.date <= endKey)
+    .reduce((sum, l) => sum + (Number(l.minutes) || 0), 0);
+  const tasks = state.tasks
+    .filter(t => t.doneAt && t.doneAt >= start.getTime() && t.doneAt <= end.getTime()).length;
+
+  let habitChecks = 0;
+  state.habits.forEach(h => {
+    Object.entries(h.checks || {}).forEach(([key, done]) => {
+      if (done && key >= startKey && key <= endKey) habitChecks++;
+    });
+  });
+
+  return {
+    focus,
+    tasks,
+    habitChecks,
+    average: Math.round(focus / Math.max(1, endOffset - startOffset + 1))
+  };
+}
+
+function renderWeeklyReview() {
+  const el = document.getElementById('weekly-review-body');
+  if (!el) return;
+
+  const current = getPeriodStats(-6, 0);
+  const previous = getPeriodStats(-13, -7);
+  const metrics = [
+    ['Tasks completed', current.tasks, previous.tasks, 'tasks'],
+    ['Focus time', current.focus, previous.focus, 'min'],
+    ['Habit check-ins', current.habitChecks, previous.habitChecks, 'check-ins'],
+    ['Avg. focus / day', current.average, previous.average, 'min/day']
+  ];
+
+  el.innerHTML = metrics.map(([label, value, prior, unit]) => {
+    const delta = value - prior;
+    const pct = prior ? Math.round((delta / prior) * 100) : (value ? 100 : 0);
+    const deltaText = prior === 0 && value === 0
+      ? 'No change vs previous week'
+      : `${delta > 0 ? '+' : ''}${delta} ${unit} vs previous week (${pct > 0 ? '+' : ''}${pct}%)`;
+    const color = delta > 0 ? 'var(--accent-emerald)' :
+      delta < 0 ? 'var(--accent-rose)' : 'var(--text-muted)';
+
+    return `<div class="review-stat-box">
+      <div style="font-size:12px;color:var(--text-muted)">${escHtml(label)}</div>
+      <div class="review-stat-val">${Number(value).toLocaleString()}<span style="font-size:11px;color:var(--text-muted);font-family:var(--font-body);font-weight:400"> ${escHtml(unit === 'tasks' || unit === 'check-ins' ? '' : unit)}</span></div>
+      <div class="review-stat-delta" style="color:${color}">${escHtml(deltaText)}</div>
+    </div>`;
+  }).join('');
+}
+
+function saveWeeklyReviewNote() {
+  const current = getPeriodStats(-6, 0);
+  const previous = getPeriodStats(-13, -7);
+  const diff = (value, old) =>
+    `${value} (${value - old >= 0 ? '+' : ''}${value - old} vs previous week)`;
+
+  const content = `# Weekly Review — ${today()}
+
+## Last 7 days
+- Tasks completed: ${diff(current.tasks, previous.tasks)}
+- Focus time: ${diff(current.focus, previous.focus)} minutes
+- Habit check-ins: ${diff(current.habitChecks, previous.habitChecks)}
+- Average focus per day: ${diff(current.average, previous.average)} minutes
+
+## Reflection
+- What worked well?
+- What should I improve next week?
+- What are my three priorities?
+`;
+
+  const note = {
+    id: uid(),
+    title: `Weekly Review — ${today()}`,
+    content,
+    tags: ['weekly-review', 'analytics'],
+    pinned: false,
+    created: Date.now()
+  };
+
+  state.notes.unshift(note);
+  state.currentNoteId = note.id;
+  saveState();
+  renderNotes();
+  updateStats();
+  updateContextPanel();
+  switchView('notes');
+}
+
 // =========================== AI API (Google Gemini) ===========================
-// All AI calls go through the secure backend proxy, so the API key never reaches the browser.
 async function apiErrorMessage(response) {
-  try { const d = await response.json(); if (d && d.error) return d.error; } catch (_) {}
+  try {
+    const d = await response.json();
+    if (d && d.error) return d.error;
+  } catch (_) {}
   if (response.status === 401) return 'Your session expired. Please sign in again.';
   if (response.status === 429) return 'Too many requests. Please wait a few seconds and try again.';
   return 'Something went wrong. Please try again.';
@@ -1305,12 +2150,17 @@ async function apiErrorMessage(response) {
 async function postJSON(url, body) {
   let response;
   try {
-    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
   } catch (_) {
     const err = new Error('network');
     err.userMessage = 'Could not reach the server. Check your internet connection and try again.';
     throw err;
   }
+
   if (!response.ok) {
     const err = new Error('API error ' + response.status);
     err.userMessage = await apiErrorMessage(response);
@@ -1319,49 +2169,78 @@ async function postJSON(url, body) {
   return response.json();
 }
 
-// One-off prompt (insight, task description, note summary). Not saved.
 async function callAI(prompt, systemPrompt = 'You are a helpful productivity assistant.') {
   const data = await postJSON('/api/complete', { prompt, system: systemPrompt });
   return data.text || '';
 }
 
-// A chat message. The server saves it and the reply to the chat's history.
 function callAIChat(chatId, message, system) {
   return postJSON('/api/chat', { chatId, message, system });
 }
 
 // ═══════════════════════════ HELPERS ═══════════════════════════
 function escHtml(str) {
-  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey) {
-    const shortcuts = { '1': 'dashboard', '2': 'kanban', '3': 'pomodoro', '4': 'habits', '5': 'notes', '6': 'analytics', '7': 'ai' };
-    if (shortcuts[e.key]) { e.preventDefault(); switchView(shortcuts[e.key]); }
-    if (e.key === 's' && document.getElementById('view-notes').classList.contains('active')) {
-      e.preventDefault(); saveCurrentNote();
+    const shortcuts = {
+      '1': 'dashboard', '2': 'kanban', '3': 'pomodoro',
+      '4': 'habits', '5': 'notes', '6': 'analytics', '7': 'ai'
+    };
+    if (shortcuts[e.key]) {
+      e.preventDefault();
+      switchView(shortcuts[e.key]);
+    }
+    if (e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      openSearchModal();
+    }
+    if (e.key === 's' && document.getElementById('view-notes')?.classList.contains('active')) {
+      e.preventDefault();
+      saveCurrentNote();
     }
   }
-  if (e.key === 'Escape') closeTaskModal();
+  if (e.key === 'Escape') {
+    closeTaskModal();
+    closeSearchModal();
+    closePlanModal();
+  }
 });
 
-// Mini gradient def for ring
+// Mini gradient definition for the dashboard timer ring
 document.addEventListener('DOMContentLoaded', () => {
   const svgNS = 'http://www.w3.org/2000/svg';
   const defs = document.createElementNS(svgNS, 'defs');
   const grad = document.createElementNS(svgNS, 'linearGradient');
+
   grad.setAttribute('id', 'miniGrad');
-  grad.setAttribute('x1', '0%'); grad.setAttribute('y1', '0%');
-  grad.setAttribute('x2', '100%'); grad.setAttribute('y2', '100%');
+  grad.setAttribute('x1', '0%');
+  grad.setAttribute('y1', '0%');
+  grad.setAttribute('x2', '100%');
+  grad.setAttribute('y2', '100%');
+
   const s1 = document.createElementNS(svgNS, 'stop');
-  s1.setAttribute('offset', '0%'); s1.setAttribute('stop-color', '#a78bfa');
+  s1.setAttribute('offset', '0%');
+  s1.setAttribute('stop-color', '#a78bfa');
+
   const s2 = document.createElementNS(svgNS, 'stop');
-  s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', '#06b6d4');
-  grad.appendChild(s1); grad.appendChild(s2); defs.appendChild(grad);
+  s2.setAttribute('offset', '100%');
+  s2.setAttribute('stop-color', '#06b6d4');
+
+  grad.appendChild(s1);
+  grad.appendChild(s2);
+  defs.appendChild(grad);
+
   const miniSvg = document.querySelector('.mini-ring-svg');
   if (miniSvg) miniSvg.insertBefore(defs, miniSvg.firstChild);
+
   renderPomTimer();
   renderPomoStats();
 });
