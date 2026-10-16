@@ -13,6 +13,9 @@ let state = {
   pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
   theme: 'dark',
   currentNoteId: null,
+  seeded: false,    // starter data has been offered once (so deleted samples never come back)
+  hideGuide: false, // "Getting started" card dismissed
+  usedAI: false,
 };
 
 let currentUser = null;
@@ -151,6 +154,12 @@ async function startApp(user) {
   document.getElementById('app').style.display = '';
   showUser(user);
   await loadState();
+  // Starter data is offered only once per account. If the user deletes it, it stays deleted.
+  if (!state.seeded) {
+    if (!state.tasks.length && !state.habits.length && !state.notes.length) seedStarter();
+    state.seeded = true;
+    saveState();
+  }
   applyTheme();
   startClock();
   setGreeting();
@@ -160,47 +169,101 @@ async function startApp(user) {
   renderNotes();
   renderAnalytics();
   updateContextPanel();
-  // Seed demo data if first time
-  if (!state.tasks.length && !state.habits.length && !state.notes.length) seedDemo();
+  initChat(); // loads saved chats in the background
 }
 
-function seedDemo() {
+// Small starter set that explains the app. Every item is flagged `sample: true`
+// so "Clear sample data" can remove them without touching the user's own items.
+function seedStarter() {
+  const now = Date.now();
   state.tasks = [
-    { id: uid(), title: 'Set up NexOS workspace', col: 'done', priority: 'high', desc: 'Customize settings and add first habits', due: today() },
-    { id: uid(), title: 'Plan weekly goals', col: 'inprogress', priority: 'high', desc: 'Use NexAI to prioritize tasks', due: today() },
-    { id: uid(), title: 'Complete morning routine', col: 'todo', priority: 'medium', desc: '', due: today() },
-    { id: uid(), title: 'Deep work session (2h)', col: 'todo', priority: 'high', desc: 'No distractions, phone away', due: today() },
-    { id: uid(), title: 'Review and reflect', col: 'review', priority: 'low', desc: 'End of day review', due: today() },
+    { id: uid(), sample: true, title: 'Add your first task', col: 'todo', priority: 'medium', desc: 'Type a title at the top of this page and press Add.', due: '', created: now },
+    { id: uid(), sample: true, title: 'Start a 25-minute focus session', col: 'todo', priority: 'high', desc: 'Open Focus Timer and press play.', due: '', created: now },
+    { id: uid(), sample: true, title: 'Drag this card to Done', col: 'inprogress', priority: 'low', desc: 'Drag cards between columns to track progress.', due: '', created: now },
   ];
   state.habits = [
-    { id: uid(), name: 'Morning meditation', color: '#a78bfa', checks: {}, streak: 0 },
-    { id: uid(), name: 'Exercise 30 min', color: '#10b981', checks: {}, streak: 0 },
-    { id: uid(), name: 'Read 20 pages', color: '#06b6d4', checks: {}, streak: 0 },
-    { id: uid(), name: 'No social media before noon', color: '#f59e0b', checks: {}, streak: 0 },
+    { id: uid(), sample: true, name: 'Drink water', color: '#06b6d4', checks: {}, streak: 0 },
+    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#a78bfa', checks: {}, streak: 0 },
   ];
   state.notes = [
-    { id: uid(), title: 'Welcome to NexOS ✦', content: 'This is your AI-powered productivity OS. Use the Kanban board to track tasks, the Focus Timer for deep work, and the NexAI for personalized guidance.\n\n**Getting Started:**\n- Add your tasks in the Kanban board\n- Build habits in the Habit Tracker\n- Ask the NexAI anything about your productivity', tags: ['welcome'], pinned: true, created: Date.now() },
-    { id: uid(), title: 'Productivity Tips', content: 'Key principles:\n1. Focus on one thing at a time\n2. Time-block your calendar\n3. Review weekly, not daily\n4. Build systems, not goals', tags: ['tips'], pinned: false, created: Date.now() - 86400000 },
+    { id: uid(), sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in 25-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.', tags: ['welcome'], pinned: true, created: now },
   ];
+}
+
+// Items from the first version of NexOS had no `sample` flag, so match them by their old titles.
+const LEGACY_SAMPLES = {
+  tasks: ['Set up NexOS workspace', 'Plan weekly goals', 'Complete morning routine', 'Deep work session (2h)', 'Review and reflect'],
+  habits: ['Morning meditation', 'Exercise 30 min', 'Read 20 pages', 'No social media before noon'],
+  notes: ['Productivity Tips'],
+};
+const isSampleTask  = t => !!t.sample || LEGACY_SAMPLES.tasks.includes(t.title);
+const isSampleHabit = h => !!h.sample || LEGACY_SAMPLES.habits.includes(h.name);
+const isSampleNote  = n => !!n.sample || LEGACY_SAMPLES.notes.includes(n.title) || (n.title || '').startsWith('Welcome to NexOS');
+
+function clearSampleData() {
+  if (!confirm('Remove the sample tasks, habits and notes? Anything you created yourself stays.')) return;
+  state.tasks = state.tasks.filter(t => !isSampleTask(t));
+  state.habits = state.habits.filter(h => !isSampleHabit(h));
+  state.notes = state.notes.filter(n => !isSampleNote(n));
+  if (!state.notes.some(n => n.id === state.currentNoteId)) state.currentNoteId = null;
   saveState();
-  renderDashboard();
-  renderKanban();
-  renderHabits();
-  renderNotes();
-  renderAnalytics();
+  renderDashboard(); renderKanban(); renderHabits(); renderNotes(); renderAnalytics(); updateContextPanel();
+}
+
+function hideGuide() { state.hideGuide = true; saveState(); renderGuide(); }
+
+// "Getting started" checklist on the Dashboard. Steps tick themselves as the user does them.
+function renderGuide() {
+  const el = document.getElementById('guide-card');
+  if (!el) return;
+  if (state.hideGuide) { el.style.display = 'none'; return; }
+  const steps = [
+    { label: 'Add your first task',     view: 'kanban',   done: state.tasks.some(t => !isSampleTask(t)) },
+    { label: 'Finish a focus session',  view: 'pomodoro', done: state.pomodoroLog.length > 0 },
+    { label: 'Check off a habit',       view: 'habits',   done: state.habits.some(h => Object.values(h.checks || {}).some(Boolean)) },
+    { label: 'Write your own note',     view: 'notes',    done: state.notes.some(n => !isSampleNote(n)) },
+    { label: 'Ask NexAI something',     view: 'ai',       done: !!state.usedAI || chatList.length > 0 },
+  ];
+  const doneCount = steps.filter(s => s.done).length;
+  const hasSamples = state.tasks.some(isSampleTask) || state.habits.some(isSampleHabit) || state.notes.some(isSampleNote);
+  el.innerHTML = `
+    <div class="guide-head">
+      <div>
+        <div class="guide-title">${doneCount === steps.length ? 'You are all set \u{1F389}' : 'Getting started'}</div>
+        <div class="guide-sub">${doneCount} of ${steps.length} done</div>
+      </div>
+      <div class="guide-actions">
+        ${hasSamples ? '<button class="btn-sm" onclick="clearSampleData()">Clear sample data</button>' : ''}
+        <button class="btn-sm" onclick="hideGuide()">Hide</button>
+      </div>
+    </div>
+    <div class="guide-steps">
+      ${steps.map(s => `
+        <div class="guide-step ${s.done ? 'done' : ''}" onclick="switchView('${s.view}')">
+          <span class="guide-check">${s.done ? '\u2713' : ''}</span>
+          <span>${s.label}</span>
+        </div>`).join('')}
+    </div>`;
+  el.style.display = '';
 }
 
 // ═══════════════════════════ UTILS ═══════════════════════════
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function today() { return new Date().toISOString().split('T')[0]; }
+// Local calendar date as YYYY-MM-DD (the old code used UTC, so the day changed at 5:30 AM in India).
+function dateKey(d) {
+  const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return x.toISOString().split('T')[0];
+}
+function today() { return dateKey(new Date()); }
 function fmtDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(iso); // plain dates are local, not UTC
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function dayKey(offset = 0) {
   const d = new Date(); d.setDate(d.getDate() + offset);
-  return d.toISOString().split('T')[0];
+  return dateKey(d);
 }
 
 // ═══════════════════════════ CLOCK + GREETING ═══════════════════════════
@@ -260,6 +323,7 @@ function toggleSidebar() {
 // ═══════════════════════════ DASHBOARD ═══════════════════════════
 function renderDashboard() {
   updateStats();
+  renderGuide();
   // Tasks
   const taskList = document.getElementById('dash-tasks-list');
   const priorityTasks = state.tasks.filter(t => t.col !== 'done').slice(0, 5);
@@ -373,11 +437,18 @@ function dragStart(id) {
 function dragEnd() {
   if (dragId) { const el = document.getElementById('task-' + dragId); if (el) el.classList.remove('dragging'); }
 }
+// Moves a task to a column and remembers when it was completed (used by the Analytics chart).
+function setTaskCol(task, col) {
+  if (task.col === col) return;
+  task.col = col;
+  if (col === 'done') task.doneAt = Date.now(); else delete task.doneAt;
+}
+
 function dropTask(e, col) {
   e.preventDefault();
   if (!dragId) return;
   const task = state.tasks.find(t => t.id === dragId);
-  if (task) { task.col = col; saveState(); renderKanban(); updateStats(); }
+  if (task) { setTaskCol(task, col); saveState(); renderKanban(); updateStats(); }
   dragId = null;
   document.querySelectorAll('.col-cards').forEach(c => c.classList.remove('drag-over'));
 }
@@ -386,7 +457,7 @@ function dropOnCard(e, targetId) {
   if (!dragId || dragId === targetId) return;
   const target = state.tasks.find(t => t.id === targetId);
   const source = state.tasks.find(t => t.id === dragId);
-  if (target && source) { source.col = target.col; saveState(); renderKanban(); updateStats(); }
+  if (target && source) { setTaskCol(source, target.col); saveState(); renderKanban(); updateStats(); }
   dragId = null;
 }
 document.addEventListener('dragover', e => {
@@ -423,6 +494,7 @@ function saveTaskModal() {
   if (!editingTaskId) return;
   const task = state.tasks.find(t => t.id === editingTaskId);
   if (!task) return;
+  delete task.sample; // edited by the user, so it is no longer a sample
   task.title = document.getElementById('modal-title-input').value.trim() || task.title;
   task.desc = document.getElementById('modal-desc-input').value;
   task.priority = document.getElementById('modal-priority-input').value;
@@ -613,7 +685,7 @@ function renderHabits() {
   const list = document.getElementById('habits-list');
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - 6 + i);
-    return { key: d.toISOString().split('T')[0], label: d.toLocaleDateString('en-US', { weekday: 'short' }), day: d.getDate() };
+    return { key: dateKey(d), label: d.toLocaleDateString('en-US', { weekday: 'short' }), day: d.getDate() };
   });
   if (header) {
     header.innerHTML = '<div></div>' + days.map(d => `
@@ -664,7 +736,7 @@ function calcStreak(h) {
   let streak = 0;
   let d = new Date();
   while (true) {
-    const key = d.toISOString().split('T')[0];
+    const key = dateKey(d);
     if (h.checks[key]) { streak++; d.setDate(d.getDate() - 1); }
     else break;
     if (streak > 365) break;
@@ -688,7 +760,7 @@ function renderHeatmap() {
     for (let d = 0; d < days; d++) {
       const offset = -(weeks - 1 - w) * 7 - (days - 1 - d);
       const dt = new Date(); dt.setDate(dt.getDate() + offset);
-      const key = dt.toISOString().split('T')[0];
+      const key = dateKey(dt);
       const count = state.habits.filter(h => h.checks[key]).length;
       const level = count === 0 ? 0 : count === 1 ? 1 : count <= 2 ? 2 : count <= 3 ? 3 : 4;
       const cell = document.createElement('div');
@@ -758,6 +830,7 @@ function renderNoteEditor() {
 function saveCurrentNote() {
   const note = state.notes.find(n => n.id === state.currentNoteId);
   if (!note) return;
+  delete note.sample; // edited by the user, so it is no longer a sample
   note.title = document.getElementById('note-title-input').value || 'Untitled';
   note.content = document.getElementById('note-content').value;
   note.updated = Date.now();
@@ -867,7 +940,7 @@ function renderFocusChart(days) {
   const labels = [], data = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = dateKey(d);
     labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     const mins = state.pomodoroLog.filter(l => l.date === key).reduce((s, l) => s + l.minutes, 0);
     data.push(mins);
@@ -911,7 +984,7 @@ function renderHabitBars() {
     let done = 0;
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      if (h.checks[d.toISOString().split('T')[0]]) done++;
+      if (h.checks[dateKey(d)]) done++;
     }
     const pct = Math.round((done / totalDays) * 100);
     return `<div style="margin-bottom:12px">
@@ -955,7 +1028,8 @@ function renderVelocityChart(days) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    data.push(Math.floor(Math.random() * 5)); // simulate; real data would track task completions per day
+    const key = dateKey(d);
+    data.push(state.tasks.filter(t => t.doneAt && dateKey(new Date(t.doneAt)) === key).length);
   }
   if (velocityChartInstance) velocityChartInstance.destroy();
   velocityChartInstance = new Chart(canvas, {
@@ -965,8 +1039,12 @@ function renderVelocityChart(days) {
   });
 }
 
-// ═══════════════════════════ NEXAI ASSISTANT ═══════════════════════════
-let chatHistory = [];
+// =========================== NEXAI ASSISTANT ===========================
+// Chats are saved on the server (MongoDB), so they survive refreshes and new devices.
+let chatList = [];        // [{ id, title, updatedAt }] newest first
+let activeChatId = null;  // null = a new chat that is not saved yet
+let chatBusy = false;     // true while waiting for a reply
+let welcomeHtml = '';     // the welcome bubble, copied from the page on first load
 
 function buildSystemContext() {
   const tasksActive = state.tasks.filter(t => t.col !== 'done');
@@ -994,54 +1072,173 @@ HABITS (today):
 NOTES (recent titles):
 ${recentNotes.map(n => `- "${n.title}"`).join('\n') || 'None'}
 
-Be concise, warm, and actionable. Use emojis sparingly. Format responses clearly.`;
+Be concise, warm, and actionable. Use emojis sparingly. Format responses clearly.
+
+You can only give advice. You cannot change the user's tasks, habits or notes, so tell them what to do in the app instead of saying you did it.`;
+}
+
+async function initChat() {
+  const box = document.getElementById('chat-messages');
+  if (box && !welcomeHtml) welcomeHtml = box.innerHTML;
+  await loadChatList();
+  if (chatList.length) await openChat(chatList[0].id);
+}
+
+async function loadChatList() {
+  try {
+    const res = await fetch('/api/chats');
+    if (!res.ok) throw new Error('status ' + res.status);
+    chatList = (await res.json()).chats || [];
+  } catch (e) { console.warn('Could not load chats', e); }
+  renderChatList();
+  renderGuide();
+}
+
+function timeAgo(ts) {
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + ' h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return days + ' d ago';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function renderChatList() {
+  const el = document.getElementById('chat-list');
+  if (!el) return;
+  if (!chatList.length) { el.innerHTML = '<div class="chat-list-empty">Your chats will appear here.</div>'; return; }
+  el.innerHTML = chatList.map(c => `
+    <div class="chat-list-item ${c.id === activeChatId ? 'active' : ''}" onclick="openChat('${escHtml(c.id)}')">
+      <div class="chat-list-main">
+        <div class="chat-list-title">${escHtml(c.title)}</div>
+        <div class="chat-list-date">${timeAgo(c.updatedAt)}</div>
+      </div>
+      <button class="chat-list-del" title="Delete chat" onclick="event.stopPropagation(); deleteChat('${escHtml(c.id)}')">\u2715</button>
+    </div>`).join('');
+}
+
+function upsertChat(chat) {
+  chatList = [chat, ...chatList.filter(c => c.id !== chat.id)];
+  renderChatList();
+}
+
+function setChips(visible) {
+  const chips = document.getElementById('suggested-prompts');
+  if (chips) chips.style.display = visible ? '' : 'none';
+}
+
+function renderMessages(messages) {
+  const box = document.getElementById('chat-messages');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!messages.length) box.innerHTML = welcomeHtml;
+  else messages.forEach(m => appendChatMsg(m.role, m.content));
+  setChips(!messages.length);
+  scrollChat();
+}
+
+async function openChat(id) {
+  if (chatBusy) return;
+  try {
+    const res = await fetch('/api/chats/' + encodeURIComponent(id));
+    if (!res.ok) throw new Error('status ' + res.status);
+    const { chat } = await res.json();
+    activeChatId = chat.id;
+    renderMessages(chat.messages || []);
+  } catch (e) {
+    appendChatMsg('assistant', 'Could not open that chat. Please try again.', 'error');
+  }
+  renderChatList();
+}
+
+function newChat() {
+  if (chatBusy) return;
+  activeChatId = null;
+  renderMessages([]);
+  renderChatList();
+  document.getElementById('chat-input')?.focus();
+}
+
+async function deleteChat(id) {
+  if (chatBusy) return;
+  if (!confirm('Delete this chat? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/chats/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!res.ok) throw new Error('status ' + res.status);
+    chatList = chatList.filter(c => c.id !== id);
+    if (activeChatId === id) { activeChatId = null; renderMessages([]); }
+    renderChatList();
+  } catch (e) {
+    appendChatMsg('assistant', 'Could not delete the chat. Please try again.', 'error');
+  }
 }
 
 async function sendMessage() {
+  if (chatBusy) return;
   const input = document.getElementById('chat-input');
   const msg = input.value.trim();
   if (!msg) return;
+  chatBusy = true;
+  document.querySelectorAll('#chat-messages .chat-msg.error').forEach(n => n.remove());
   input.value = '';
   autoResizeTextarea(input);
-  appendChatMsg('user', msg);
-  chatHistory.push({ role: 'user', content: msg });
-  document.getElementById('suggested-prompts')?.remove();
+  setChips(false);
+  const userDiv = appendChatMsg('user', msg);
   showTyping();
   const sendBtn = document.getElementById('chat-send-btn');
-  if (sendBtn) { sendBtn.disabled = true; document.getElementById('send-icon').textContent = '⏳'; }
+  if (sendBtn) sendBtn.disabled = true;
   try {
-    const reply = await callAIWithHistory(chatHistory, buildSystemContext());
+    const data = await callAIChat(activeChatId, msg, buildSystemContext());
     removeTyping();
-    chatHistory.push({ role: 'assistant', content: reply });
-    appendChatMsg('assistant', reply);
+    appendChatMsg('assistant', data.text);
+    activeChatId = data.chatId;
+    upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
+    if (!state.usedAI) { state.usedAI = true; saveState(); }
   } catch (e) {
+    // Nothing was saved on the server, so undo the message and put the text back to retry.
     removeTyping();
-    appendChatMsg('assistant', '⚠️ Could not connect to AI. Please check your connection and try again.');
+    userDiv?.remove();
+    input.value = msg;
+    autoResizeTextarea(input);
+    appendChatMsg('assistant', e.userMessage || 'Could not reach NexAI. Please try again.', 'error');
+    if (!activeChatId) setChips(true);
   }
-  if (sendBtn) { sendBtn.disabled = false; document.getElementById('send-icon').textContent = '↑'; }
+  chatBusy = false;
+  if (sendBtn) sendBtn.disabled = false;
   scrollChat();
 }
 
 function sendSuggestedPrompt(text) {
+  if (chatBusy) return;
+  switchView('ai');
   document.getElementById('chat-input').value = text;
   sendMessage();
 }
 
-function appendChatMsg(role, content) {
-  const messages = document.getElementById('chat-messages');
-  if (!messages) return;
-  const div = document.createElement('div');
-  div.className = `chat-msg ${role}`;
-  const formatted = content
+// Escapes the text first (so AI output can never inject HTML), then applies simple formatting.
+function formatChat(text) {
+  return escHtml(text)
+    .replace(/^#{1,6}[ \t]+(.+)$/gm, '<strong>$1</strong>')
+    .replace(/^[ \t]*[*-][ \t]+/gm, '\u2022 ')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:var(--bg-card);padding:2px 5px;border-radius:3px;font-family:var(--font-mono);font-size:12px">$1</code>')
+    .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
+    .replace(/`([^`\n]+)`/g, '<code style="background:var(--bg-card);padding:2px 5px;border-radius:3px;font-family:var(--font-mono);font-size:12px">$1</code>')
     .replace(/\n/g, '<br>');
+}
+
+function appendChatMsg(role, content, extraClass = '') {
+  const messages = document.getElementById('chat-messages');
+  if (!messages) return null;
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role} ${extraClass}`.trim();
   div.innerHTML = `
-    <div class="msg-avatar">${role === 'assistant' ? '✦' : 'U'}</div>
-    <div class="msg-bubble"><p>${formatted}</p></div>`;
+    <div class="msg-avatar">${role === 'assistant' ? '\u2726' : 'U'}</div>
+    <div class="msg-bubble"><p>${formatChat(content)}</p></div>`;
   messages.appendChild(div);
   scrollChat();
+  return div;
 }
 
 function showTyping() {
@@ -1049,13 +1246,12 @@ function showTyping() {
   if (!messages) return;
   const div = document.createElement('div');
   div.className = 'chat-msg assistant'; div.id = 'typing-indicator';
-  div.innerHTML = `<div class="msg-avatar">✦</div><div class="msg-bubble"><div class="typing-indicator"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;
+  div.innerHTML = `<div class="msg-avatar">\u2726</div><div class="msg-bubble"><div class="typing-indicator"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;
   messages.appendChild(div);
   scrollChat();
 }
 function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
 function scrollChat() { const m = document.getElementById('chat-messages'); if (m) m.scrollTop = m.scrollHeight; }
-function clearChat() { chatHistory = []; const m = document.getElementById('chat-messages'); if (m) m.innerHTML = '<div class="chat-msg assistant"><div class="msg-avatar">✦</div><div class="msg-bubble"><p>Chat cleared. How can I help you?</p></div></div>'; }
 
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -1092,33 +1288,46 @@ async function getDailyInsight() {
     if (text) text.textContent = insight;
     if (btn) btn.textContent = 'Refresh';
   } catch (e) {
-    if (text) text.textContent = 'Could not load insight. Try again.';
+    if (text) text.textContent = e.userMessage || 'Could not load insight. Try again.';
     if (btn) btn.textContent = 'Retry';
   }
 }
 
 // =========================== AI API (Google Gemini) ===========================
 // All AI calls go through the secure backend proxy, so the API key never reaches the browser.
+async function apiErrorMessage(response) {
+  try { const d = await response.json(); if (d && d.error) return d.error; } catch (_) {}
+  if (response.status === 401) return 'Your session expired. Please sign in again.';
+  if (response.status === 429) return 'Too many requests. Please wait a few seconds and try again.';
+  return 'Something went wrong. Please try again.';
+}
+
+async function postJSON(url, body) {
+  let response;
+  try {
+    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (_) {
+    const err = new Error('network');
+    err.userMessage = 'Could not reach the server. Check your internet connection and try again.';
+    throw err;
+  }
+  if (!response.ok) {
+    const err = new Error('API error ' + response.status);
+    err.userMessage = await apiErrorMessage(response);
+    throw err;
+  }
+  return response.json();
+}
+
+// One-off prompt (insight, task description, note summary). Not saved.
 async function callAI(prompt, systemPrompt = 'You are a helpful productivity assistant.') {
-  const response = await fetch('/api/complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, system: systemPrompt })
-  });
-  if (!response.ok) throw new Error('API error: ' + response.status);
-  const data = await response.json();
+  const data = await postJSON('/api/complete', { prompt, system: systemPrompt });
   return data.text || '';
 }
 
-async function callAIWithHistory(history, systemPrompt) {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: history.slice(-20), system: systemPrompt })
-  });
-  if (!response.ok) throw new Error('API error: ' + response.status);
-  const data = await response.json();
-  return data.text || '';
+// A chat message. The server saves it and the reply to the chat's history.
+function callAIChat(chatId, message, system) {
+  return postJSON('/api/chat', { chatId, message, system });
 }
 
 // ═══════════════════════════ HELPERS ═══════════════════════════

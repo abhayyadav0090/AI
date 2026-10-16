@@ -50,28 +50,40 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'PUT'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,  // 15 min
-  max: 200,
+  windowMs: 15 * 60 * 1000,   // 15 min
+  max: 600,                   // per IP, API calls only (static files are not counted)
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please slow down.' },
+  message: { error: 'Too many requests, please slow down.', code: 'RATE_LIMIT' },
 });
 
+// AI limits are per signed-in user (not per IP), so many testers on one
+// Wi-Fi network do not block each other.
+const userKey = (req) => String(req.userId || 'anon');
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,        // 1 min
-  max: 20,
+  max: 30,
+  keyGenerator: userKey,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'AI rate limit exceeded. Please wait a moment.' },
+  message: { error: 'You are sending messages too fast. Please wait a few seconds.', code: 'RATE_LIMIT' },
+});
+const aiDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 1 day
+  max: 500,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "You've reached today's AI limit. Please try again tomorrow.", code: 'DAILY_LIMIT' },
 });
 
-app.use(globalLimiter);
+app.use('/api', globalLimiter);
 
 // ── Static files ──────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -92,7 +104,7 @@ function connectDB() {
   return dbPromise;
 }
 // Only API routes that touch the database need it
-app.use(['/api/auth', '/api/me', '/api/state'], async (req, res, next) => {
+app.use(['/api/auth', '/api/me', '/api/state', '/api/chat', '/api/chats'], async (req, res, next) => {
   try { await connectDB(); next(); }
   catch (err) {
     console.error('MongoDB connection failed:', err.message);
@@ -114,9 +126,31 @@ const UserState = mongoose.model('UserState', new mongoose.Schema({
   data: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true, minimize: false }));
 
+// Saved AI conversations (one document per chat, owned by one user).
+const MAX_MSG_CHARS = 4000;      // longest single message a user can send
+const MAX_CHAT_MESSAGES = 200;   // messages kept in one chat
+const CONTEXT_MESSAGES = 40;     // how many recent messages the AI sees
+const MAX_CHATS = 100;           // saved chats per user (oldest are removed)
+
+const chatSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  title: { type: String, default: 'New chat' },
+  messages: [{
+    _id: false,
+    role: { type: String, enum: ['user', 'assistant'] },
+    content: String,
+    ts: Number,
+  }],
+}, { timestamps: true });
+chatSchema.index({ userId: 1, updatedAt: -1 });
+const Chat = mongoose.model('Chat', chatSchema);
+
 // ── Google login ──────────────────────────────────────────────────────────────
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
+
+// Express 4 does not catch errors from async handlers, so wrap them.
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 function requireAuth(req, res, next) {
   try {
@@ -171,19 +205,19 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/me', requireAuth, async (req, res) => {
+app.get('/api/me', requireAuth, wrap(async (req, res) => {
   const user = await User.findById(req.userId).select('name email picture');
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json(user);
-});
+}));
 
 // ── User data (replaces localStorage) ─────────────────────────────────────────
-app.get('/api/state', requireAuth, async (req, res) => {
+app.get('/api/state', requireAuth, wrap(async (req, res) => {
   const doc = await UserState.findOne({ userId: req.userId });
   res.json({ state: doc ? doc.data : null });
-});
+}));
 
-app.put('/api/state', requireAuth, async (req, res) => {
+app.put('/api/state', requireAuth, wrap(async (req, res) => {
   const { state } = req.body;
   if (!state || typeof state !== 'object')
     return res.status(400).json({ error: 'state object required' });
@@ -193,7 +227,7 @@ app.put('/api/state', requireAuth, async (req, res) => {
     { upsert: true, setDefaultsOnInsert: true }
   );
   res.json({ ok: true });
-});
+}));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -206,82 +240,179 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ── Gemini AI Proxy ───────────────────────────────────────────────────────────
+// ------------------------------ Gemini AI ------------------------------
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-const GEMINI_URL = (key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+// Optional: a second model to try when the first one is busy or over quota.
+const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || '';
+const geminiUrl = (model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-function toGeminiContents(messages, system) {
-  const contents = [];
-  if (system) {
-    contents.push({ role: 'user', parts: [{ text: `[System]: ${system}` }] });
-    contents.push({ role: 'model', parts: [{ text: 'Understood.' }] });
-  }
-  for (const m of messages.slice(-20)) {
-    contents.push({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    });
-  }
-  return contents;
+class AIError extends Error {
+  constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 
-app.post('/api/chat', requireAuth, aiLimiter, async (req, res) => {
-  const { messages, system } = req.body;
-  if (!Array.isArray(messages) || messages.length === 0)
-    return res.status(400).json({ error: 'messages array is required' });
+function aiErrorFor(upstreamStatus) {
+  if (upstreamStatus === 429) {
+    return new AIError(503, 'AI_BUSY', 'NexAI is busy right now (the AI service is at its free limit). Please wait about 30 seconds and try again.');
+  }
+  if (upstreamStatus === 400 || upstreamStatus === 401 || upstreamStatus === 403) {
+    return new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly. Please tell the site owner.');
+  }
+  return new AIError(502, 'AI_ERROR', 'NexAI could not answer right now. Please try again in a moment.');
+}
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Calls Gemini. Retries once on temporary errors, then tries the fallback model if one is set.
+async function askGemini({ system, contents }) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured.' });
+  if (!apiKey) throw new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly. Please tell the site owner.');
 
-  try {
-    const upstream = await fetch(GEMINI_URL(apiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: toGeminiContents(messages, system) }),
-    });
-    if (!upstream.ok) {
-      const err = await upstream.text();
-      return res.status(upstream.status).json({ error: 'Gemini API error', detail: err });
+  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(Boolean);
+  let lastStatus = 0;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let upstream;
+      try {
+        upstream = await fetch(geminiUrl(model), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+            contents,
+          }),
+          signal: AbortSignal.timeout(45000),
+        });
+      } catch (err) {
+        lastStatus = 0;
+        console.error(`Gemini ${model} network error:`, err.message);
+        await sleep(1000);
+        continue;
+      }
+
+      if (upstream.ok) {
+        const data = await upstream.json();
+        const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+        return text || "I couldn't produce an answer for that. Please try rephrasing your question.";
+      }
+
+      lastStatus = upstream.status;
+      const detail = await upstream.text().catch(() => '');
+      console.error(`Gemini ${model} returned ${upstream.status}:`, detail.slice(0, 300));
+      if (![429, 500, 502, 503, 504].includes(upstream.status)) break; // not worth retrying
+      await sleep(1500);
     }
-    const data = await upstream.json();
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-    return res.json({ text });
+  }
+  throw aiErrorFor(lastStatus);
+}
+
+// Turns saved chat messages into Gemini's format. Gemini needs roles to alternate
+// and the conversation to start with the user, so merge repeats and drop a leading model turn.
+function toGeminiContents(messages) {
+  const out = [];
+  for (const m of messages) {
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    const text = String(m.content || '').trim();
+    if (!text) continue;
+    const last = out[out.length - 1];
+    if (last && last.role === role) last.parts[0].text += '\n\n' + text;
+    else out.push({ role, parts: [{ text }] });
+  }
+  while (out.length && out[0].role !== 'user') out.shift();
+  return out;
+}
+
+function makeTitle(text) {
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length > 50 ? t.slice(0, 50).trim() + '...' : t;
+}
+
+function sendAIError(err, res, label) {
+  if (err instanceof AIError) return res.status(err.status).json({ error: err.message, code: err.code });
+  console.error(label + ' error:', err);
+  return res.status(500).json({ error: 'Something went wrong. Please try again.', code: 'SERVER_ERROR' });
+}
+
+async function pruneOldChats(userId) {
+  const extra = await Chat.find({ userId }).sort({ updatedAt: -1 }).skip(MAX_CHATS).select('_id').lean();
+  if (extra.length) await Chat.deleteMany({ _id: { $in: extra.map((c) => c._id) } });
+}
+
+// ------------------------------ Chat history ------------------------------
+// Send a message. The server saves both your message and the AI reply, so
+// chats survive refreshes, new devices and logins. Nothing is saved if the AI call fails.
+app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) => {
+  try {
+    const { chatId, message, system } = req.body || {};
+    const text = typeof message === 'string' ? message.trim() : '';
+    if (!text) return res.status(400).json({ error: 'Type a message first.', code: 'BAD_REQUEST' });
+    if (text.length > MAX_MSG_CHARS) {
+      return res.status(400).json({ error: `Message is too long (max ${MAX_MSG_CHARS} characters).`, code: 'TOO_LONG' });
+    }
+
+    let chat;
+    if (chatId) {
+      if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.', code: 'BAD_REQUEST' });
+      chat = await Chat.findOne({ _id: chatId, userId: req.userId });
+      if (!chat) return res.status(404).json({ error: 'Chat not found. Please start a new chat.', code: 'NOT_FOUND' });
+      if (chat.messages.length >= MAX_CHAT_MESSAGES) {
+        return res.status(400).json({ error: 'This chat is full. Please start a new chat.', code: 'CHAT_FULL' });
+      }
+    } else {
+      chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
+    }
+
+    const history = chat.messages.slice(-CONTEXT_MESSAGES).map((m) => ({ role: m.role, content: m.content }));
+    const reply = await askGemini({
+      system: typeof system === 'string' ? system.slice(0, 6000) : '',
+      contents: toGeminiContents([...history, { role: 'user', content: text }]),
+    });
+
+    chat.messages.push({ role: 'user', content: text, ts: Date.now() });
+    chat.messages.push({ role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() });
+    await chat.save();
+    pruneOldChats(req.userId).catch((e) => console.error('Prune failed:', e.message));
+
+    res.json({ text: reply, chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
   } catch (err) {
-    console.error('Chat proxy error:', err);
-    return res.status(500).json({ error: 'Internal server error', message: err.message });
+    sendAIError(err, res, 'Chat');
   }
 });
 
-// ── Gemini quick-call (single prompt) ────────────────────────────────────────
-app.post('/api/complete', requireAuth, aiLimiter, async (req, res) => {
-  const { prompt, system = 'You are a helpful productivity assistant.' } = req.body;
+app.get('/api/chats', requireAuth, wrap(async (req, res) => {
+  const chats = await Chat.find({ userId: req.userId })
+    .sort({ updatedAt: -1 }).limit(MAX_CHATS).select('title updatedAt').lean();
+  res.json({ chats: chats.map((c) => ({ id: c._id, title: c.title, updatedAt: c.updatedAt })) });
+}));
 
-  if (!prompt || typeof prompt !== 'string')
-    return res.status(400).json({ error: 'prompt string is required' });
+app.get('/api/chats/:id', requireAuth, wrap(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
+  const chat = await Chat.findOne({ _id: req.params.id, userId: req.userId }).lean();
+  if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+  res.json({ chat: { id: chat._id, title: chat.title, updatedAt: chat.updatedAt, messages: chat.messages } });
+}));
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured.' });
+app.delete('/api/chats/:id', requireAuth, wrap(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
+  await Chat.deleteOne({ _id: req.params.id, userId: req.userId });
+  res.json({ ok: true });
+}));
 
+// One-off prompts (daily insight, task descriptions, note summaries). Not saved.
+app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) => {
+  const { prompt, system } = req.body || {};
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'prompt string is required', code: 'BAD_REQUEST' });
+  }
   try {
-    const upstream = await fetch(GEMINI_URL(apiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: `[System]: ${system}` }] },
-          { role: 'model', parts: [{ text: 'Understood.' }] },
-          { role: 'user', parts: [{ text: prompt }] },
-        ],
-      }),
+    const text = await askGemini({
+      system: typeof system === 'string' ? system.slice(0, 6000) : 'You are a helpful productivity assistant.',
+      contents: [{ role: 'user', parts: [{ text: prompt.slice(0, 12000) }] }],
     });
-    if (!upstream.ok) throw new Error(`Gemini ${upstream.status}`);
-    const data = await upstream.json();
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-    return res.json({ text });
+    res.json({ text });
   } catch (err) {
-    console.error('Complete proxy error:', err);
-    return res.status(500).json({ error: err.message });
+    sendAIError(err, res, 'Complete');
   }
 });
 

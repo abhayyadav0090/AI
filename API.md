@@ -25,47 +25,52 @@ Returns server health status.
 
 ## `POST /api/chat`
 
-Multi-turn conversational AI endpoint. Proxies to Gemini.
+Sends one message to NexAI (Gemini). The server saves your message and the reply, so chats survive refreshes. Requires login. Nothing is saved if the AI call fails.
 
-**Rate limit:** 20 requests/minute per IP.
+**Limits:** 30 requests/minute and 500/day per signed-in user. A message can be up to 4000 characters, a chat holds up to 200 messages, and each user keeps up to 100 chats (oldest are removed).
 
 **Request body:**
 ```json
 {
-  "messages": [
-    { "role": "user",      "content": "Help me prioritize my tasks" },
-    { "role": "assistant", "content": "Sure! Tell me about your tasks..." },
-    { "role": "user",      "content": "I have 5 tasks due today..." }
-  ],
-  "system": "You are a productivity assistant with access to the user's task data...",
-  "max_tokens": 1000
+  "chatId": "66f0c0ffee...",
+  "message": "Help me prioritize my tasks",
+  "system": "You are NexAI ... (the user's task context)"
 }
 ```
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `messages` | `Message[]` | ✅ | Alternating user/assistant. Last 20 kept. |
-| `system` | `string` | ❌ | System prompt for the model |
-| `max_tokens` | `number` | ❌ | Default: 1000. Max: 4096 |
+| `chatId` | `string` | no | Omit to start a new chat |
+| `message` | `string` | yes | Max 4000 characters |
+| `system` | `string` | no | Context for the model, max 6000 characters |
 
 **Response 200:**
 ```json
-{
-  "text": "Here are your prioritized tasks...",
-  "usage": {
-    "input_tokens": 245,
-    "output_tokens": 312
-  }
-}
+{ "text": "Here are your priorities...", "chatId": "66f0c0ffee...", "title": "Help me prioritize my tasks", "updatedAt": "2026-10-16T10:30:00.000Z" }
 ```
 
-**Error responses:**
-| Code | Meaning |
-|---|---|
-| 400 | Missing or malformed `messages` array |
-| 429 | Rate limit exceeded |
-| 500 | Server error / Gemini API error |
-| 503 | Gemini API unavailable |
+**Errors** always look like `{ "error": "<message safe to show the user>", "code": "..." }`:
+| Status | `code` | Meaning |
+|---|---|---|
+| 400 | `BAD_REQUEST`, `TOO_LONG`, `CHAT_FULL` | Invalid message, too long, or the chat is full |
+| 404 | `NOT_FOUND` | Chat does not exist |
+| 429 | `RATE_LIMIT`, `DAILY_LIMIT` | Too many messages |
+| 500 | `AI_CONFIG`, `SERVER_ERROR` | API key or server problem |
+| 502 / 503 | `AI_ERROR`, `AI_BUSY` | Gemini failed or is over its quota (retried once automatically) |
+
+---
+
+## `GET /api/chats`
+
+Lists the signed-in user's chats, newest first: `{ "chats": [{ "id", "title", "updatedAt" }] }`.
+
+## `GET /api/chats/:id`
+
+Returns one chat with all messages: `{ "chat": { "id", "title", "updatedAt", "messages": [{ "role", "content", "ts" }] } }`.
+
+## `DELETE /api/chats/:id`
+
+Deletes one chat: `{ "ok": true }`.
 
 ---
 
@@ -73,7 +78,7 @@ Multi-turn conversational AI endpoint. Proxies to Gemini.
 
 Single-shot prompt completion. Simpler than `/api/chat`.
 
-**Rate limit:** 20 requests/minute per IP.
+**Limits:** shares the `/api/chat` limits (per signed-in user). Not saved.
 
 **Request body:**
 ```json

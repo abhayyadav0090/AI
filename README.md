@@ -193,18 +193,14 @@ All endpoints are prefixed with `/api`.
 Returns server status and uptime.
 
 ### `POST /api/chat`
-Proxies multi-turn conversation to Google Gemini.
+Sends one message to NexAI (Google Gemini). The server saves the message and the reply to the user's chat history. See `API.md` for details and error codes.
 
-**Body:**
-```json
-{
-  "messages": [{ "role": "user", "content": "Hello" }],
-  "system": "You are a helpful productivity assistant.",
-  "max_tokens": 1000
-}
-```
+**Body:** `{ "chatId": "optional", "message": "Hello", "system": "optional context" }`
 
-**Response:** `{ "text": "...", "usage": { ... } }`
+**Response:** `{ "text": "...", "chatId": "...", "title": "...", "updatedAt": "..." }`
+
+### `GET /api/chats`, `GET /api/chats/:id`, `DELETE /api/chats/:id`
+List, open and delete saved chats (signed-in user only).
 
 ### `POST /api/complete`
 Single-shot prompt completion.
@@ -280,6 +276,8 @@ NexOS uses **Google Sign-In** and saves each user's data in **MongoDB Atlas**.
 | `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
 | `JWT_SECRET` | Any long random string (Render generates it automatically via `render.yaml`) |
 | `ALLOWED_ORIGINS` | Your site URL, e.g. `https://your-app.onrender.com` |
+| `GEMINI_MODEL` | Optional. Model name, e.g. the one that works for your key |
+| `GEMINI_FALLBACK_MODEL` | Optional. Second model to try when the first is busy or over quota |
 
 In Google Cloud Console add your site URL (and `http://localhost:3000`) under **Authorized JavaScript origins**.
 In MongoDB Atlas > Network Access, allow `0.0.0.0/0`.

@@ -68,7 +68,7 @@ No virtual DOM, no framework — just direct, performant DOM manipulation.
 ### AI Integration
 The NexAI module:
 1. Builds a rich system prompt from current `state` (`buildSystemContext()`)
-2. Maintains a local `chatHistory` array for multi-turn context
+2. Saves every chat on the server (MongoDB `Chat` collection) so history survives refreshes and new devices
 3. Sends history + system prompt to `/api/chat` (backend proxy to Google Gemini)
 4. Streams the response back and appends to the chat UI
 
