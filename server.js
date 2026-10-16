@@ -274,6 +274,9 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) =
     const { chatId, message, system } = req.body || {};
     const text = typeof message === 'string' ? message.trim() : '';
     if (!text) return res.status(400).json({ error: 'Type a message first.', code: 'BAD_REQUEST' });
+    if (text.length > MAX_MSG_CHARS) {
+      return res.status(413).json({ error: `Messages must be ${MAX_MSG_CHARS} characters or fewer.`, code: 'MESSAGE_TOO_LONG' });
+    }
     let chat;
     if (chatId) {
       if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
@@ -289,6 +292,9 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) =
     });
     chat.messages.push({ role: 'user', content: text, ts: Date.now() });
     chat.messages.push({ role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() });
+    // Bound persisted history. The most recent 200 messages are enough for UI history;
+    // only the latest CONTEXT_MESSAGES are sent to Gemini for each request.
+    while (chat.messages.length > MAX_CHAT_MESSAGES) chat.messages.shift();
     await chat.save();
     pruneOldChats(req.userId).catch(() => {});
     res.json({ text: reply, chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
