@@ -5,25 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NexOS — AI Productivity Workspace</title>
 <meta name="description" content="NexOS is an AI productivity workspace with Kanban tasks, focus timer, habit tracker and smart notes. Powered by Google Gemini.">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="NexOS">
-<meta property="og:title" content="NexOS — Plan your day and stay focused">
-<meta property="og:description" content="AI workspace with tasks, focus timer, habits and notes. Powered by Google Gemini. Try it and share your feedback.">
-<meta property="og:url" content="https://ai-aqit.onrender.com">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="NexOS — Plan your day and stay focused">
-<meta name="twitter:description" content="AI workspace with tasks, focus timer, habits and notes. Powered by Google Gemini.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#05050a">
 <style>
-  /* Force modal hidden until JS explicitly shows it */
-  #task-modal { display: none !important; }
-  #task-modal.is-open { display: flex !important; }
+  #task-modal, #search-modal, #plan-modal { display: none !important; }
+  #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open { display: flex !important; }
 </style>
 </head>
 <body>
-<!-- Login screen (shown when the user is not signed in) -->
 <div id="login-screen" class="login-screen" style="display:none">
   <div class="login-card">
     <div class="logo-mark">N</div>
@@ -35,7 +27,6 @@
 </div>
 
 <div id="app" style="display:none">
-  <!-- Ambient Background -->
   <div class="ambient-bg">
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
@@ -43,7 +34,6 @@
     <div class="grid-overlay"></div>
   </div>
 
-  <!-- Sidebar -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">N</div>
@@ -83,25 +73,26 @@
     </div>
   </nav>
 
-  <!-- Main Content -->
   <main class="main-content">
-    <!-- TOP BAR -->
     <header class="topbar">
       <div class="topbar-left">
         <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
         <div class="breadcrumb" id="breadcrumb">Dashboard</div>
       </div>
       <div class="topbar-right">
+        <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks & notes (Ctrl+K)">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">⌘K</kbd></button>
+        <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
+        <button class="btn-icon" onclick="exportData()" title="Export JSON Backup">↓</button>
+        <button class="btn-icon" onclick="document.getElementById('import-file-input').click()" title="Import JSON Backup">↑</button>
+        <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
         <div class="clock" id="topbar-clock">00:00</div>
         <button class="btn-icon" onclick="switchView('ai')" title="Ask AI">✦</button>
         <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">◐</div>
       </div>
     </header>
 
-    <!-- VIEWS -->
     <div class="view-container">
-
-      <!-- ═══════════════════════════════════ DASHBOARD ═══════════════════════════════════ -->
+      <!-- DASHBOARD -->
       <section id="view-dashboard" class="view active">
         <div class="view-header">
           <div>
@@ -109,14 +100,13 @@
             <p class="view-subtitle" id="dashboard-date">Loading…</p>
           </div>
           <div class="header-actions">
+            <button class="btn-outline" onclick="openPlanModal()">📅 Plan My Day</button>
             <button class="btn-primary" onclick="switchView('ai')">✦ Ask NexAI</button>
           </div>
         </div>
 
-        <!-- Getting started (filled in by renderGuide) -->
         <div class="guide-card" id="guide-card" style="display:none"></div>
 
-        <!-- Stats Row -->
         <div class="stats-grid">
           <div class="stat-card" id="stat-tasks">
             <div class="stat-label">Tasks Today</div>
@@ -140,9 +130,7 @@
           </div>
         </div>
 
-        <!-- Widget Row -->
         <div class="dashboard-widgets">
-          <!-- Quick Tasks -->
           <div class="widget widget-tasks">
             <div class="widget-header">
               <h3>Today's Priorities</h3>
@@ -153,7 +141,6 @@
             </div>
           </div>
 
-          <!-- Pomodoro mini -->
           <div class="widget widget-pomodoro">
             <div class="widget-header">
               <h3>Focus Timer</h3>
@@ -174,7 +161,6 @@
             </div>
           </div>
 
-          <!-- Habit streak mini -->
           <div class="widget widget-habits">
             <div class="widget-header">
               <h3>Habit Streaks</h3>
@@ -185,7 +171,6 @@
             </div>
           </div>
 
-          <!-- Recent Notes -->
           <div class="widget widget-notes">
             <div class="widget-header">
               <h3>Recent Notes</h3>
@@ -197,7 +182,6 @@
           </div>
         </div>
 
-        <!-- AI Insight -->
         <div class="ai-insight-bar" id="ai-insight-bar">
           <span class="ai-insight-icon">✦</span>
           <span id="ai-insight-text">Click to get an AI-powered daily insight…</span>
@@ -205,7 +189,7 @@
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ KANBAN ═══════════════════════════════════ -->
+      <!-- KANBAN -->
       <section id="view-kanban" class="view">
         <div class="view-header">
           <div>
@@ -213,7 +197,7 @@
             <p class="view-subtitle">Drag tasks across stages</p>
           </div>
           <div class="header-actions">
-            <input type="text" id="new-task-input" placeholder="New task title…" class="input-inline">
+            <input type="text" id="new-task-input" placeholder="New task title…" class="input-inline" onkeydown="if(event.key==='Enter')addTask()">
             <select id="new-task-priority" class="select-inline">
               <option value="low">Low</option>
               <option value="medium" selected>Medium</option>
@@ -259,7 +243,7 @@
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ POMODORO ═══════════════════════════════════ -->
+      <!-- POMODORO -->
       <section id="view-pomodoro" class="view">
         <div class="view-header">
           <div>
@@ -267,17 +251,13 @@
             <p class="view-subtitle">Deep work with Pomodoro technique</p>
           </div>
         </div>
-
         <div class="pomodoro-layout">
           <div class="pomodoro-center">
-            <!-- Mode Tabs -->
             <div class="pomo-tabs">
               <button class="pomo-tab active" id="tab-focus" onclick="setMode('focus')">Focus</button>
               <button class="pomo-tab" id="tab-short" onclick="setMode('short')">Short Break</button>
               <button class="pomo-tab" id="tab-long" onclick="setMode('long')">Long Break</button>
             </div>
-
-            <!-- Main Ring -->
             <div class="pomo-ring-container">
               <svg viewBox="0 0 320 320" class="pomo-svg">
                 <defs>
@@ -294,22 +274,17 @@
                 <div class="pomo-mode-label" id="pomo-mode-label">Focus Session</div>
               </div>
             </div>
-
-            <!-- Controls -->
             <div class="pomo-controls">
               <button class="pomo-btn pomo-reset" onclick="resetPomodoro()" title="Reset">↺</button>
               <button class="pomo-btn pomo-play" id="pomo-play-btn" onclick="togglePomodoro()">▶</button>
               <button class="pomo-btn pomo-skip" onclick="skipPomodoro()" title="Skip">⏭</button>
             </div>
-
-            <!-- Session dots -->
             <div class="pomo-sessions">
               <span id="session-dots"></span>
               <span class="session-text" id="session-count-label">Session 1 of 4</span>
             </div>
           </div>
 
-          <!-- Right Panel: Stats + Settings -->
           <div class="pomodoro-side">
             <div class="pomo-stat-card">
               <div class="pomo-stat-label">Today's Focus</div>
@@ -328,18 +303,14 @@
               <label>Focus: <input type="number" id="focus-duration" value="25" min="1" max="60" onchange="updateDurations()"> min</label>
               <label>Short Break: <input type="number" id="short-duration" value="5" min="1" max="30" onchange="updateDurations()"> min</label>
               <label>Long Break: <input type="number" id="long-duration" value="15" min="1" max="60" onchange="updateDurations()"> min</label>
-              <label class="toggle-label">
-                <input type="checkbox" id="auto-start" checked> Auto-start breaks
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" id="sound-enabled" checked> Sound alerts
-              </label>
+              <label class="toggle-label"><input type="checkbox" id="auto-start" checked> Auto-start breaks</label>
+              <label class="toggle-label"><input type="checkbox" id="sound-enabled" checked> Sound alerts</label>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ HABITS ═══════════════════════════════════ -->
+      <!-- HABITS -->
       <section id="view-habits" class="view">
         <div class="view-header">
           <div>
@@ -347,7 +318,7 @@
             <p class="view-subtitle">Build streaks, build yourself</p>
           </div>
           <div class="header-actions">
-            <input type="text" id="new-habit-input" placeholder="New habit…" class="input-inline">
+            <input type="text" id="new-habit-input" placeholder="New habit…" class="input-inline" onkeydown="if(event.key==='Enter')addHabit()">
             <select id="new-habit-color" class="select-inline">
               <option value="#a78bfa">Purple</option>
               <option value="#06b6d4">Cyan</option>
@@ -359,31 +330,23 @@
           </div>
         </div>
 
-        <!-- Week header -->
         <div class="habits-week-header" id="habits-week-header"></div>
-
-        <!-- Habits list -->
         <div class="habits-list" id="habits-list">
           <div class="empty-state-lg">Add your first habit above to start tracking!</div>
         </div>
 
-        <!-- Heatmap -->
         <div class="heatmap-section">
           <h3>Activity Heatmap (Last 12 Weeks)</h3>
           <div class="heatmap-grid" id="heatmap-grid"></div>
           <div class="heatmap-legend">
             <span>Less</span>
-            <span class="heat-0"></span>
-            <span class="heat-1"></span>
-            <span class="heat-2"></span>
-            <span class="heat-3"></span>
-            <span class="heat-4"></span>
+            <span class="heat-0"></span><span class="heat-1"></span><span class="heat-2"></span><span class="heat-3"></span><span class="heat-4"></span>
             <span>More</span>
           </div>
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ NOTES ═══════════════════════════════════ -->
+      <!-- NOTES -->
       <section id="view-notes" class="view">
         <div class="view-header">
           <div>
@@ -397,7 +360,6 @@
         </div>
 
         <div class="notes-layout">
-          <!-- Notes List -->
           <div class="notes-sidebar">
             <div class="notes-filter">
               <button class="filter-btn active" onclick="filterNotes('all', this)">All</button>
@@ -407,7 +369,6 @@
             <div class="notes-list" id="notes-list"></div>
           </div>
 
-          <!-- Note Editor -->
           <div class="note-editor" id="note-editor">
             <div class="editor-toolbar">
               <input type="text" id="note-title-input" placeholder="Note title…" class="note-title-field">
@@ -428,7 +389,7 @@
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ ANALYTICS ═══════════════════════════════════ -->
+      <!-- ANALYTICS -->
       <section id="view-analytics" class="view">
         <div class="view-header">
           <div>
@@ -445,7 +406,6 @@
         </div>
 
         <div class="analytics-grid">
-          <!-- Focus chart -->
           <div class="analytics-card wide">
             <h4>Daily Focus Time (minutes)</h4>
             <div class="chart-wrap" style="height:220px;position:relative;">
@@ -453,7 +413,6 @@
             </div>
           </div>
 
-          <!-- Task completion donut -->
           <div class="analytics-card">
             <h4>Task Status</h4>
             <div class="chart-wrap" style="height:200px;position:relative;">
@@ -462,13 +421,11 @@
             <div class="donut-legend" id="donut-legend"></div>
           </div>
 
-          <!-- Habit completion radar -->
           <div class="analytics-card">
             <h4>Habit Completion %</h4>
             <div id="habit-bars" class="habit-bars-container"></div>
           </div>
 
-          <!-- Productivity score -->
           <div class="analytics-card score-card">
             <h4>Productivity Score</h4>
             <div class="score-ring-wrap">
@@ -481,17 +438,24 @@
             <p class="score-desc" id="score-desc">Complete tasks, focus sessions, and habits to build your score.</p>
           </div>
 
-          <!-- Weekly comparison -->
           <div class="analytics-card wide">
             <h4>Weekly Task Velocity</h4>
             <div class="chart-wrap" style="height:200px;position:relative;">
               <canvas id="velocityChart" role="img" aria-label="Weekly task velocity line chart"></canvas>
             </div>
           </div>
+
+          <div class="analytics-card full-span" id="weekly-review-card">
+            <div class="widget-header" style="margin-bottom:12px">
+              <h4 style="margin-bottom:0">Weekly Review (Last 7 Days vs Previous 7 Days)</h4>
+              <button class="btn-sm" onclick="saveWeeklyReviewNote()">◧ Save Review to Notes</button>
+            </div>
+            <div id="weekly-review-body" class="weekly-review-grid"></div>
+          </div>
         </div>
       </section>
 
-      <!-- ═══════════════════════════════════ NEXAI ASSISTANT ═══════════════════════════════════ -->
+      <!-- NEXAI ASSISTANT -->
       <section id="view-ai" class="view">
         <div class="view-header">
           <div>
@@ -505,14 +469,12 @@
         </div>
 
         <div class="ai-layout">
-          <!-- Chat -->
           <div class="ai-chat-area">
             <div class="chat-messages" id="chat-messages">
               <div class="chat-msg assistant">
                 <div class="msg-avatar">✦</div>
                 <div class="msg-bubble">
                   <p>Hello! I'm NexAI, your productivity assistant, powered by Google Gemini. I have full context of your tasks, habits, notes, and focus sessions.</p>
-                  <p>Ask me anything — I can help you plan your day, review your progress, suggest improvements, or just think through challenges with you.</p>
                 </div>
               </div>
             </div>
@@ -526,47 +488,29 @@
               </div>
               <div class="chat-input-row">
                 <textarea id="chat-input" maxlength="4000" placeholder="Ask NexAI anything…" class="chat-textarea" onkeydown="handleChatKey(event)" rows="1"></textarea>
-                <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">
-                  <span id="send-icon">↑</span>
-                </button>
+                <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()"><span id="send-icon">↑</span></button>
               </div>
               <p class="chat-disclaimer">AI replies are generated by Google Gemini. Your chats are saved to your account.</p>
             </div>
           </div>
 
-          <!-- Context Panel -->
           <div class="ai-context-panel">
             <h4>Your Chats</h4>
             <div id="chat-list" class="chat-list"><div class="chat-list-empty">Loading...</div></div>
             <div class="context-divider"></div>
             <h4>Context Provided to AI</h4>
-            <div class="context-item">
-              <span class="ctx-label">Tasks</span>
-              <span class="ctx-val" id="ctx-tasks">—</span>
-            </div>
-            <div class="context-item">
-              <span class="ctx-label">Focus Today</span>
-              <span class="ctx-val" id="ctx-focus">—</span>
-            </div>
-            <div class="context-item">
-              <span class="ctx-label">Habits</span>
-              <span class="ctx-val" id="ctx-habits">—</span>
-            </div>
-            <div class="context-item">
-              <span class="ctx-label">Notes</span>
-              <span class="ctx-val" id="ctx-notes">—</span>
-            </div>
+            <div class="context-item"><span class="ctx-label">Tasks</span><span class="ctx-val" id="ctx-tasks">—</span></div>
+            <div class="context-item"><span class="ctx-label">Focus Today</span><span class="ctx-val" id="ctx-focus">—</span></div>
+            <div class="context-item"><span class="ctx-label">Habits</span><span class="ctx-val" id="ctx-habits">—</span></div>
+            <div class="context-item"><span class="ctx-label">Notes</span><span class="ctx-val" id="ctx-notes">—</span></div>
             <div class="context-divider"></div>
             <h4>Quick Actions</h4>
             <button class="ctx-action-btn" onclick="sendSuggestedPrompt('Give me a motivational message based on my current progress')">🔥 Motivate me</button>
             <button class="ctx-action-btn" onclick="sendSuggestedPrompt('Summarize all my notes and extract key insights')">📝 Summarize notes</button>
-            <button class="ctx-action-btn" onclick="sendSuggestedPrompt('What tasks am I neglecting and why should I address them?')">⚠️ Find neglected tasks</button>
-            <button class="ctx-action-btn" onclick="sendSuggestedPrompt('Design a 30-day challenge for me based on my habits')">🏆 30-day challenge</button>
           </div>
         </div>
       </section>
-
-    </div><!-- /view-container -->
+    </div>
   </main>
 </div>
 
@@ -580,6 +524,14 @@
     <div class="modal-body">
       <label>Title<input type="text" id="modal-title-input" class="modal-input"></label>
       <label>Description<textarea id="modal-desc-input" class="modal-input modal-textarea" rows="3"></textarea></label>
+      <label>Stage
+        <select id="modal-col-input" class="modal-input">
+          <option value="todo">To Do</option>
+          <option value="inprogress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </label>
       <label>Priority
         <select id="modal-priority-input" class="modal-input">
           <option value="low">Low</option>
@@ -592,6 +544,41 @@
     <div class="modal-footer">
       <button class="btn-outline" onclick="aiSuggestTask()">✦ AI Suggest</button>
       <button class="btn-primary" onclick="saveTaskModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL SEARCH MODAL -->
+<div class="modal-overlay" id="search-modal" style="display:none" onclick="closeSearchModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Search Tasks & Notes</h3>
+      <button onclick="closeSearchModal()" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="global-search-input" class="modal-input" placeholder="Type to search tasks, notes, tags…" oninput="runGlobalSearch()">
+      <div id="global-search-results" class="search-results-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PLAN MY DAY MODAL -->
+<div class="modal-overlay" id="plan-modal" style="display:none" onclick="closePlanModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📅 Plan My Day</h3>
+      <button onclick="closePlanModal()" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="view-subtitle" id="plan-status-text" style="margin-bottom:8px">Your focused schedule built from your open tasks and habits.</p>
+      <div id="plan-items-list" class="plan-items-list"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn-sm" onclick="buildQuickLocalPlan()">⚡ Instant Auto-Sort (0 AI)</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline" id="plan-ai-btn" onclick="generateAIPlan(true)">✦ Generate with AI</button>
+        <button class="btn-primary" onclick="closePlanModal()">Done</button>
+      </div>
     </div>
   </div>
 </div>
