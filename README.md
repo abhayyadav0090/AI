@@ -104,8 +104,8 @@ Express server  --->  MongoDB Atlas (users, saved state, chats)
 You need Node.js 18 or newer, a MongoDB Atlas database, a Google OAuth client ID and a Gemini API key.
 
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/abhayyadav0090/AI.git
+cd AI
 npm install
 cp .env.example .env     # then fill in the values
 npm run dev
