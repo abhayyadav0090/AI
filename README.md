@@ -1,296 +1,194 @@
-# ✦ NexOS — AI-Powered Personal Productivity OS
+# NexOS: AI Productivity Workspace
 
-<div align="center">
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-22d3ee?style=flat-square)
 
-![NexOS Banner](https://img.shields.io/badge/NexOS-AI%20Productivity%20OS-a78bfa?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNS0xMC01LTEwIDV6Ii8+PC9zdmc+)
-![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js)
-![Express](https://img.shields.io/badge/Express-4.x-000000?style=for-the-badge&logo=express)
-![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-22d3ee?style=for-the-badge)
+NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, a focus timer, a habit tracker, notes and analytics with NexAI, an assistant powered by Google Gemini that can see your tasks and habits.
 
-**A full-stack, AI-powered productivity operating system built with vanilla JS, Node.js/Express, and the Google Gemini API.**
+**Live demo:** https://ai-aqit.onrender.com
+The demo runs on a free server, so the first load can take up to a minute.
 
-[🚀 Live Demo](#) · [📸 Screenshots](#screenshots) · [🛠 Tech Stack](#tech-stack) · [⚡ Quick Start](#quick-start)
+I built NexOS alone, using AI as a pair programmer. I wrote this README to explain what the app does and how it is put together.
 
-</div>
+![Dashboard](docs/screenshots/dashboard.png)
 
----
-
-## 🌟 Overview
-
-NexOS is a feature-complete, single-page productivity application that combines the best productivity methodologies with modern AI assistance. It runs entirely in the browser (frontend) with an optional Node.js backend for secure API proxying.
-
-Built as a showcase of full-stack web development, modern UX design, and practical AI integration — this is the kind of tool that *actually gets used daily.*
+| Kanban | NexAI | Mobile |
+|:---:|:---:|:---:|
+| ![Kanban](docs/screenshots/kanban.png) | ![NexAI](docs/screenshots/nexai.png) | ![Mobile](docs/screenshots/mobile.png) |
 
 ---
 
-## ✨ Features
+## Features
 
-### 📋 Kanban Board
-- Drag-and-drop task cards across **Todo → In Progress → Review → Done** columns
-- Per-task priority levels (High / Medium / Low) with color coding
-- Due dates, descriptions, and AI-assisted task suggestions
-- Real-time task count badges per column
+**Tasks**
+- Kanban board with four stages: To Do, In Progress, Review, Done
+- Drag and drop on desktop, arrow buttons on phones
+- Priority levels, due dates, descriptions, and an AI helper that suggests a description
+- **Plan My Day:** builds a schedule from your open tasks and habits, either instantly by priority and due date, or with AI
 
-### ⏱ Pomodoro Focus Timer
-- Animated SVG ring timer with work / short break / long break cycles
-- Auto-advance between sessions with configurable durations
-- Session logging with daily focus minutes tracked
-- Mini timer widget on the Dashboard
+**Focus**
+- Pomodoro timer with focus, short break and long break modes
+- Adjustable durations, auto-start for breaks, optional sound
+- Daily focus minutes are logged and shown in analytics
 
-### 🔥 Habit Tracker
-- Build streaks with daily check-in system
-- Custom habit colors and emoji labels
-- 28-day heatmap calendar showing completion history
-- Streak counters and completion percentages
+**Habits**
+- Daily check-ins on a 7-day grid with streak counters
+- 12-week heatmap of completed habits
 
-### 📝 Smart Notes
-- Markdown-aware rich text editor
-- Tag system with multi-tag filtering
-- Pin important notes to the top
-- Word count and auto-save indicators
+**Notes**
+- Tags, pinning, search and filters, word count
+- One-click AI summary of a note
 
-### 📊 Analytics Dashboard
-- **Daily Focus Time** — bar chart (Chart.js) for the last 7/14/30 days
-- **Task Status** — donut chart showing todo/in-progress/review/done split
-- **Habit Completion** — per-habit progress bars with percentage scores
-- **Productivity Score** — composite SVG ring score (0–100) based on all modules
-- **Weekly Task Velocity** — line chart comparing task throughput
+**Analytics**
+- Focus time (7, 14 or 30 days), task status split, habit completion and a daily productivity score
+- Tasks completed per day and a weekly review that compares this week with last week
+- Save the weekly review as a note
 
-### 🤖 NexAI (Powered by Gemini)
-- Full conversation history with context awareness
-- Receives live snapshot of your tasks, habits, focus time, and notes
-- Suggested prompts: analyze your week, prioritize tasks, plan your day, suggest habits
-- Daily AI insight on the Dashboard
-- AI-assisted task descriptions in the Kanban modal
+**NexAI (Google Gemini)**
+- Chat with saved history: open, continue and delete past chats
+- Each message includes a live snapshot of your tasks, habits, focus time and notes
+- Daily AI insight on the dashboard
+- **Action Mode:** describe what you want, review the proposed actions (create tasks, update tasks, create notes) and apply only the ones you approve
 
-### 🎨 Design System
-- **Dark glassmorphism** aesthetic with neon accents (violet, cyan, emerald)
-- Animated ambient background orbs + subtle grid overlay
-- Full **light / dark theme toggle**
-- Responsive layout — sidebar collapses on mobile
-- Keyboard shortcuts: `Ctrl+1–7` to jump between views, `Ctrl+S` to save note, `Esc` to close modals
+**General**
+- Google sign-in, with data saved per user in MongoDB
+- Global search for tasks and notes (`Ctrl+K`)
+- JSON backup and restore
+- Browser notifications for tasks due today or overdue (only while the tab is open)
+- Starter data and a "Getting started" checklist for new users
+- Dark and light themes, responsive layout for phones and tablets
+- Keyboard shortcuts: `Ctrl+1` to `Ctrl+7` switch views, `Ctrl+K` search, `Ctrl+S` saves a note, `Esc` closes dialogs
 
 ---
 
-## 🛠 Tech Stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Vanilla JavaScript (ES2022), HTML5, CSS3 |
-| **Styling** | Custom CSS with CSS Variables, Glassmorphism, CSS Animations |
-| **Charts** | Chart.js 4.x |
-| **Fonts** | Syne (display), Outfit (body), JetBrains Mono (data) |
-| **Backend** | Node.js 18+, Express 4.x |
-| **AI** | Google Gemini API |
-| **Security** | Helmet.js, express-rate-limit, CORS |
-| **Performance** | Compression middleware, Morgan logging |
-| **Storage** | localStorage (client-side persistence, no database required) |
-| **Deployment** | Railway / Render / Fly.io / VPS |
+| Frontend | Vanilla JavaScript, HTML5, CSS3 (no framework, no build step) |
+| Charts | Chart.js 4 |
+| Backend | Node.js 18+, Express 4 |
+| Database | MongoDB Atlas with Mongoose |
+| Authentication | Google Sign-In (Google Cloud), JWT in an httpOnly cookie |
+| AI | Google Gemini API, called from the server only |
+| Security | Helmet (CSP), CORS allow-list, express-rate-limit |
+| Hosting | Render |
 
 ---
 
-## ⚡ Quick Start
+## How it works
 
-### Full Stack Setup
+```
+Browser (HTML, CSS, JS)
+   |
+   |  /api/auth, /api/state, /api/chat, /api/chats, /api/complete
+   v
+Express server  --->  MongoDB Atlas (users, saved state, chats)
+   |
+   +-->  Google Gemini API (the API key never leaves the server)
+```
+
+- **State:** tasks, habits, notes and timer logs are saved as one JSON document per user and synced after every change. The browser keeps a local copy as a backup if the network fails.
+- **Chats:** every NexAI conversation is saved in its own MongoDB collection. A message and its reply are only saved if the AI call succeeds.
+- **AI reliability:** the server retries once on temporary Gemini errors, can switch to a second model, and shows a clear message to the user when the quota is used up.
+- **Limits:** AI requests are limited per signed-in user (30 per minute, 500 per day), so one user cannot use up the quota for everyone.
+- **Safe rendering:** user and AI text is escaped before it is placed in the page.
+
+---
+
+## Run it locally
+
+You need Node.js 18 or newer, a MongoDB Atlas database, a Google OAuth client ID and a Gemini API key.
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/yourusername/nexos-ai-productivity-os.git
-cd nexos-ai-productivity-os
-
-# 2. Install dependencies
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
 npm install
-
-# 3. Set up environment variables
-cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
-
-# 4. Start the development server
+cp .env.example .env     # then fill in the values
 npm run dev
-
-# 5. Open the app
-open http://localhost:3000
 ```
 
----
-
-## 🌍 Deployment
-
-### Deploy to Railway (Recommended — Free tier)
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
-
-# Login and deploy
-railway login
-railway init
-railway up
-railway variables set GEMINI_API_KEY=your_key_here
-```
-
-### Deploy to Render
-1. Connect your GitHub repo at [render.com](https://render.com)
-2. Set **Build Command**: `npm install`
-3. Set **Start Command**: `npm start`
-4. Add environment variable: `GEMINI_API_KEY`
-
-### Deploy to Fly.io
-```bash
-# Install flyctl, then:
-fly launch
-fly secrets set GEMINI_API_KEY=your_key_here
-fly deploy
-```
-
-### Deploy to a VPS (Ubuntu/Debian)
-```bash
-# Install Node.js 18
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Clone & install
-git clone ... && cd nexos-ai-productivity-os
-npm install --production
-
-# Use PM2 for process management
-npm install -g pm2
-pm2 start server.js --name nexos
-pm2 startup && pm2 save
-
-# Nginx reverse proxy (see nginx.conf in /docs)
-```
-
----
-
-## 📁 Project Structure
-
-```
-nexos-ai-productivity-os/
-├── public/
-│   ├── index.html          # Main SPA shell + all view templates
-│   ├── style.css           # Complete design system (1700+ lines)
-│   └── app.js              # All frontend modules (1000+ lines)
-├── server.js               # Express backend — API proxy + static server
-├── package.json            # Dependencies & scripts
-├── .env.example            # Environment variable template
-├── .gitignore
-├── Dockerfile              # Container deployment
-├── nginx.conf              # Production Nginx config
-├── docs/
-│   ├── ARCHITECTURE.md     # System design decisions
-│   └── API.md              # Backend API reference
-└── README.md
-```
-
----
-
-## 🔌 API Reference
-
-All endpoints are prefixed with `/api`.
-
-### `GET /api/health`
-Returns server status and uptime.
-
-### `POST /api/chat`
-Sends one message to NexAI (Google Gemini). The server saves the message and the reply to the user's chat history. See `API.md` for details and error codes.
-
-**Body:** `{ "chatId": "optional", "message": "Hello", "system": "optional context" }`
-
-**Response:** `{ "text": "...", "chatId": "...", "title": "...", "updatedAt": "..." }`
-
-### `GET /api/chats`, `GET /api/chats/:id`, `DELETE /api/chats/:id`
-List, open and delete saved chats (signed-in user only).
-
-### `POST /api/complete`
-Single-shot prompt completion.
-
-**Body:** `{ "prompt": "...", "system": "..." }`
-
-**Response:** `{ "text": "..." }`
-
----
-
-## 🎯 Architecture Decisions
-
-- **No framework** — Vanilla JS keeps the bundle zero-dependency on the frontend, loads instantly, and demonstrates DOM mastery without abstraction layers.
-- **localStorage persistence** — No database needed; all user data lives client-side, making the app privacy-first and deployment-simple.
-- **Backend as API proxy** — The Node.js server keeps the Gemini API key secret and adds rate limiting, so the key is never exposed to the browser.
-- **Modular JS** — Each feature (kanban, pomodoro, habits, notes, analytics, AI) is a self-contained section in `app.js` with a clear state → render → event pattern.
-- **CSS Variables design system** — Every color, spacing, and font is a variable; the entire theme switches in one class toggle.
-
----
-
-## 📸 Screenshots
-
-| Dashboard | Kanban Board | NexAI |
-|:---:|:---:|:---:|
-| Stats, widgets, mini timer | Drag-and-drop task columns | Gemini-powered chat |
-
-| Habit Tracker | Analytics | Focus Timer |
-|:---:|:---:|:---:|
-| Streaks + heatmap | Charts + productivity score | Animated ring timer |
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome! For major changes, please open an issue first to discuss what you'd like to change.
-
-```bash
-# Fork → Clone → Branch
-git checkout -b feature/your-feature-name
-
-# Make changes → Commit → Push
-git commit -m "feat: add your feature"
-git push origin feature/your-feature-name
-
-# Open a Pull Request on GitHub
-```
-
----
-
-## 📄 License
-
-MIT © 2025 — Free to use, modify, and deploy. Attribution appreciated.
-
----
-
-<div align="center">
-  Built with ☕ and ✦ Google Gemini · <strong>NexOS v2.0</strong>
-</div>
-
-
----
-
-## 🔐 Login, Database & Deployment
-
-NexOS uses **Google Sign-In** and saves each user's data in **MongoDB Atlas**.
+Open http://localhost:3000
 
 ### Environment variables
 
-| Name | Where to get it |
-|---|---|
-| `MONGO_URI` | MongoDB Atlas > Connect > Drivers (add database name `nexos` before `?`) |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console > APIs & Services > Credentials > OAuth client ID (Web) |
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
-| `JWT_SECRET` | Any long random string (Render generates it automatically via `render.yaml`) |
-| `ALLOWED_ORIGINS` | Your site URL, e.g. `https://your-app.onrender.com` |
-| `GEMINI_MODEL` | Optional. Model name, e.g. the one that works for your key |
-| `GEMINI_FALLBACK_MODEL` | Optional. Second model to try when the first is busy or over quota |
+| Name | Required | Where to get it |
+|---|---|---|
+| `MONGO_URI` | Yes | MongoDB Atlas, Connect, Drivers. Put the database name `nexos` before the `?` |
+| `GOOGLE_CLIENT_ID` | Yes | Google Cloud Console, APIs & Services, Credentials, OAuth client ID (Web) |
+| `GEMINI_API_KEY` | Yes | https://aistudio.google.com/apikey |
+| `JWT_SECRET` | Yes | Any long random string |
+| `ALLOWED_ORIGINS` | Yes | Your site address, for example `http://localhost:3000` |
+| `GEMINI_MODEL` | No | Model name. Defaults to the one set in `server.js` |
+| `GEMINI_FALLBACK_MODEL` | No | A second model to use when the first is busy or over quota |
+| `PORT` | No | Defaults to 3000 |
 
-In Google Cloud Console add your site URL (and `http://localhost:3000`) under **Authorized JavaScript origins**.
-In MongoDB Atlas > Network Access, allow `0.0.0.0/0`.
+Setup notes:
+- In Google Cloud Console, add your site address and `http://localhost:3000` under **Authorized JavaScript origins**.
+- In MongoDB Atlas, open **Network Access**. Free hosting has no fixed IP address, so you need to allow `0.0.0.0/0`. Use a strong database password.
+- Never commit your `.env` file. It is already listed in `.gitignore`.
 
-### Run locally
-```bash
-cp .env.example .env   # fill in the values
-npm install
-npm run dev
+---
+
+## Deploy on Render
+
+1. Push the project to GitHub.
+2. On Render, choose **New**, then **Blueprint** (it reads `render.yaml`), or create a **Web Service** with build command `npm install` and start command `npm start`.
+3. Add the environment variables from the table above.
+4. After the first deploy, add the Render address to **Authorized JavaScript origins** in Google Cloud Console and to `ALLOWED_ORIGINS`.
+
+---
+
+## Project structure
+
+```
+.
+├── public/
+│   ├── index.html       # Page structure and dialogs
+│   ├── style.css        # Design tokens, layout, dark and light themes
+│   ├── app.js           # Frontend logic: tasks, timer, habits, notes, analytics, NexAI
+│   ├── manifest.json
+│   └── favicon.svg
+├── server.js            # Express server: auth, state, chats, Gemini proxy
+├── render.yaml          # Render blueprint
+├── API.md               # API reference
+├── ARCHITECTURE.md      # Design notes
+└── package.json
 ```
 
-### Deploy on Render
-New > Blueprint (uses `render.yaml`) or New > Web Service. Build: `npm install`, Start: `npm start`. Add the env variables above.
+---
 
-### Deploy on Vercel
-Import the GitHub repo. `vercel.json` is already included. Add the same env variables in Project Settings > Environment Variables.
+## API overview
+
+All routes start with `/api`. Everything except `config`, `health` and `auth` needs a signed-in user. Details and error codes are in [API.md](API.md).
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/api/health` | Server status |
+| GET | `/api/config` | Public settings for the sign-in button |
+| POST | `/api/auth/google` | Sign in with a Google credential |
+| POST | `/api/auth/logout` | Sign out |
+| GET | `/api/me` | Current user |
+| GET, PUT | `/api/state` | Load and save the user's workspace data |
+| POST | `/api/chat` | Send a message to NexAI and save the chat |
+| GET | `/api/chats`, `/api/chats/:id` | List and open saved chats |
+| DELETE | `/api/chats/:id` | Delete a chat |
+| POST | `/api/complete` | One-off AI prompt (insights, summaries) |
+
+---
+
+## Known limits
+
+- The free Render server sleeps when idle, so the first request can be slow.
+- The free Gemini quota is small. When it runs out, NexAI shows a "busy" message until it resets.
+- Due-date notifications only work while NexOS is open in a browser tab, and many mobile browsers do not show them.
+- There are no automated tests yet.
+
+---
+
+## License
+
+Released under the MIT License.
