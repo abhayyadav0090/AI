@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy: NexOS</title>
+<meta name="robots" content="index,follow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="legal-page">
+  <a class="legal-back" href="/">&larr; Back to NexOS</a>
+  <h1>Privacy</h1>
+  <p class="legal-meta">Last updated: 19 October 2026</p>
+
+  <p>NexOS is a personal productivity workspace built by one developer. This page explains, in plain words, what the app stores and where it goes.</p>
+
+  <h2>Guest mode</h2>
+  <p>If you choose <strong>Continue as guest</strong>, your tasks, habits, notes and timer history are saved only in this browser on your device. They are not sent to the NexOS server. AI features are not available in guest mode. If you clear your browser data, guest data is lost, so use the Export button to keep a backup.</p>
+
+  <h2>If you sign in with Google</h2>
+  <p>NexOS receives your name, email address, profile picture and Google account ID from Google. It does not receive your Google password and does not ask for access to your Gmail, Drive, contacts or calendar.</p>
+  <p>When signed in, NexOS stores this in a MongoDB Atlas database:</p>
+  <ul>
+    <li>your name, email address and profile picture</li>
+    <li>your tasks, habits, notes, focus timer history and settings</li>
+    <li>your saved NexAI chats</li>
+  </ul>
+
+  <h2>AI features (Google Gemini)</h2>
+  <p>When you use NexAI or another AI feature, NexOS sends your message and a short summary of your workspace (task and note titles, habit names, focus time) to the Google Gemini API to create a reply. Do not type passwords or other sensitive information into NexAI. Google's own terms apply to that processing. On free API plans, Google may use submitted content to improve its products.</p>
+
+  <h2>Cookies and browser storage</h2>
+  <ul>
+    <li>One sign-in cookie (httpOnly) that keeps you signed in for up to 7 days.</li>
+    <li>Browser storage on your device for a backup copy of your workspace and for guest mode.</li>
+  </ul>
+
+  <h2>What NexOS does not do</h2>
+  <ul>
+    <li>No advertising and no tracking scripts.</li>
+    <li>No selling or sharing of your data with third parties, except the services named above that run the app (Google sign-in, MongoDB Atlas, Google Gemini and the hosting provider).</li>
+  </ul>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>Use the Export button at any time to download all your workspace data.</li>
+    <li>Open <strong>Profile</strong> in the sidebar to download your data, change your display name or delete your account. Deleting your account permanently removes your name, email, profile picture, workspace data and NexAI chats from the NexOS database.</li>
+    <li>In guest mode, use <strong>Profile &rarr; Clear guest data</strong> to remove everything NexOS saved in this browser.</li>
+  </ul>
+
+  <p class="legal-meta">NexOS is a hobby and portfolio project provided as is, without any guarantee of availability.</p>
+</main>
+</body>
+</html>
