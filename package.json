@@ -1,6 +1,6 @@
 {
   "name": "nexos-ai-productivity-os",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "NexOS \u2014 AI-powered productivity workspace",
   "main": "server.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for vanilla JS frontend'",
     "lint": "eslint server.js",
-    "test": "echo 'No tests configured yet'",
+    "test": "node --check server.js && node --check public/app.js && node --check public/push-client.js && node --check public/sw.js",
     "generate:vapid": "node scripts/generate-vapid-keys.js"
   },
   "keywords": [

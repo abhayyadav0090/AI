@@ -140,6 +140,13 @@ const pushSubscriptionSchema = new mongoose.Schema({
 pushSubscriptionSchema.index({ userId: 1, updatedAt: -1 });
 const PushSubscription = mongoose.model('PushSubscription', pushSubscriptionSchema);
 
+// Daily task reminder time is stored separately from task data so normal state syncs
+// and backup imports cannot overwrite the user's notification preference.
+const PushPreference = mongoose.model('PushPreference', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, index: true, required: true },
+  reminderTime: { type: String, default: '09:00', match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+}, { timestamps: true, minimize: false }));
+
 const MAX_MSG_CHARS = 4000;
 const MAX_CHAT_MESSAGES = 200;
 const CONTEXT_MESSAGES = 40;
@@ -246,6 +253,7 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   await Chat.deleteMany({ userId: req.userId });
   await UserState.deleteMany({ userId: req.userId });
   await PushSubscription.deleteMany({ userId: req.userId, app: 'nexos' });
+  await PushPreference.deleteOne({ userId: req.userId });
   // Keep the shared Google identity record; other independently deployed apps may use it.
   res.clearCookie('token');
   res.json({ ok: true });
@@ -367,12 +375,31 @@ function indiaDateKey(date = new Date()) {
   }, {});
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
+function indiaTimeKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date).reduce((out, part) => { if (part.type !== 'literal') out[part.type] = part.value; return out; }, {});
+  return `${parts.hour}:${parts.minute}`;
+}
 function taskDueKey(dateKey, taskId) { return `${dateKey}:${String(taskId)}`; }
 
 app.get('/api/push/config', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ enabled: pushConfigured(), publicKey: pushConfigured() ? VAPID_PUBLIC_KEY : '' });
 });
+
+app.get('/api/push/preferences', requireAuth, wrap(async (req, res) => {
+  const preference = await PushPreference.findOne({ userId: req.userId }).lean();
+  res.set('Cache-Control', 'no-store');
+  res.json({ reminderTime: preference?.reminderTime || '09:00', timeZone: 'Asia/Kolkata' });
+}));
+
+app.put('/api/push/preferences', requireAuth, wrap(async (req, res) => {
+  const reminderTime = String(req.body?.reminderTime || '');
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
+    return res.status(400).json({ error: 'Reminder time must be a valid 24-hour time (HH:MM).' });
+  }
+  await PushPreference.findOneAndUpdate({ userId: req.userId }, { $set: { reminderTime } }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true });
+  res.json({ ok: true, reminderTime, timeZone: 'Asia/Kolkata' });
+}));
 
 app.post('/api/push/subscribe', requireAuth, wrap(async (req, res) => {
   if (!pushConfigured()) return res.status(503).json({ error: 'Background task alerts are not configured on the server yet.', code: 'PUSH_NOT_CONFIGURED' });
@@ -431,6 +458,9 @@ async function checkAndSendDueTaskPushes() {
     const todayKey = indiaDateKey();
     const states = await UserState.find({}).select('userId data').lean();
     for (const item of states) {
+      const preference = await PushPreference.findOne({ userId: item.userId }).lean();
+      const reminderTime = preference?.reminderTime || '09:00';
+      if (indiaTimeKey() < reminderTime) continue;
       const tasks = Array.isArray(item.data && item.data.tasks) ? item.data.tasks : [];
       const due = tasks.filter((task) => task && task.id != null && task.col !== 'done'
         && typeof task.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && task.due <= todayKey)

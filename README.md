@@ -211,3 +211,8 @@ This server supports generic exact-path redirects configured through `LEGACY_RED
 
 
 The delete-workspace action removes NexOS chats, workspace state, and NexOS push subscriptions. It intentionally retains the shared Google identity record so independently deployed apps using the same identity collection do not lose access to their own records.
+
+
+## Daily task reminder time (2.0.1)
+
+Signed-in users can choose a daily task reminder time from the clock control beside the notification bell. The preference is saved separately in MongoDB and applies to both in-app due notifications and server push reminders, using India Standard Time (Asia/Kolkata). The default is 09:00. The background push scheduler polls every five minutes, so delivery is approximate rather than exact to the minute. A sleeping Render Free instance may delay background reminders until it wakes.
