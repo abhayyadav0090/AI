@@ -70,7 +70,7 @@ function normalizeState(saved, replace = false) {
     if (habitIds.has(id)) id = uid();
     habitIds.add(id);
     const checks = h.checks && typeof h.checks === 'object' && !Array.isArray(h.checks) ? h.checks : {};
-    return { ...h, id, name: String(h.name || 'Untitled habit'), color: /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(h.color || '')) ? h.color : '#a78bfa',
+    return { ...h, id, name: String(h.name || 'Untitled habit'), color: /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(h.color || '')) ? h.color : '#3A0F34',
       checks, streak: Math.max(0, Number(h.streak) || 0) };
   });
   const noteIds = new Set();
@@ -419,7 +419,7 @@ function seedStarter() {
   ];
   state.habits = [
     { id: uid(), sample: true, name: 'Drink water', color: '#06b6d4', checks: {}, streak: 0 },
-    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#a78bfa', checks: {}, streak: 0 },
+    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#3A0F34', checks: {}, streak: 0 },
   ];
   state.notes = [
     { id: uid(), sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in 25-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.', tags: ['welcome'], pinned: true, created: now },
@@ -530,12 +530,30 @@ function setGreeting() {
 
 // ═══════════════════════════ THEME ═══════════════════════════
 function applyTheme() {
-  if (state.theme === 'light') document.body.classList.add('light-theme');
-  else document.body.classList.remove('light-theme');
+  const isLight = state.theme === 'light';
+  document.body.classList.toggle('light-theme', isLight);
+  // Keep browser chrome and accessible control labels in sync with the active theme.
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) themeColor.setAttribute('content', isLight ? '#F5F0E9' : '#171018');
+  const themeButton = document.getElementById('theme-toggle');
+  if (themeButton) {
+    themeButton.textContent = isLight ? '☾' : '☼';
+    themeButton.title = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+    themeButton.setAttribute('aria-label', themeButton.title);
+    themeButton.setAttribute('aria-pressed', String(isLight));
+  }
+  // SVG gradients and charts do not inherit CSS vars consistently on all browsers.
+  const tokens = getComputedStyle(document.body);
+  const primary = tokens.getPropertyValue('--accent-violet').trim() || '#D4A1BE';
+  const secondary = tokens.getPropertyValue('--accent-amber').trim() || '#FAA000';
+  document.querySelectorAll('#ringGrad stop:first-child, #miniGrad stop:first-child').forEach(stop => stop.setAttribute('stop-color', primary));
+  document.querySelectorAll('#ringGrad stop:last-child, #miniGrad stop:last-child').forEach(stop => stop.setAttribute('stop-color', secondary));
+  if (document.getElementById('view-analytics')?.classList.contains('active')) renderAnalytics();
 }
 function toggleTheme() {
   state.theme = state.theme === 'dark' ? 'light' : 'dark';
-  applyTheme(); saveState();
+  applyTheme();
+  saveState();
 }
 
 // ═══════════════════════════ VIEW SWITCHING ═══════════════════════════
@@ -1221,6 +1239,11 @@ async function summarizeNote() {
 // ═══════════════════════════ ANALYTICS ═══════════════════════════
 let focusChartInstance = null, donutChartInstance = null, velocityChartInstance = null;
 
+function themeToken(name, fallback) {
+  const value = getComputedStyle(document.body).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 function renderAnalytics() {
   const rawDays = parseInt(document.getElementById('analytics-range')?.value || 7, 10);
   const days = [7, 14, 30].includes(rawDays) ? rawDays : 7;
@@ -1258,8 +1281,8 @@ function renderFocusChart(days) {
   if (focusChartInstance) focusChartInstance.destroy();
   focusChartInstance = new Chart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'Focus (min)', data, backgroundColor: 'rgba(167,139,250,0.5)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    data: { labels, datasets: [{ label: 'Focus (min)', data, backgroundColor: themeToken('--accent-soft', 'rgba(212,161,190,.3)'), borderColor: themeToken('--accent-violet', '#D4A1BE'), borderWidth: 1, borderRadius: 5 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
   });
 }
 
@@ -1267,7 +1290,7 @@ function renderTaskDonut() {
   const canvas = document.getElementById('taskDonut');
   if (!canvas) return;
   const cols = ['todo', 'inprogress', 'review', 'done'];
-  const colors = ['rgba(120,120,140,0.7)', 'rgba(167,139,250,0.8)', 'rgba(245,158,11,0.8)', 'rgba(16,185,129,0.8)'];
+  const colors = ['rgba(125,108,122,0.78)', 'rgba(58,15,52,0.84)', 'rgba(250,160,0,0.86)', 'rgba(20,122,92,0.82)'];
   const labels = ['To Do', 'In Progress', 'Review', 'Done'];
   const data = cols.map(c => state.tasks.filter(t => t.col === c).length);
   if (donutChartInstance) donutChartInstance.destroy();
@@ -1344,8 +1367,8 @@ function renderVelocityChart(days) {
   if (velocityChartInstance) velocityChartInstance.destroy();
   velocityChartInstance = new Chart(canvas, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Tasks Completed', data, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)', borderWidth: 2, pointRadius: 3, tension: 0.4, fill: true }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    data: { labels, datasets: [{ label: 'Tasks Completed', data, borderColor: themeToken('--accent-violet', '#D4A1BE'), backgroundColor: themeToken('--accent-soft', 'rgba(212,161,190,.1)'), borderWidth: 2, pointRadius: 3, pointBackgroundColor: themeToken('--brand-marigold', '#FAA000'), tension: 0.35, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
   });
 }
 
@@ -2414,9 +2437,9 @@ document.addEventListener('DOMContentLoaded', () => {
   grad.setAttribute('x1', '0%'); grad.setAttribute('y1', '0%');
   grad.setAttribute('x2', '100%'); grad.setAttribute('y2', '100%');
   const s1 = document.createElementNS(svgNS, 'stop');
-  s1.setAttribute('offset', '0%'); s1.setAttribute('stop-color', '#a78bfa');
+  s1.setAttribute('offset', '0%'); s1.setAttribute('stop-color', themeToken('--accent-violet', '#D4A1BE'));
   const s2 = document.createElementNS(svgNS, 'stop');
-  s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', '#06b6d4');
+  s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', themeToken('--accent-amber', '#FAA000'));
   grad.appendChild(s1); grad.appendChild(s2); defs.appendChild(grad);
   const miniSvg = document.querySelector('.mini-ring-svg');
   if (miniSvg) miniSvg.insertBefore(defs, miniSvg.firstChild);

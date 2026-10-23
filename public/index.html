@@ -11,16 +11,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#05050a">
+<meta name="theme-color" content="#171018">
 <style>
   #task-modal, #search-modal, #plan-modal, #profile-modal { display: none !important; }
   #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open { display: flex !important; }
 
   .nexos-reminder-time{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary,#aaa)}
   .nexos-reminder-toggle{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-secondary,#aaa)}
-  .nexos-reminder-toggle input{accent-color:var(--primary,#7c5cff);width:15px;height:15px;margin:0}
+  .nexos-reminder-toggle input{accent-color:var(--brand-marigold,#FAA000);width:15px;height:15px;margin:0}
   .nexos-reminder-time.is-off input[type=time]{opacity:.55}
-  .nexos-reminder-time input{width:92px;min-width:0;padding:6px;border:1px solid var(--border,#444);border-radius:8px;background:var(--surface,#222);color:inherit}
+  .nexos-reminder-time input{width:92px;min-width:0;padding:6px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.24));border-radius:8px;background:var(--bg-surface,#2A202C);color:inherit}
   .nexos-reminder-time button{padding:6px 8px}
   @media(max-width:700px){.nexos-reminder-time{gap:3px}.nexos-reminder-time input{width:78px}.nexos-reminder-time button{font-size:11px}}
 </style>
@@ -106,7 +106,7 @@
         <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
         <div class="clock" id="topbar-clock">00:00</div>
         <button class="btn-icon" onclick="switchView('ai')" title="Ask AI">✦</button>
-        <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">◐</div>
+        <button type="button" class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch to light theme" aria-label="Switch to light theme">☼</button>
       </div>
     </header>
 
@@ -282,8 +282,8 @@
               <svg viewBox="0 0 320 320" class="pomo-svg">
                 <defs>
                   <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#a78bfa"/>
-                    <stop offset="100%" stop-color="#06b6d4"/>
+                    <stop offset="0%" stop-color="#D4A1BE"/>
+                    <stop offset="100%" stop-color="#FAA000"/>
                   </linearGradient>
                 </defs>
                 <circle cx="160" cy="160" r="140" class="pomo-ring-bg"/>
@@ -340,11 +340,11 @@
           <div class="header-actions">
             <input type="text" id="new-habit-input" placeholder="New habit…" class="input-inline" onkeydown="if(event.key==='Enter')addHabit()">
             <select id="new-habit-color" class="select-inline">
-              <option value="#a78bfa">Purple</option>
-              <option value="#06b6d4">Cyan</option>
-              <option value="#10b981">Green</option>
-              <option value="#f59e0b">Amber</option>
-              <option value="#f43f5e">Rose</option>
+              <option value="#3A0F34">Deep Aubergine</option>
+              <option value="#DDE3E8">Ice Silver</option>
+              <option value="#FAA000">Marigold</option>
+              <option value="#147A5C">Green</option>
+              <option value="#C63E5C">Rose</option>
             </select>
             <button class="btn-primary" onclick="addHabit()">+ Add Habit</button>
           </div>
