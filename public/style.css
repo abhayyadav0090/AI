@@ -987,3 +987,115 @@ body.light-theme .modal-overlay { background: var(--overlay); }
     overflow-wrap: anywhere;
   }
 }
+
+/* ---------- 17. NexOS productivity polish: clear hierarchy, calm surfaces, solid focus states ---------- */
+:root {
+  --font-display: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 15px;
+  --radius-xl: 20px;
+}
+
+html { scroll-behavior: smooth; }
+body { text-rendering: optimizeLegibility; }
+button, [role="button"], input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, [role="button"]:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+/* Material/Fluent-inspired restraint without changing NexOS brand identity. */
+.sidebar { backdrop-filter: blur(12px); }
+.sidebar-logo { padding-block: 20px 18px; }
+.nav-item { min-height: 42px; border-radius: 10px; font-weight: 500; }
+.nav-item.active { box-shadow: inset 3px 0 0 var(--brand-marigold); }
+.topbar { min-height: var(--topbar-h); }
+.breadcrumb { font-size: 14px; letter-spacing: .005em; }
+.view-title { font-weight: 750; letter-spacing: -.025em; }
+.view-subtitle { line-height: 1.55; }
+.stat-card, .widget, .guide-card, .analytics-card, .pomo-stat-card, .pomo-settings,
+.ai-chat-area, .ai-context-panel, .notes-sidebar, .note-editor {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .035);
+  transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.stat-card:hover, .widget:hover, .analytics-card:hover {
+  border-color: var(--glass-border-hover);
+}
+.btn-primary { background: var(--control-bg); border: 1px solid rgba(250, 160, 0, 0.42); color: var(--on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--control-bg-hover); filter: none; }
+.btn-outline, .btn-sm, .btn-icon, .theme-toggle { min-height: 34px; }
+.btn-outline:hover:not(:disabled), .btn-sm:hover:not(:disabled), .btn-icon:hover:not(:disabled), .theme-toggle:hover:not(:disabled) {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+.input-inline, .select-inline, .modal-input, .chat-textarea { background-color: var(--bg-surface); }
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: .9; }
+.nav-item, .note-list-item, .chat-list-item, .search-result-item { -webkit-user-select: none; user-select: none; }
+
+/* Quick settings move into a compact popover on tablet and phone so the top bar stays usable. */
+.topbar-overflow { display: flex; align-items: center; gap: 8px; }
+.topbar-overflow-toggle { display: none; }
+.topbar-overflow-panel { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 1180px) {
+  .topbar { height: auto; min-height: var(--topbar-h); align-items: center; flex-wrap: nowrap; gap: 8px; padding-block: 8px; }
+  .topbar-left { width: auto; flex: 1 1 auto; min-width: 0; }
+  .topbar-right { width: auto; flex: 0 0 auto; max-width: none; justify-content: flex-end; gap: 6px; overflow: visible; padding: 0; }
+  .topbar-overflow { position: relative; display: block; flex: 0 0 auto; }
+  .topbar-overflow-toggle { display: inline-flex; font-size: 17px; letter-spacing: 1px; }
+  .topbar-overflow-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 200;
+    width: min(340px, calc(100vw - 28px));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border-hover);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop);
+  }
+  .topbar-overflow.is-open .topbar-overflow-panel { display: flex; }
+  .topbar-overflow-panel > .btn-icon { align-self: flex-start; }
+  .topbar-overflow-panel .nexos-reminder-toggle,
+  .topbar-overflow-panel .nexos-reminder-time { width: 100%; min-height: 42px; justify-content: space-between; padding: 9px 10px; }
+  .topbar-overflow-panel .nexos-reminder-time input { width: 105px; }
+  .topbar-overflow-panel .nexos-reminder-time button { min-height: 32px; }
+  .sidebar[inert] { pointer-events: none; }
+}
+@media (max-width: 640px) {
+  .topbar { --topbar-h: 54px; }
+  .topbar-right { gap: 5px; }
+  .topbar-ai-shortcut { display: none; }
+  .topbar-search-btn { padding: 0; width: 34px; min-width: 34px; justify-content: center; }
+  .topbar-overflow-panel { top: calc(100% + 8px); }
+  .view-title { font-size: clamp(1.8rem, 8vw, 2.4rem); line-height: 1.12; }
+  #view-dashboard .view-header .header-actions > button { overflow-wrap: normal; }
+}
+@media (max-width: 350px) {
+  .breadcrumb { font-size: 13px; }
+  .menu-toggle { width: 32px; }
+  .topbar-right { gap: 3px; }
+  .btn-icon, .theme-toggle, .topbar-search-btn, .topbar-overflow-toggle { width: 30px; min-width: 30px; height: 32px; }
+}
+body.light-theme .stat-card, body.light-theme .widget, body.light-theme .analytics-card,
+body.light-theme .pomo-stat-card, body.light-theme .pomo-settings,
+body.light-theme .ai-chat-area, body.light-theme .ai-context-panel,
+body.light-theme .notes-sidebar, body.light-theme .note-editor {
+  box-shadow: 0 1px 2px rgba(58, 15, 52, .025);
+}
+body.light-theme .btn-primary { color: #fff; }
+body.light-theme .topbar-overflow-panel { box-shadow: 0 18px 48px rgba(58, 15, 52, .16); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .view.active { animation: none; }
+}

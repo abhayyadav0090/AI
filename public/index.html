@@ -8,7 +8,8 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#171018">
@@ -48,12 +49,12 @@
     <div class="grid-overlay"></div>
   </div>
 
-  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar({restoreFocus:true})" aria-hidden="true"></div>
   <nav class="sidebar" id="sidebar" aria-label="Main navigation" aria-hidden="false">
     <div class="sidebar-logo">
       <div class="logo-mark">N</div>
       <span class="logo-text">NexOS</span>
-      <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu">✕</button>
+      <button type="button" class="sidebar-close" onclick="closeSidebar({restoreFocus:true})" aria-label="Close navigation" title="Close menu">✕</button>
     </div>
     <div class="sidebar-nav">
       <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
@@ -99,15 +100,20 @@
         <div class="breadcrumb" id="breadcrumb">Dashboard</div>
       </div>
       <div class="topbar-right">
-        <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks & notes (Ctrl+K)">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">⌘K</kbd></button>
-        <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
-        <label class="nexos-reminder-toggle" title="Turn task reminders on or off"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Alerts</span></label>
-        <label class="nexos-reminder-time" id="task-reminder-time-wrap" title="Daily task reminder time">⏰ <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"><button type="button" id="save-reminder-time" class="btn-sm" onclick="saveTaskReminderTime()">Save</button></label>
-        <button class="btn-icon" onclick="exportData()" title="Export JSON Backup">↓</button>
-        <button class="btn-icon" onclick="document.getElementById('import-file-input').click()" title="Import JSON Backup">↑</button>
-        <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
+        <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks and notes (Ctrl or ⌘ + K)" aria-label="Search tasks and notes">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">Ctrl/⌘ K</kbd></button>
+        <div class="topbar-overflow" id="topbar-overflow">
+          <button type="button" class="btn-icon topbar-overflow-toggle" id="topbar-overflow-toggle" onclick="toggleTopbarOverflow()" title="Notifications, reminders and data tools" aria-label="Open quick settings" aria-controls="topbar-overflow-panel" aria-expanded="false">•••</button>
+          <div class="topbar-overflow-panel" id="topbar-overflow-panel" role="group" aria-label="Notifications, reminders and data tools">
+            <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Enable notifications" aria-label="Enable browser notifications">🔔</button>
+            <label class="nexos-reminder-toggle" title="Turn task reminders on or off"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Alerts</span></label>
+            <label class="nexos-reminder-time" id="task-reminder-time-wrap" title="Daily task reminder time">⏰ <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"><button type="button" id="save-reminder-time" class="btn-sm" onclick="saveTaskReminderTime()">Save</button></label>
+            <button class="btn-icon" onclick="exportData()" title="Export JSON backup" aria-label="Export JSON backup">↓</button>
+            <button class="btn-icon" onclick="document.getElementById('import-file-input').click()" title="Import JSON backup" aria-label="Import JSON backup">↑</button>
+            <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
+          </div>
+        </div>
         <div class="clock" id="topbar-clock">00:00</div>
-        <button class="btn-icon" onclick="switchView('ai')" title="Ask AI">✦</button>
+        <button class="btn-icon topbar-ai-shortcut" onclick="switchView('ai')" title="Ask NexAI" aria-label="Open NexAI">✦</button>
         <button type="button" class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch to light theme" aria-label="Switch to light theme">☼</button>
       </div>
     </header>
@@ -612,7 +618,7 @@
   <div class="modal profile-modal">
     <div class="modal-header">
       <h3>Profile</h3>
-      <button onclick="closeProfile()" class="modal-close">✕</button>
+      <button onclick="closeProfile()" class="modal-close" aria-label="Close profile">✕</button>
     </div>
     <div class="modal-body">
       <div class="profile-identity">
@@ -649,10 +655,10 @@
       </div>
 
       <div class="profile-section profile-danger" id="profile-delete-section">
-        <h4>Delete account</h4>
-        <p class="profile-help">Permanently deletes your account and everything saved with it: tasks, habits, notes, focus history and NexAI chats. This cannot be undone. Type DELETE to confirm.</p>
+        <h4>Delete NexOS data</h4>
+        <p class="profile-help">Permanently deletes your NexOS tasks, habits, notes, focus history, NexAI chats and reminder settings. Your Google sign-in identity may remain available to other apps that share this database. This cannot be undone. Type DELETE to confirm.</p>
         <input type="text" id="profile-delete-input" class="modal-input" placeholder="Type DELETE" autocomplete="off" oninput="updateDeleteButton()">
-        <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete my account and all data</button>
+        <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete NexOS data</button>
         <span class="profile-msg error" id="profile-delete-msg"></span>
       </div>
     </div>

@@ -3,8 +3,8 @@
   "short_name": "NexOS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#05050a",
-  "theme_color": "#05050a",
+  "background_color": "#171018",
+  "theme_color": "#171018",
   "icons": [
     {
       "src": "nexos-icon-192.png",

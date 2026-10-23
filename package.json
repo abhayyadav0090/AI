@@ -1,7 +1,7 @@
 {
   "name": "nexos-ai-productivity-os",
-  "version": "2.1.2",
-  "description": "NexOS \u2014 AI-powered productivity workspace",
+  "version": "2.2.1",
+  "description": "NexOS — AI-powered productivity workspace",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

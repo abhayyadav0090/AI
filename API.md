@@ -78,7 +78,7 @@ Changes the signed-in user's display name. Body: `{ "name": "..." }` (1 to 60 ch
 
 ## `DELETE /api/me`
 
-Deletes the signed-in user's account and everything stored for it (workspace data and NexAI chats). Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
+Deletes the signed-in user's NexOS workspace state, saved NexAI chats, NexOS push subscriptions and reminder preference. The shared Google identity record is intentionally retained because other independently deployed apps may use the same database. Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
 
 ---
 

@@ -45,9 +45,11 @@ app.use(cookieParser());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
 app.use(cors({
+  // Disallowed cross-origin requests receive no CORS headers instead of a server 500.
+  // Same-origin browser requests do not require CORS response headers.
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
+    cb(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
