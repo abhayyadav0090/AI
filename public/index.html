@@ -48,10 +48,12 @@
     <div class="grid-overlay"></div>
   </div>
 
-  <nav class="sidebar" id="sidebar">
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+  <nav class="sidebar" id="sidebar" aria-label="Main navigation" aria-hidden="false">
     <div class="sidebar-logo">
       <div class="logo-mark">N</div>
       <span class="logo-text">NexOS</span>
+      <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu">✕</button>
     </div>
     <div class="sidebar-nav">
       <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
@@ -93,7 +95,7 @@
   <main class="main-content">
     <header class="topbar">
       <div class="topbar-left">
-        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
         <div class="breadcrumb" id="breadcrumb">Dashboard</div>
       </div>
       <div class="topbar-right">
@@ -121,6 +123,8 @@
           <div class="header-actions">
             <button class="btn-outline" onclick="openPlanModal()">📅 Plan My Day</button>
             <button class="btn-primary" onclick="switchView('ai')">✦ Ask NexAI</button>
+            <button type="button" class="btn-outline nexos-action-entry" id="nexos-action-mode-btn"
+              title="Ask NexAI to propose changes for your review" aria-label="Open NexAI Action Mode" aria-haspopup="dialog">⚡ Action Mode</button>
           </div>
         </div>
 

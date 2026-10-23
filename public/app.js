@@ -570,12 +570,38 @@ function switchView(name) {
   if (name === 'dashboard') { renderDashboard(); updateStats(); }
   if (name === 'analytics') renderAnalytics();
   if (name === 'ai') updateContextPanel();
-  // close sidebar on mobile
-  if (window.innerWidth < 900) document.getElementById('sidebar').classList.remove('open');
+  // Close the mobile drawer after navigation.
+  if (window.innerWidth < 900) closeSidebar();
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+}
+
+function openSidebar() {
+  if (window.innerWidth >= 900) return;
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const toggle = document.getElementById('menu-toggle');
+  if (!sidebar) return;
+  sidebar.classList.add('open');
+  backdrop?.classList.add('visible');
+  sidebar.setAttribute('aria-hidden', 'false');
+  toggle?.setAttribute('aria-expanded', 'true');
+  document.body.classList.add('sidebar-open');
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const toggle = document.getElementById('menu-toggle');
+  sidebar?.classList.remove('open');
+  backdrop?.classList.remove('visible');
+  sidebar?.setAttribute('aria-hidden', 'true');
+  toggle?.setAttribute('aria-expanded', 'false');
+  document.body.classList.remove('sidebar-open');
 }
 
 // ═══════════════════════════ DASHBOARD ═══════════════════════════
@@ -1282,7 +1308,7 @@ function renderFocusChart(days) {
   focusChartInstance = new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets: [{ label: 'Focus (min)', data, backgroundColor: themeToken('--accent-soft', 'rgba(212,161,190,.3)'), borderColor: themeToken('--accent-violet', '#D4A1BE'), borderWidth: 1, borderRadius: 5 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: themeToken('--bg-surface', '#2A202C'), titleColor: themeToken('--text-primary', '#F8F0F5'), bodyColor: themeToken('--text-secondary', '#D0C1CD'), borderColor: themeToken('--glass-border-hover', 'rgba(221,227,232,.24)'), borderWidth: 1 } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
   });
 }
 
@@ -1290,14 +1316,20 @@ function renderTaskDonut() {
   const canvas = document.getElementById('taskDonut');
   if (!canvas) return;
   const cols = ['todo', 'inprogress', 'review', 'done'];
-  const colors = ['rgba(125,108,122,0.78)', 'rgba(58,15,52,0.84)', 'rgba(250,160,0,0.86)', 'rgba(20,122,92,0.82)'];
+  // Keep the task status chart legible in both themes by reading its colors from CSS tokens.
+  const colors = [
+    themeToken('--chart-todo', '#8F8390'),
+    themeToken('--chart-progress', '#D4A1BE'),
+    themeToken('--chart-review', '#FAA000'),
+    themeToken('--chart-done', '#5CC6A5')
+  ];
   const labels = ['To Do', 'In Progress', 'Review', 'Done'];
   const data = cols.map(c => state.tasks.filter(t => t.col === c).length);
   if (donutChartInstance) donutChartInstance.destroy();
   donutChartInstance = new Chart(canvas, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false } } }
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: themeToken('--bg-card', '#2A202C'), borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { backgroundColor: themeToken('--bg-surface', '#2A202C'), titleColor: themeToken('--text-primary', '#F8F0F5'), bodyColor: themeToken('--text-secondary', '#D0C1CD'), borderColor: themeToken('--glass-border-hover', 'rgba(221,227,232,.24)'), borderWidth: 1 } } }
   });
   const legend = document.getElementById('donut-legend');
   if (legend) {
@@ -1368,7 +1400,7 @@ function renderVelocityChart(days) {
   velocityChartInstance = new Chart(canvas, {
     type: 'line',
     data: { labels, datasets: [{ label: 'Tasks Completed', data, borderColor: themeToken('--accent-violet', '#D4A1BE'), backgroundColor: themeToken('--accent-soft', 'rgba(212,161,190,.1)'), borderWidth: 2, pointRadius: 3, pointBackgroundColor: themeToken('--brand-marigold', '#FAA000'), tension: 0.35, fill: true }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: themeToken('--bg-surface', '#2A202C'), titleColor: themeToken('--text-primary', '#F8F0F5'), bodyColor: themeToken('--text-secondary', '#D0C1CD'), borderColor: themeToken('--glass-border-hover', 'rgba(221,227,232,.24)'), borderWidth: 1 } }, scales: { x: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } }, y: { ticks: { color: themeToken('--chart-text', '#A795A5'), font: { size: 10 } }, grid: { color: themeToken('--chart-grid', 'rgba(221,227,232,.1)') } } } }
   });
 }
 
@@ -2425,7 +2457,7 @@ document.addEventListener('keydown', e => {
       e.preventDefault(); saveCurrentNote();
     }
   }
-  if (e.key === 'Escape') { closeTaskModal(); closeSearchModal(); closePlanModal(); closeProfile(); }
+  if (e.key === 'Escape') { closeTaskModal(); closeSearchModal(); closePlanModal(); closeProfile(); closeSidebar(); }
 });
 
 // Mini gradient def for ring
@@ -2453,18 +2485,12 @@ let nexosActionDraft = null;
 let nexosActionBusy = false;
 
 function initNexAIActionMode() {
-  const headerActions = document.querySelector('#view-ai .view-header .header-actions');
-  if (!headerActions) return;
-
-  if (!document.getElementById('nexos-action-mode-btn')) {
-    const button = document.createElement('button');
-    button.id = 'nexos-action-mode-btn';
-    button.type = 'button';
-    button.className = 'btn-outline';
-    button.textContent = '✦ Action Mode';
-    button.title = 'Ask NexAI to propose changes for your review';
+  // The entry point is part of the Dashboard markup; keep modal initialization
+  // independent from its location so a layout edit cannot silently disable it.
+  const button = document.getElementById('nexos-action-mode-btn');
+  if (button && button.dataset.actionModeBound !== '1') {
     button.addEventListener('click', openNexAIActionMode);
-    headerActions.appendChild(button);
+    button.dataset.actionModeBound = '1';
   }
 
   if (!document.getElementById('nexos-action-mode-styles')) {

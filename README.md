@@ -221,3 +221,7 @@ Signed-in users can choose a daily task reminder time from the clock control bes
 ## Editorial visual refresh (2.1.0)
 
 NexOS now uses a shared Ice Silver (`#DDE3E8`), Deep Aubergine (`#3A0F34`) and Marigold (`#FAA000`) design system across the dashboard, task board, habits, notes, analytics, focus timer and sign-in experience. Light and dark themes each define their full surface, text, border, overlay and chart tokens; the theme button, browser theme color, SVG gradients and analytics charts refresh when the theme changes. Existing account data, reminder time and reminder ON/OFF preferences remain separate from visual theme styling.
+
+
+## Dashboard quick actions (2.1.1)
+The Dashboard now provides Plan My Day, Ask NexAI, and NexAI Action Mode together. Action Mode still drafts proposed changes for explicit review before anything is applied. Theme-specific control and Analytics chart colors have also been improved for light/dark consistency.
