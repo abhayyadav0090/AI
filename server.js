@@ -145,6 +145,7 @@ const PushSubscription = mongoose.model('PushSubscription', pushSubscriptionSche
 const PushPreference = mongoose.model('PushPreference', new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, index: true, required: true },
   reminderTime: { type: String, default: '09:00', match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+  enabled: { type: Boolean, default: true },
 }, { timestamps: true, minimize: false }));
 
 const MAX_MSG_CHARS = 4000;
@@ -389,16 +390,25 @@ app.get('/api/push/config', (req, res) => {
 app.get('/api/push/preferences', requireAuth, wrap(async (req, res) => {
   const preference = await PushPreference.findOne({ userId: req.userId }).lean();
   res.set('Cache-Control', 'no-store');
-  res.json({ reminderTime: preference?.reminderTime || '09:00', timeZone: 'Asia/Kolkata' });
+  res.json({ reminderTime: preference?.reminderTime || '09:00', enabled: preference?.enabled !== false, timeZone: 'Asia/Kolkata' });
 }));
 
 app.put('/api/push/preferences', requireAuth, wrap(async (req, res) => {
-  const reminderTime = String(req.body?.reminderTime || '');
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
-    return res.status(400).json({ error: 'Reminder time must be a valid 24-hour time (HH:MM).' });
+  const updates = {};
+  if (req.body?.reminderTime !== undefined) {
+    const reminderTime = String(req.body.reminderTime || '');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
+      return res.status(400).json({ error: 'Reminder time must be a valid 24-hour time (HH:MM).' });
+    }
+    updates.reminderTime = reminderTime;
   }
-  await PushPreference.findOneAndUpdate({ userId: req.userId }, { $set: { reminderTime } }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true });
-  res.json({ ok: true, reminderTime, timeZone: 'Asia/Kolkata' });
+  if (req.body?.enabled !== undefined) {
+    if (typeof req.body.enabled !== 'boolean') return res.status(400).json({ error: 'Reminder enabled must be true or false.' });
+    updates.enabled = req.body.enabled;
+  }
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'Provide a reminder time or enabled setting.' });
+  const preference = await PushPreference.findOneAndUpdate({ userId: req.userId }, { $set: updates }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true });
+  res.json({ ok: true, reminderTime: preference.reminderTime || '09:00', enabled: preference.enabled !== false, timeZone: 'Asia/Kolkata' });
 }));
 
 app.post('/api/push/subscribe', requireAuth, wrap(async (req, res) => {
@@ -459,6 +469,7 @@ async function checkAndSendDueTaskPushes() {
     const states = await UserState.find({}).select('userId data').lean();
     for (const item of states) {
       const preference = await PushPreference.findOne({ userId: item.userId }).lean();
+      if (preference?.enabled === false) continue;
       const reminderTime = preference?.reminderTime || '09:00';
       if (indiaTimeKey() < reminderTime) continue;
       const tasks = Array.isArray(item.data && item.data.tasks) ? item.data.tasks : [];

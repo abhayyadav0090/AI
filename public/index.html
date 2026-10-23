@@ -17,6 +17,9 @@
   #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open { display: flex !important; }
 
   .nexos-reminder-time{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary,#aaa)}
+  .nexos-reminder-toggle{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-secondary,#aaa)}
+  .nexos-reminder-toggle input{accent-color:var(--primary,#7c5cff);width:15px;height:15px;margin:0}
+  .nexos-reminder-time.is-off input[type=time]{opacity:.55}
   .nexos-reminder-time input{width:92px;min-width:0;padding:6px;border:1px solid var(--border,#444);border-radius:8px;background:var(--surface,#222);color:inherit}
   .nexos-reminder-time button{padding:6px 8px}
   @media(max-width:700px){.nexos-reminder-time{gap:3px}.nexos-reminder-time input{width:78px}.nexos-reminder-time button{font-size:11px}}
@@ -96,7 +99,8 @@
       <div class="topbar-right">
         <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks & notes (Ctrl+K)">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">⌘K</kbd></button>
         <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
-        <label class="nexos-reminder-time" title="Daily task reminder time">⏰ <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"><button type="button" id="save-reminder-time" class="btn-sm" onclick="saveTaskReminderTime()">Save</button></label>
+        <label class="nexos-reminder-toggle" title="Turn task reminders on or off"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Alerts</span></label>
+        <label class="nexos-reminder-time" id="task-reminder-time-wrap" title="Daily task reminder time">⏰ <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"><button type="button" id="save-reminder-time" class="btn-sm" onclick="saveTaskReminderTime()">Save</button></label>
         <button class="btn-icon" onclick="exportData()" title="Export JSON Backup">↓</button>
         <button class="btn-icon" onclick="document.getElementById('import-file-input').click()" title="Import JSON Backup">↑</button>
         <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">

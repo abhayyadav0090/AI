@@ -400,6 +400,9 @@ async function startApp(user) {
   updateContextPanel();
   updateNotifButtonUI();
   await loadTaskReminderTime();
+  const reminderToggle = document.getElementById('task-reminders-enabled');
+  if (reminderToggle && !reminderToggle.dataset.bound) { reminderToggle.addEventListener('change', updateTaskReminderControls); reminderToggle.dataset.bound = '1'; }
+  updateTaskReminderControls();
   checkDueNotifications();
   if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
   initChat(); // loads saved chats in the background
@@ -1623,27 +1626,49 @@ function updateNotifButtonUI() {
   btn.setAttribute('aria-label', btn.title);
 }
 
+function updateTaskReminderControls() {
+  const enabled = document.getElementById('task-reminders-enabled');
+  const input = document.getElementById('task-reminder-time');
+  const wrap = document.getElementById('task-reminder-time-wrap');
+  if (input) input.disabled = !!enabled && !enabled.checked;
+  if (wrap) wrap.classList.toggle('is-off', !!enabled && !enabled.checked);
+}
+
 async function loadTaskReminderTime() {
   const input = document.getElementById('task-reminder-time');
+  const enabled = document.getElementById('task-reminders-enabled');
   if (!input || isGuest() || !currentUser) return;
   try {
     const response = await fetch('/api/push/preferences', { credentials: 'same-origin', cache: 'no-store' });
-    if (response.ok) { const data = await response.json(); if (/^([01]\d|2[0-3]):[0-5]\d$/.test(data.reminderTime || '')) input.value = data.reminderTime; }
+    if (response.ok) {
+      const data = await response.json();
+      if (/^([01]\d|2[0-3]):[0-5]\d$/.test(data.reminderTime || '')) input.value = data.reminderTime;
+      if (enabled) enabled.checked = data.enabled !== false;
+      updateTaskReminderControls();
+    }
   } catch (e) { console.warn('Could not load task reminder preference.', e); }
 }
 
 async function saveTaskReminderTime() {
   const input = document.getElementById('task-reminder-time');
+  const enabled = document.getElementById('task-reminders-enabled');
   const button = document.getElementById('save-reminder-time');
-  if (!input || isGuest() || !currentUser) { alert('Sign in to save your daily reminder time.'); return; }
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.value)) { alert('Choose a valid reminder time.'); return; }
+  if (!input || isGuest() || !currentUser) { alert('Sign in to save your task reminder settings.'); return; }
+  if (enabled?.checked && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.value)) { alert('Choose a valid reminder time.'); return; }
   if (button) button.disabled = true;
   try {
-    const response = await fetch('/api/push/preferences', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reminderTime: input.value }) });
+    const settings = { enabled: !enabled || enabled.checked, reminderTime: input.value || '09:00' };
+    const response = await fetch('/api/push/preferences', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Could not save reminder time.');
-    alert(`Daily task reminders are scheduled for ${input.value} India time. Tasks due or overdue will be checked after this time.`);
-  } catch (e) { alert(e.message || 'Could not save reminder time.'); }
+    if (!response.ok) throw new Error(data.error || 'Could not save reminder settings.');
+    updateTaskReminderControls();
+    if (settings.enabled) {
+      checkDueNotifications();
+      alert(`Task reminders are ON. Due and overdue tasks will be checked after ${settings.reminderTime} India time.`);
+    } else {
+      alert('Task reminders are OFF. Due and overdue task alerts are paused; your tasks and due dates are unchanged.');
+    }
+  } catch (e) { alert(e.message || 'Could not save reminder settings.'); }
   finally { if (button) button.disabled = false; }
 }
 
@@ -1679,6 +1704,8 @@ async function enableNotifications() {
 
 function checkDueNotifications() {
   if (!('Notification' in window) || Notification.permission !== 'granted' || !Array.isArray(state.tasks)) return;
+  const remindersEnabled = document.getElementById('task-reminders-enabled');
+  if (remindersEnabled && !remindersEnabled.checked) return;
   const reminderInput = document.getElementById('task-reminder-time');
   const chosenTime = reminderInput && reminderInput.value ? reminderInput.value : '09:00';
   const indiaParts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
