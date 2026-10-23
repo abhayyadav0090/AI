@@ -1502,8 +1502,9 @@ html, body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* Keep the page dimmed, not blurred; blur made the drawer feel invisible on mobile. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: 1400;
   opacity: 0;
   transition: opacity 0.25s ease;
@@ -1518,7 +1519,7 @@ html, body {
     display: block;
   }
   .sidebar {
-    z-index: 1500 !important;
+    z-index: 1600 !important;
     box-shadow: var(--shadow-lg);
   }
 }
@@ -1665,7 +1666,7 @@ html, body {
           <button class="btn-secondary" style="flex:1;font-size:11.5px;padding:6px" onclick="loadSampleWorkspaceData()">⚡ Sample Data</button>
         </div>
         <div class="nexos-experience-switch sidebar-experience-switch" aria-label="Choose NexOS experience">
-          <a href="/" title="Switch to Classic NexOS">Classic NexOS</a>
+          <a href="/classic" title="Switch to Classic NexOS">Classic NexOS</a>
           <span class="active" aria-current="page">Enterprise</span>
         </div>
       </div>
@@ -1677,7 +1678,7 @@ html, body {
     <!-- TOPBAR -->
     <header class="topbar">
       <div class="topbar-left">
-        <button class="mobile-menu-toggle" onclick="toggleSidebarDrawer()">☰</button>
+        <button class="mobile-menu-toggle" onclick="toggleSidebarDrawer()" aria-label="Open navigation menu" aria-controls="app-sidebar" aria-expanded="false" id="enterprise-menu-toggle">☰</button>
         <div class="view-breadcrumb">
           <span id="topbar-view-title">Dashboard</span>
           <span class="copilot-sparkle-badge" onclick="toggleFloatingCopilotDrawer()" title="Open omnipresent Copilot drawer (Ctrl+\)">✦ Gemini Copilot</span>
@@ -1686,7 +1687,7 @@ html, body {
 
       <div class="topbar-right">
         <div class="nexos-experience-switch" aria-label="Choose NexOS experience">
-          <a href="/" title="Switch to Classic NexOS">Classic</a>
+          <a href="/classic" title="Switch to Classic NexOS">Classic</a>
           <span class="active" aria-current="page" title="Current experience">Enterprise</span>
         </div>
         <span id="enterprise-connection-badge" class="enterprise-connection-badge" role="status" aria-live="polite">Connecting…</span>
@@ -1732,7 +1733,7 @@ html, body {
           <option value="material-dark">🔴 Material</option>
           <option value="fluent-light">☀️ Light</option>
           <option value="material-light">⚪ M3</option>
-          <option value="cyber-aubergine">🟣 Aubergine</option>
+          <option value="cyber-aubergine">🟣 Overgame</option>
         </select>
 
         <div class="topbar-clock topbar-hide-tablet" id="live-clock-display">00:00</div>
@@ -2297,6 +2298,24 @@ html, body {
 </div>
 
 <!-- SHARED NEXOS TASK ALERT SETTINGS -->
+<div class="modal-overlay-backdrop" id="modal-enterprise-profile" onclick="handleBackdropClick(event, 'modal-enterprise-profile')">
+  <div class="modal-dialog-card" role="dialog" aria-modal="true" aria-labelledby="enterprise-profile-title" style="max-width:460px">
+    <div class="modal-dialog-header">
+      <h3 class="modal-dialog-title" id="enterprise-profile-title">Your NexOS profile</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-enterprise-profile')" aria-label="Close profile">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin:8px 0 18px">
+      <div id="enterprise-profile-avatar" class="user-avatar-pill" style="width:48px;height:48px;font-size:18px">N</div>
+      <div><div id="enterprise-profile-name" style="font-weight:800;font-size:16px">NexOS user</div><div id="enterprise-profile-email" style="font-size:12px;color:var(--text-secondary);margin-top:4px">Workspace profile</div></div>
+    </div>
+    <p id="enterprise-profile-status" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Your profile and workspace connection.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
+      <a class="btn-secondary" href="/classic" style="text-decoration:none;display:inline-flex;align-items:center">Open Classic profile</a>
+      <button class="btn-primary" onclick="closeModal('modal-enterprise-profile')">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay-backdrop" id="modal-enterprise-alerts" onclick="handleBackdropClick(event, 'modal-enterprise-alerts')">
   <div class="modal-dialog-card" role="dialog" aria-modal="true" aria-labelledby="enterprise-alert-title" style="max-width:480px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
@@ -2466,7 +2485,7 @@ let state = {
   notes: [],
   pomodoroLog: [],
   pomodoroStats: { totalMins: 0, sessions: 0, streak: 0 },
-  theme: 'fluent-dark',
+  theme: 'cyber-aubergine',
   density: 'comfortable',
   uiSoundEnabled: true,
   currentNoteId: null,
@@ -2503,7 +2522,14 @@ function loadWorkspaceState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       state = { ...state, ...parsed };
+      // One-time preference migration: make Overgame the initial Enterprise theme.
+      // After this migration, the user's future theme choice is respected.
+      if (!parsed.enterpriseThemeDefaultMigrated) {
+        state.theme = 'cyber-aubergine';
+        state.enterpriseThemeDefaultMigrated = true;
+      }
     } else {
+      state.enterpriseThemeDefaultMigrated = true;
       loadSampleWorkspaceData(false);
     }
   } catch (e) {
@@ -2595,12 +2621,16 @@ function toggleSidebarDrawer() {
   if (!sb) return;
   const isOpen = sb.classList.toggle('open');
   if (bd) bd.classList.toggle('visible', isOpen);
+  const menuBtn = document.getElementById('enterprise-menu-toggle');
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', String(isOpen));
 }
 function closeSidebarDrawer() {
   const sb = document.getElementById('app-sidebar');
   const bd = document.getElementById('mobile-sidebar-backdrop');
   if (sb) sb.classList.remove('open');
   if (bd) bd.classList.remove('visible');
+  const menuBtn = document.getElementById('enterprise-menu-toggle');
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
 }
 
 // Themes & Density
@@ -4153,7 +4183,24 @@ function exportNexusBackup() {
 }
 
 function openProfileModal() {
-  openCommandPalette();
+  const user = enterpriseSession.user || {};
+  const displayName = user.name || (enterpriseSession.mode === 'guest' ? 'Guest' : 'NexOS user');
+  const avatar = document.getElementById('enterprise-profile-avatar');
+  const name = document.getElementById('enterprise-profile-name');
+  const email = document.getElementById('enterprise-profile-email');
+  const status = document.getElementById('enterprise-profile-status');
+  if (avatar) avatar.textContent = displayName.trim().charAt(0).toUpperCase() || 'N';
+  if (name) name.textContent = displayName;
+  if (email) email.textContent = user.email || (enterpriseSession.mode === 'guest' ? 'Guest workspace · this device' : 'Enterprise workspace');
+  if (status) status.textContent = enterpriseSession.mode === 'account'
+    ? 'You are signed in. Enterprise and Classic share your NexOS workspace.'
+    : enterpriseSession.mode === 'guest'
+      ? 'You are using a guest workspace saved on this device.'
+      : enterpriseSession.mode === 'offline-account'
+        ? 'Your account could not be reached. Changes may be cached locally until the connection returns.'
+        : 'Preview mode: sign in through Classic NexOS to connect this workspace to your account.';
+  closeSidebarDrawer();
+  openModal('modal-enterprise-profile');
 }
 // ============================================================================
 // NEXOS DUAL-EXPERIENCE BRIDGE
@@ -4332,13 +4379,15 @@ function updateEnterpriseConnectionBadge() {
   if (nameEl) nameEl.textContent = enterpriseSession.user?.name || (enterpriseSession.mode === 'guest' ? 'Guest workspace' : enterpriseSession.mode === 'preview' ? 'Enterprise preview' : 'Enterprise workspace');
   if (roleEl) roleEl.textContent = enterpriseSession.mode === 'account' ? '● Connected to your NexOS account' : enterpriseSession.mode === 'guest' ? '● Guest · this device only' : enterpriseSession.mode === 'offline-account' ? '● Offline cache · no cloud sync' : '● Local preview · not connected';
   if (avatarEl) avatarEl.textContent = String(enterpriseSession.user?.name || (enterpriseSession.mode === 'guest' ? 'Guest' : 'N')).trim().slice(0, 1).toUpperCase() || 'N';
+  const greetingName = document.getElementById('dash-user-headline');
+  if (greetingName) greetingName.textContent = enterpriseSession.user?.name || (enterpriseSession.mode === 'guest' ? 'Guest' : 'Executive');
 }
 function enterpriseSetStateFromLocal(raw) {
   if (raw && typeof raw === 'object') state = { ...state, ...raw };
 }
 function enterprisePrefsFromLocal(raw) {
   if (!raw || typeof raw !== 'object') return {};
-  const keys = ['theme','density','uiSoundEnabled','pomodoroStats','pomoTimeRemaining','pomoTotalTime','pomoMode','ambientTrack','activeChatId'];
+  const keys = ['theme','density','enterpriseThemeDefaultMigrated','uiSoundEnabled','pomodoroStats','pomoTimeRemaining','pomoTotalTime','pomoMode','ambientTrack','activeChatId'];
   const out = {};
   for (const key of keys) if (raw[key] !== undefined) out[key] = raw[key];
   return out;

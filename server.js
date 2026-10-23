@@ -92,7 +92,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false, index: false }));
 
 let dbPromise = null;
 function connectDB() {
@@ -688,7 +688,11 @@ app.get(['/enterprise', '/redesign'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
 });
 
-app.get('/classic', (req, res) => res.redirect(302, '/'));
+app.get('/', (req, res) => res.redirect(302, '/enterprise'));
+
+app.get('/classic', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

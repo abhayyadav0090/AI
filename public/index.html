@@ -27,10 +27,12 @@
 </style>
 
 <style>
+  .nexos-experience-switch{display:inline-flex;align-items:center;gap:4px;padding:3px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.25));border-radius:999px;flex-shrink:0}
+  .nexos-experience-current{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,rgba(58,15,52,.98),rgba(250,160,0,.3));white-space:nowrap}
   .nexos-experience-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;text-decoration:none;font-size:12px;font-weight:650;padding:7px 10px;border-radius:999px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.25));color:var(--text-primary,#f2edf3);background:linear-gradient(135deg,rgba(58,15,52,.88),rgba(250,160,0,.14));transition:transform .18s ease,border-color .18s ease,background .18s ease;flex-shrink:0}
   .nexos-experience-link:hover{transform:translateY(-1px);border-color:#FAA000;background:linear-gradient(135deg,rgba(58,15,52,.98),rgba(250,160,0,.22))}
   .nexos-experience-link:focus-visible{outline:2px solid #FAA000;outline-offset:2px}
-  @media(max-width:700px){.nexos-experience-link{width:32px;height:32px;padding:0;border-radius:10px;font-size:18px}.nexos-experience-label{display:none}}
+  @media(max-width:700px){.nexos-experience-current{width:auto;height:32px;padding:0 6px;font-size:10px}.nexos-experience-switch{gap:2px}.nexos-experience-link{width:32px;height:32px;padding:0;border-radius:10px;font-size:18px}.nexos-experience-label{display:none}}
 </style>
 </head>
 <body>
@@ -107,7 +109,10 @@
         <div class="breadcrumb" id="breadcrumb">Dashboard</div>
       </div>
       <div class="topbar-right">
-        <a href="/enterprise" class="nexos-experience-link" title="Switch to Enterprise NexOS" aria-label="Switch to Enterprise NexOS"><span aria-hidden="true">◈</span><span class="nexos-experience-label">Enterprise</span></a>
+        <div class="nexos-experience-switch" role="group" aria-label="Choose NexOS experience">
+          <span class="nexos-experience-current" aria-current="page">Classic</span>
+          <a href="/enterprise" class="nexos-experience-link" title="Switch to Enterprise NexOS" aria-label="Switch to Enterprise NexOS"><span aria-hidden="true">◈</span><span class="nexos-experience-label">Enterprise</span></a>
+        </div>
         <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks and notes (Ctrl or ⌘ + K)" aria-label="Search tasks and notes">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">Ctrl/⌘ K</kbd></button>
         <div class="topbar-overflow" id="topbar-overflow">
           <button type="button" class="btn-icon topbar-overflow-toggle" id="topbar-overflow-toggle" onclick="toggleTopbarOverflow()" title="Notifications, reminders and data tools" aria-label="Open quick settings" aria-controls="topbar-overflow-panel" aria-expanded="false">•••</button>
