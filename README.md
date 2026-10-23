@@ -227,3 +227,9 @@ NexOS now uses a shared Ice Silver (`#DDE3E8`), Deep Aubergine (`#3A0F34`) and M
 
 ## Dashboard quick actions (2.1.1)
 The Dashboard now provides Plan My Day, Ask NexAI, and NexAI Action Mode together. Action Mode still drafts proposed changes for explicit review before anything is applied. Theme-specific control and Analytics chart colors have also been improved for light/dark consistency.
+
+
+## Classic and Enterprise experiences (2.3.0)
+- Classic NexOS: `/`
+- Enterprise NexOS: `/enterprise` (alias `/redesign`)
+Both experiences share the same server-side authenticated workspace. Enterprise uses the existing APIs for state, NexAI conversations, structured completion, and task reminder preferences.

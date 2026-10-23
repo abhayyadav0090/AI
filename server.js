@@ -684,6 +684,12 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
   }
 });
 
+app.get(['/enterprise', '/redesign'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
+});
+
+app.get('/classic', (req, res) => res.redirect(302, '/'));
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
