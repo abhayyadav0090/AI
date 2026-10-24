@@ -1,0 +1,581 @@
+/* ==========================================================================
+   NexOS design layer — loaded after style.css.
+   Two designs, each in light and dark:
+     data-design="google"     Material 3 / Google Workspace: tonal surfaces, pill shapes, Google Sans.
+     data-design="microsoft"  Fluent 2 / Microsoft 365: brand header, compact 4px controls, Segoe UI.
+   Every selector is prefixed with html[data-design] so it wins over style.css.
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------- */
+html[data-design="google"][data-theme="light"] body {
+  --bg: #F8FAFD; --surface: #FFFFFF; --surface-2: #F0F4F9; --surface-3: #E9EEF6;
+  --hover: rgba(31, 31, 31, .06); --pressed: rgba(31, 31, 31, .11);
+  --outline: #E1E5EA; --outline-strong: #C4C7C5;
+  --text: #1F1F1F; --text-2: #444746; --text-3: #5F6368;
+  --accent: #0B57D0; --accent-fill: #0B57D0; --accent-hover: #0A4CB8; --on-accent: #FFFFFF;
+  --accent-container: #D3E3FD; --on-accent-container: #041E49;
+  --success: #146C2E; --warning: #8A5300; --danger: #B3261E;
+  --nav-bg: #F8FAFD; --bar-bg: #F8FAFD; --bar-text: #1F1F1F; --bar-field: #E9EEF6; --bar-field-text: #444746; --bar-hover: rgba(31, 31, 31, .08);
+  --scrim: rgba(32, 33, 36, .5);
+  --shadow-1: 0 1px 2px rgba(60, 64, 67, .16), 0 1px 3px 1px rgba(60, 64, 67, .10);
+  --shadow-3: 0 4px 8px 3px rgba(60, 64, 67, .15), 0 1px 3px rgba(60, 64, 67, .30);
+  --toast-bg: #2E3133; --toast-text: #F0F1F3; --toast-action: #A8C7FA;
+  --chart-todo: #80868B; --chart-progress: #4285F4; --chart-review: #E37400; --chart-done: #1E8E3E;
+  --hero-grad: linear-gradient(90deg, #1A73E8 0%, #7E57C2 55%, #C2185B 100%);
+}
+html[data-design="google"][data-theme="dark"] body {
+  --bg: #131314; --surface: #1E1F20; --surface-2: #282A2C; --surface-3: #333537;
+  --hover: rgba(227, 227, 227, .08); --pressed: rgba(227, 227, 227, .13);
+  --outline: #2F3133; --outline-strong: #444746;
+  --text: #E3E3E3; --text-2: #C4C7C5; --text-3: #9AA0A6;
+  --accent: #A8C7FA; --accent-fill: #A8C7FA; --accent-hover: #C2D7FB; --on-accent: #062E6F;
+  --accent-container: #0842A0; --on-accent-container: #D3E3FD;
+  --success: #81C995; --warning: #FDD663; --danger: #F28B82;
+  --nav-bg: #131314; --bar-bg: #131314; --bar-text: #E3E3E3; --bar-field: #282A2C; --bar-field-text: #C4C7C5; --bar-hover: rgba(227, 227, 227, .1);
+  --scrim: rgba(0, 0, 0, .6);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .5), 0 1px 3px 1px rgba(0, 0, 0, .3);
+  --shadow-3: 0 4px 12px 4px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .6);
+  --toast-bg: #E3E3E3; --toast-text: #1F1F1F; --toast-action: #0B57D0;
+  --chart-todo: #9AA0A6; --chart-progress: #8AB4F8; --chart-review: #FDD663; --chart-done: #81C995;
+  --hero-grad: linear-gradient(90deg, #8AB4F8 0%, #C58AF9 55%, #F28B82 100%);
+}
+html[data-design="microsoft"][data-theme="light"] body {
+  --bg: #F5F5F5; --surface: #FFFFFF; --surface-2: #FAFAFA; --surface-3: #F0F0F0;
+  --hover: #F5F5F5; --pressed: #E0E0E0;
+  --outline: #E0E0E0; --outline-strong: #C7C7C7;
+  --text: #242424; --text-2: #424242; --text-3: #616161;
+  --accent: #0F6CBD; --accent-fill: #0F6CBD; --accent-hover: #115EA3; --on-accent: #FFFFFF;
+  --accent-container: #EBF3FC; --on-accent-container: #0F548C;
+  --success: #107C10; --warning: #BC4B09; --danger: #B10E1C;
+  --nav-bg: #FFFFFF; --bar-bg: #0F6CBD; --bar-text: #FFFFFF; --bar-field: rgba(255, 255, 255, .18); --bar-field-text: #FFFFFF; --bar-hover: rgba(255, 255, 255, .16);
+  --scrim: rgba(0, 0, 0, .4);
+  --shadow-1: 0 0 2px rgba(0, 0, 0, .12), 0 2px 4px rgba(0, 0, 0, .14);
+  --shadow-3: 0 0 8px rgba(0, 0, 0, .12), 0 8px 16px rgba(0, 0, 0, .14);
+  --toast-bg: #FFFFFF; --toast-text: #242424; --toast-action: #0F6CBD;
+  --chart-todo: #8A8A8A; --chart-progress: #0F6CBD; --chart-review: #BC4B09; --chart-done: #107C10;
+  --hero-grad: none;
+}
+html[data-design="microsoft"][data-theme="dark"] body {
+  --bg: #1F1F1F; --surface: #292929; --surface-2: #2E2E2E; --surface-3: #383838;
+  --hover: #333333; --pressed: #3D3D3D;
+  --outline: #3D3D3D; --outline-strong: #525252;
+  --text: #FFFFFF; --text-2: #D6D6D6; --text-3: #ADADAD;
+  --accent: #479EF5; --accent-fill: #115EA3; --accent-hover: #0F6CBD; --on-accent: #FFFFFF;
+  --accent-container: #0A2E4A; --on-accent-container: #B4D6FA;
+  --success: #54B054; --warning: #F7A972; --danger: #DC626D;
+  --nav-bg: #292929; --bar-bg: #0C3B5E; --bar-text: #FFFFFF; --bar-field: rgba(255, 255, 255, .14); --bar-field-text: #FFFFFF; --bar-hover: rgba(255, 255, 255, .14);
+  --scrim: rgba(0, 0, 0, .6);
+  --shadow-1: 0 0 2px rgba(0, 0, 0, .24), 0 2px 4px rgba(0, 0, 0, .28);
+  --shadow-3: 0 0 8px rgba(0, 0, 0, .3), 0 8px 16px rgba(0, 0, 0, .28);
+  --toast-bg: #333333; --toast-text: #FFFFFF; --toast-action: #479EF5;
+  --chart-todo: #ADADAD; --chart-progress: #479EF5; --chart-review: #F7A972; --chart-done: #54B054;
+  --hero-grad: none;
+}
+html[data-design="google"] body {
+  --font-body: 'Google Sans', 'Google Sans Text', 'Product Sans', Roboto, 'Segoe UI', system-ui, sans-serif;
+  --font-display: var(--font-body);
+  --font-mono: 'Roboto Mono', ui-monospace, Menlo, monospace;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-xl: 28px;
+  --r-ctl: 999px; --r-card: 20px; --topbar-h: 64px;
+}
+html[data-design="microsoft"] body {
+  --font-body: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Segoe UI Variable Display', var(--font-body);
+  --font-mono: Consolas, ui-monospace, Menlo, monospace;
+  --radius-sm: 3px; --radius-md: 4px; --radius-lg: 6px; --radius-xl: 8px;
+  --r-ctl: 4px; --r-card: 8px; --topbar-h: 48px;
+}
+/* Map the new tokens onto the names style.css already uses, so every old component follows the design. */
+html[data-design] body {
+  --bg-void: var(--bg); --bg-deep: var(--surface-2); --bg-surface: var(--surface);
+  --bg-card: var(--surface); --bg-card-hover: var(--hover); --bg-card-active: var(--pressed);
+  --glass: var(--surface); --glass-border: var(--outline); --glass-border-hover: var(--outline-strong); --lane-bg: var(--surface-2);
+  --accent-violet: var(--accent); --accent-cyan: var(--accent); --accent-blue: var(--accent);
+  --accent-emerald: var(--success); --accent-amber: var(--warning); --accent-rose: var(--danger);
+  --accent-soft: var(--accent-container); --accent-line: var(--accent); --grad-brand: var(--accent-fill);
+  --control-bg: var(--accent-fill); --control-bg-hover: var(--accent-hover); --focus-ring: var(--accent);
+  --text-primary: var(--text); --text-secondary: var(--text-2); --text-muted: var(--text-3);
+  --chart-grid: var(--outline); --chart-text: var(--text-3);
+  --sidebar-bg: var(--nav-bg); --topbar-bg: var(--bar-bg); --overlay: var(--scrim); --shadow-pop: var(--shadow-3);
+  --brand-marigold: var(--warning);
+  background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; letter-spacing: 0;
+}
+@media (min-width: 901px) {
+  html[data-design="google"] body { --sidebar-w: 256px; --page-pad: 32px; }
+  html[data-design="microsoft"] body { --sidebar-w: 232px; --page-pad: 28px; }
+}
+@media (max-width: 900px) { html[data-design] body { --page-pad: 16px; } }
+html[data-design] { color-scheme: light; }
+html[data-design][data-theme="dark"] { color-scheme: dark; }
+html[data-design] .ambient-bg { display: none; }
+html[data-design] .skip-link { position: absolute; left: 12px; top: -48px; z-index: 3000; padding: 10px 16px; border-radius: var(--r-ctl); background: var(--accent-fill); color: var(--on-accent); font-weight: 600; text-decoration: none; transition: top .15s; }
+html[data-design] .skip-link:focus { top: 12px; }
+html[data-design] :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html[data-design] .ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+html[data-design] .ic-fill { fill: currentColor; stroke: none; }
+html[data-design] h1, html[data-design] h2, html[data-design] h3, html[data-design] h4 { font-family: var(--font-display); letter-spacing: 0; }
+html[data-design] .view-title { font-size: clamp(24px, 3vw, 32px); font-weight: 500; line-height: 1.2; letter-spacing: 0; }
+html[data-design] .view-subtitle { color: var(--text-2); }
+html[data-design="microsoft"] .view-title { font-weight: 600; font-size: clamp(22px, 2.6vw, 28px); }
+
+/* ---------- 2. Shell: navigation ---------- */
+html[data-design] .sidebar { background: var(--nav-bg); border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-design] .sidebar-logo { padding: 14px 16px 10px 24px; height: var(--topbar-h); min-height: 64px; }
+html[data-design] .logo-mark { width: 32px; height: 32px; border-radius: 10px; background: var(--accent-fill); color: var(--on-accent); font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+html[data-design="microsoft"] .logo-mark { border-radius: 4px; }
+html[data-design] .logo-text { background: none; -webkit-text-fill-color: currentColor; color: var(--text); font-size: 20px; font-weight: 500; font-family: var(--font-display); }
+html[data-design] .sidebar-nav { padding: 4px 12px 12px; gap: 2px; }
+html[data-design] .nav-item { height: 48px; padding: 0 16px; gap: 14px; border-radius: 999px; color: var(--text-2); font-size: 14px; font-weight: 500; box-shadow: none; }
+html[data-design] .nav-item:hover { background: var(--hover); color: var(--text); }
+html[data-design] .nav-item.active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; box-shadow: none; }
+html[data-design] .nav-item .nav-icon { width: 22px; height: 22px; color: inherit; }
+html[data-design] .nav-item.active .nav-icon { color: inherit; }
+html[data-design] .nav-spacer { flex: 1; }
+html[data-design] .nav-badge { margin-left: auto; border: 0; background: var(--surface-3); color: var(--text-2); font-family: var(--font-body); font-size: 11px; font-weight: 600; padding: 2px 8px; }
+html[data-design] .nav-item.active .nav-badge { background: rgba(255, 255, 255, .5); color: inherit; }
+html[data-design="microsoft"] .nav-item { position: relative; height: 40px; border-radius: 4px; padding: 0 12px; font-weight: 400; }
+html[data-design="microsoft"] .nav-item.active { background: var(--surface-3); color: var(--text); font-weight: 600; }
+html[data-design="microsoft"] .nav-item.active::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); }
+html[data-design="microsoft"] .nav-item.active .nav-icon { color: var(--accent); }
+html[data-design="microsoft"] .sidebar { border-right: 1px solid var(--outline); }
+html[data-design] .sidebar-footer { border-top: 1px solid var(--outline); padding: 12px 16px 16px; }
+html[data-design] .user-avatar, html[data-design] .top-avatar { background: var(--accent-fill); color: var(--on-accent); font-weight: 600; }
+html[data-design] .user-status { color: var(--success); font-size: 11px; }
+html[data-design] .logout-btn { color: var(--text-3); }
+html[data-design] .sidebar-close { border: 0; background: transparent; color: var(--text-2); border-radius: 50%; }
+html[data-design] .sidebar-close:hover { background: var(--hover); transform: none; }
+html[data-design] .sidebar-close .ic { width: 20px; height: 20px; }
+
+/* ---------- 3. Shell: top bar ---------- */
+html[data-design] .topbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 600px) minmax(0, 1fr); align-items: center; gap: 12px; height: var(--topbar-h); padding: 0 var(--page-pad); background: var(--bar-bg); color: var(--bar-text); border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-design] .topbar-left { gap: 8px; }
+html[data-design] .brand-inline { display: none; align-items: center; gap: 12px; font-weight: 600; font-size: 16px; padding-right: 8px; }
+html[data-design] .breadcrumb { font-family: var(--font-display); font-size: 22px; font-weight: 400; color: var(--bar-text); }
+html[data-design] .menu-toggle { color: var(--bar-text); border-radius: 50%; }
+html[data-design] .menu-toggle:hover { background: var(--bar-hover); color: var(--bar-text); }
+html[data-design] .topbar-search { display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--bar-field); color: var(--bar-field-text); font-size: 14px; text-align: left; }
+html[data-design] .topbar-search:hover { box-shadow: var(--shadow-1); }
+html[data-design] .topbar-search-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .kbd-hint, html[data-design] .palette kbd, html[data-design] .palette-foot kbd, html[data-design] .shortcut-list kbd { font-family: var(--font-body); font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--outline-strong); background: var(--surface-2); color: var(--text-2); }
+html[data-design] .topbar-search .kbd-hint { background: transparent; border-color: currentColor; opacity: .7; }
+html[data-design] .topbar-right { justify-self: end; gap: 4px; }
+html[data-design] .topbar .btn-icon, html[data-design] .topbar .theme-toggle { width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--bar-text); }
+html[data-design] .topbar .btn-icon:hover, html[data-design] .topbar .theme-toggle:hover { background: var(--bar-hover); color: var(--bar-text); }
+html[data-design] .topbar .btn-icon .ic, html[data-design] .topbar .theme-toggle .ic { width: 22px; height: 22px; }
+html[data-design] #notif-btn .ic-off, html[data-design] #notif-btn[data-state="denied"] .ic-on { display: none; }
+html[data-design] #notif-btn[data-state="denied"] .ic-off { display: block; }
+html[data-design] #notif-btn[data-state="granted"] { color: var(--bar-text); }
+html[data-design] #notif-btn[data-state="default"] .ic-on::after { content: ""; }
+html[data-design] .theme-toggle .ic-moon { display: none; }
+html[data-theme="light"] .theme-toggle .ic-sun { display: none; }
+html[data-theme="light"] .theme-toggle .ic-moon { display: block; }
+html[data-design] .top-avatar { width: 36px; height: 36px; margin-left: 6px; padding: 0; border: 0; border-radius: 50%; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+html[data-design] .top-avatar img { width: 100%; height: 100%; object-fit: cover; }
+html[data-design="microsoft"] .top-avatar { width: 32px; height: 32px; background: rgba(255, 255, 255, .24); color: #fff; }
+html[data-design] .new-btn { height: 40px; padding: 0 20px 0 14px; margin-right: 6px; border: 0; border-radius: 16px; background: var(--accent-container); color: var(--on-accent-container); font-size: 14px; font-weight: 600; box-shadow: none; filter: none; }
+html[data-design] .new-btn:hover { box-shadow: var(--shadow-1); filter: none; }
+html[data-design="google"] .topbar .new-btn { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design="microsoft"] .new-btn { height: 32px; padding: 0 12px 0 8px; border-radius: 4px; background: var(--bar-field); color: #fff; font-weight: 600; }
+html[data-design="microsoft"] .new-btn:hover { background: rgba(255, 255, 255, .26); box-shadow: none; }
+html[data-design] .sync-chip { display: inline-flex; align-items: center; gap: 8px; margin-right: 8px; font-size: 12px; color: var(--bar-text); opacity: .85; white-space: nowrap; }
+html[data-design] .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+html[data-design="microsoft"] .sync-dot { box-shadow: 0 0 0 2px rgba(255, 255, 255, .5); }
+html[data-design] .sync-chip[data-state="saving"] .sync-dot { background: var(--warning); animation: pulse 1s ease-in-out infinite; }
+html[data-design] .sync-chip[data-state="offline"] .sync-dot, html[data-design] .sync-chip[data-state="expired"] .sync-dot { background: var(--danger); }
+html[data-design] .sync-chip[data-state="local"] .sync-dot { background: var(--text-3); }
+@keyframes pulse { 50% { opacity: .35; } }
+/* Microsoft: the brand header spans the whole window and the navigation sits below it */
+html[data-design="microsoft"] .topbar { position: fixed; left: 0; right: 0; top: 0; z-index: 120; }
+html[data-design="microsoft"] .main-content { padding-top: var(--topbar-h); }
+html[data-design="microsoft"] .brand-inline { display: flex; }
+html[data-design="microsoft"] .breadcrumb { font-size: 14px; font-weight: 400; opacity: .9; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .4); }
+html[data-design="microsoft"] .topbar-search { height: 32px; border-radius: 4px; }
+@media (min-width: 901px) {
+  html[data-design="microsoft"] .sidebar { top: var(--topbar-h); }
+  html[data-design="microsoft"] .sidebar-logo { display: none; }
+  html[data-design="google"] .topbar { position: sticky; top: 0; z-index: 50; }
+  html[data-design="google"] .sidebar-logo { padding-left: 22px; }
+  html[data-design="google"] .topbar-left .breadcrumb { padding-left: 4px; }
+}
+
+/* ---------- 4. Buttons, chips, fields ---------- */
+html[data-design] .btn-primary { height: 40px; padding: 0 22px; border-radius: var(--r-ctl); background: var(--accent-fill); color: var(--on-accent); font-size: 14px; font-weight: 500; filter: none; }
+html[data-design] .btn-primary:hover { background: var(--accent-hover); filter: none; box-shadow: var(--shadow-1); }
+html[data-design] .btn-outline { height: 40px; padding: 0 20px; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); color: var(--accent); background: transparent; font-size: 14px; font-weight: 500; }
+html[data-design] .btn-outline:hover { background: var(--accent-container); border-color: var(--outline-strong); }
+html[data-design] .btn-sm { height: 32px; padding: 0 14px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--accent); font-size: 13px; font-weight: 500; }
+html[data-design] .btn-sm:hover { background: var(--accent-container); color: var(--on-accent-container); border: 0; }
+html[data-design] .btn-primary .ic, html[data-design] .btn-outline .ic, html[data-design] .btn-sm .ic { width: 18px; height: 18px; }
+html[data-design="microsoft"] .btn-primary, html[data-design="microsoft"] .btn-outline { height: 32px; padding: 0 16px; }
+html[data-design="microsoft"] .btn-outline { color: var(--text); }
+html[data-design="microsoft"] .btn-outline:hover { background: var(--hover); }
+html[data-design="microsoft"] .btn-sm { height: 28px; padding: 0 10px; }
+html[data-design] .btn-danger { height: 40px; padding: 0 20px; border: 1px solid var(--danger); border-radius: var(--r-ctl); background: transparent; color: var(--danger); font-weight: 500; }
+html[data-design] .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+html[data-design] .btn-round { background: var(--accent-fill); color: var(--on-accent); border: 0; }
+html[data-design] .btn-pair { display: inline-flex; gap: 6px; }
+html[data-design] .link-btn { border: 0; background: none; color: var(--accent); text-decoration: underline; padding: 0; font: inherit; }
+html[data-design] .input-inline, html[data-design] .select-inline, html[data-design] .modal-input, html[data-design] .chat-textarea, html[data-design] .inline-label input { height: 40px; padding: 0 14px; background: var(--surface); color: var(--text); border: 1px solid var(--outline-strong); border-radius: var(--radius-md); font-size: 14px; }
+html[data-design] .modal-textarea, html[data-design] .chat-textarea { height: auto; padding: 10px 14px; }
+html[data-design="google"] .input-inline, html[data-design="google"] .select-inline { border-radius: 999px; padding: 0 18px; }
+html[data-design="microsoft"] .input-inline, html[data-design="microsoft"] .select-inline, html[data-design="microsoft"] .modal-input { height: 32px; border-color: var(--outline-strong); border-bottom-color: var(--text-3); }
+html[data-design] .input-inline:focus, html[data-design] .select-inline:focus, html[data-design] .modal-input:focus, html[data-design] .chat-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); outline: none; }
+html[data-design] input[type="checkbox"] { accent-color: var(--accent-fill); }
+html[data-design] .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+html[data-design] .chip, html[data-design] .prompt-chip, html[data-design] .ctx-action-btn { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--outline-strong); border-radius: 8px; background: var(--surface); color: var(--text-2); font-size: 13px; font-weight: 500; white-space: nowrap; }
+html[data-design="google"] .chip, html[data-design="google"] .prompt-chip { border-radius: 999px; background: var(--surface-2); border-color: transparent; }
+html[data-design] .chip:hover, html[data-design] .prompt-chip:hover, html[data-design] .ctx-action-btn:hover { background: var(--hover); color: var(--text); }
+html[data-design] .chip .ic { width: 18px; height: 18px; color: var(--accent); }
+html[data-design] .seg { display: inline-flex; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); overflow: hidden; background: var(--surface); }
+html[data-design] .seg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border: 0; border-right: 1px solid var(--outline-strong); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; }
+html[data-design] .seg-btn:last-child { border-right: 0; }
+html[data-design] .seg-btn.active { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .seg-btn .ic { width: 18px; height: 18px; }
+html[data-design] .seg-wide { display: flex; width: 100%; } html[data-design] .seg-wide .seg-btn { flex: 1; }
+html[data-design="microsoft"] .seg-btn { height: 30px; }
+
+/* ---------- 5. Home ---------- */
+html[data-design] .hero { margin: 8px 0 24px; max-width: 880px; }
+html[data-design] .hero-date { font-size: 13px; color: var(--text-3); margin-bottom: 4px; }
+html[data-design] .hero-date .clock { color: inherit; font-family: var(--font-body); padding: 0; font-variant-numeric: tabular-nums; }
+html[data-design] .hero-title { font-size: clamp(30px, 4.6vw, 48px); font-weight: 500; line-height: 1.15; margin-bottom: 20px; }
+html[data-design="google"] .hero-title { background: var(--hero-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; padding-bottom: 4px; }
+html[data-design="microsoft"] .hero-title { font-size: clamp(26px, 3.4vw, 32px); font-weight: 600; margin-bottom: 16px; }
+html[data-design] .ask-box { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px 6px 20px; border-radius: 28px; background: var(--surface-2); border: 1px solid transparent; color: var(--text-2); transition: box-shadow .15s, border-color .15s; }
+html[data-design] .ask-box:focus-within { background: var(--surface); box-shadow: var(--shadow-1); border-color: var(--outline-strong); }
+html[data-design] .ask-box > .ic { color: var(--accent); width: 22px; height: 22px; }
+html[data-design] .ask-box input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; color: var(--text); font-size: 16px; outline: none; }
+html[data-design] .ask-send { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--accent-fill); color: var(--on-accent); flex: none; }
+html[data-design] .ask-send:hover { background: var(--accent-hover); }
+html[data-design="microsoft"] .ask-box { border-radius: 8px; background: var(--surface); border-color: var(--outline-strong); box-shadow: var(--shadow-1); min-height: 48px; padding: 4px 6px 4px 14px; }
+html[data-design="microsoft"] .ask-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+html[data-design="microsoft"] .ask-box input { height: 38px; font-size: 14px; }
+html[data-design="microsoft"] .ask-send { width: 34px; height: 34px; border-radius: 4px; }
+html[data-design] .stats-grid { gap: 12px; margin-bottom: 16px; }
+html[data-design] .stat-card, html[data-design] .widget, html[data-design] .guide-card, html[data-design] .analytics-card, html[data-design] .pomo-stat-card, html[data-design] .pomo-settings { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--r-card); box-shadow: none; }
+html[data-design="google"] .stat-card { background: var(--surface-2); border-color: transparent; }
+html[data-design="microsoft"] .stat-card, html[data-design="microsoft"] .widget { box-shadow: var(--shadow-1); border-color: transparent; }
+html[data-design] .stat-card { padding: 16px 20px; }
+html[data-design] .stat-label { font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
+html[data-design] .stat-value { font-family: var(--font-display); font-size: 34px; font-weight: 400; line-height: 1.1; margin-bottom: 6px; color: var(--text); }
+html[data-design="microsoft"] .stat-value { font-weight: 600; font-size: 30px; }
+html[data-design] .stat-trend { font-size: 12px; color: var(--text-3); }
+html[data-design] .stat-trend.is-alert { color: var(--danger); font-weight: 500; }
+html[data-design] .widget { padding: 20px; }
+html[data-design] .widget-header h3 { font-size: 16px; font-weight: 500; }
+html[data-design="microsoft"] .widget-header h3 { font-weight: 600; font-size: 14px; }
+html[data-design] .dash-list { gap: 2px; }
+html[data-design] .dash-task-item { display: flex; align-items: center; gap: 10px; padding: 2px 4px; border: 0; border-radius: var(--radius-md); background: transparent; }
+html[data-design] .dash-task-item:hover { background: var(--hover); }
+html[data-design] .dash-task-main { flex: 1; min-width: 0; padding: 8px 4px; border: 0; background: none; text-align: left; color: inherit; display: flex; flex-direction: column; gap: 2px; }
+html[data-design] .dash-task-title { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .dash-task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); }
+html[data-design] .task-check { width: 22px; height: 22px; flex: none; border: 2px solid var(--outline-strong); border-radius: 50%; background: transparent; padding: 0; position: relative; transition: background .12s, border-color .12s; }
+html[data-design] .task-check:hover { border-color: var(--accent); background: var(--accent-container); }
+html[data-design] .task-check.checked { background: var(--accent-fill); border-color: var(--accent-fill); }
+html[data-design] .task-check.checked::after { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+html[data-design="microsoft"] .task-check { border-radius: 50%; }
+html[data-design] .priority-high .task-check:not(.checked) { border-color: var(--danger); }
+html[data-design] .priority-medium .task-check:not(.checked) { border-color: var(--warning); }
+html[data-design] .due-chip, html[data-design] .meta-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; background: var(--surface-3); color: var(--text-2); font-size: 11px; font-weight: 500; }
+html[data-design] .due-chip.today { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .due-chip.overdue { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+html[data-design] .meta-chip.pri-high { color: var(--danger); } html[data-design] .meta-chip.pri-medium { color: var(--warning); }
+html[data-design] .dash-habit-item { display: flex; align-items: center; gap: 12px; padding: 6px 4px; border: 0; border-radius: var(--radius-md); }
+html[data-design] .habit-quick { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px solid var(--hc, var(--accent)); background: transparent; color: #fff; font-size: 13px; font-weight: 700; line-height: 1; padding: 0; }
+html[data-design] .habit-quick.checked { background: var(--hc, var(--accent)); }
+html[data-design] .dash-habit-name { flex: 1; font-size: 14px; color: var(--text); }
+html[data-design] .dash-habit-name.done { color: var(--text-3); text-decoration: line-through; }
+html[data-design] .habit-streak-badge { padding: 2px 10px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: 12px; font-weight: 500; }
+html[data-design] .dash-note-item { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 8px; border: 0; border-radius: var(--radius-md); background: transparent; text-align: left; color: inherit; }
+html[data-design] .dash-note-item:hover { background: var(--hover); }
+html[data-design] .dash-note-title { font-size: 14px; font-weight: 500; color: var(--text); }
+html[data-design] .dash-note-preview { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .ring-bg, html[data-design] .pomo-ring-bg, html[data-design] .score-bg-ring { stroke: var(--surface-3); }
+html[data-design] .ai-insight-bar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border: 0; border-radius: var(--r-card); background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .ai-insight-bar .ic { color: inherit; } html[data-design] .ai-insight-bar .btn-sm { color: inherit; border: 1px solid currentColor; }
+html[data-design] .guest-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 14px; border-radius: var(--r-card); background: var(--accent-container); color: var(--on-accent-container); font-size: 13px; }
+html[data-design] .guide-card { padding: 16px 20px; margin-bottom: 14px; }
+html[data-design] .guide-step { border-radius: var(--radius-md); border: 1px solid var(--outline); background: transparent; }
+html[data-design] .guide-check { border-color: var(--outline-strong); }
+html[data-design] .guide-step.done .guide-check { background: var(--success); border-color: var(--success); color: #fff; }
+
+/* ---------- 6. Tasks ---------- */
+html[data-design] .view-header { margin-bottom: 20px; }
+html[data-design] .kanban-board { gap: 12px; }
+html[data-design] .kanban-col { background: var(--surface-2); border: 0; border-radius: var(--r-card); padding: 12px; }
+html[data-design="microsoft"] .kanban-col { background: var(--surface-3); }
+html[data-design] .col-header h3 { font-size: 14px; font-weight: 600; }
+html[data-design] .col-count { background: var(--surface); color: var(--text-2); border-radius: 999px; font-size: 12px; padding: 1px 9px; }
+html[data-design] .col-dot { border-radius: 50%; }
+html[data-design] .dot-todo { background: var(--chart-todo); } html[data-design] .dot-inprogress { background: var(--chart-progress); } html[data-design] .dot-review { background: var(--chart-review); } html[data-design] .dot-done { background: var(--chart-done); }
+html[data-design] .col-cards.drag-over { background: var(--accent-container); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: var(--radius-md); }
+html[data-design] .task-card { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-lg); box-shadow: none; padding: 12px 14px; }
+html[data-design="microsoft"] .task-card { box-shadow: var(--shadow-1); border-color: transparent; border-radius: 6px; }
+html[data-design] .task-card:hover { box-shadow: var(--shadow-1); border-color: var(--outline-strong); }
+html[data-design] .task-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+html[data-design] .task-desc { color: var(--text-3); font-size: 12px; }
+html[data-design] .priority-chip { border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface-3); color: var(--text-2); border: 0; text-transform: capitalize; }
+html[data-design] .priority-chip.priority-high { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+html[data-design] .priority-chip.priority-medium { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+html[data-design] .task-move-btn, html[data-design] .task-action-btn { border: 0; border-radius: 50%; background: transparent; color: var(--text-3); }
+html[data-design] .task-move-btn:hover:not(:disabled), html[data-design] .task-action-btn:hover { background: var(--hover); color: var(--text); }
+html[data-design] .task-due { color: var(--text-3); font-family: var(--font-body); font-size: 12px; }
+html[data-design] .task-list-view { display: flex; flex-direction: column; gap: 18px; max-width: 880px; }
+html[data-design] .task-list-view[hidden], html[data-design] .kanban-board[hidden] { display: none; }
+html[data-design] .tl-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+html[data-design] .tl-heading span { padding: 0 8px; border-radius: 999px; background: var(--surface-3); font-size: 12px; font-weight: 500; }
+html[data-design] .tl-group.overdue .tl-heading { color: var(--danger); }
+html[data-design] .tl-row { display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 12px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--outline); margin-bottom: 6px; }
+html[data-design="microsoft"] .tl-row { border-radius: 4px; border-color: transparent; box-shadow: var(--shadow-1); }
+html[data-design] .tl-row:hover { border-color: var(--outline-strong); }
+html[data-design] .tl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border: 0; background: none; text-align: left; color: inherit; }
+html[data-design] .tl-text { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .tl-row.done .tl-text { color: var(--text-3); text-decoration: line-through; }
+html[data-design] .tl-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-design] .tl-del { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; }
+html[data-design] .tl-del:hover { background: var(--hover); color: var(--danger); }
+
+/* ---------- 7. Focus, habits, notes, insights ---------- */
+html[data-design] .pomo-tabs { background: var(--surface-2); border-radius: var(--r-ctl); padding: 4px; border: 0; }
+html[data-design] .pomo-tab { border-radius: var(--r-ctl); color: var(--text-2); font-weight: 500; }
+html[data-design] .pomo-tab.active { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .pomo-time { font-family: var(--font-display); font-weight: 400; color: var(--text); }
+html[data-design] .pomo-btn { border: 1px solid var(--outline-strong); background: var(--surface); color: var(--text-2); }
+html[data-design] .pomo-btn.pomo-play { background: var(--accent-fill); color: var(--on-accent); border: 0; }
+html[data-design] .session-dot { background: var(--surface-3); } html[data-design] .session-dot.done { background: var(--accent-fill); }
+html[data-design] .pomo-stat-value { font-family: var(--font-display); font-weight: 500; color: var(--text); }
+html[data-design] .habit-row { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-lg); }
+html[data-design="microsoft"] .habit-row { border-radius: 6px; }
+html[data-design] .habit-check { border: 2px solid var(--outline-strong); background: transparent; border-radius: 50%; color: #fff; }
+html[data-design] .habit-check.checked { color: #fff; }
+html[data-design] .habit-streak { color: var(--text-3); }
+html[data-design] .week-day-label { color: var(--text-3); }
+html[data-design] .heatmap-cell { background: var(--surface-3); border-radius: 3px; }
+html[data-design] .heatmap-cell.h1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-3)); }
+html[data-design] .heatmap-cell.h2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface-3)); }
+html[data-design] .heatmap-cell.h3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface-3)); }
+html[data-design] .heatmap-cell.h4 { background: var(--accent); }
+html[data-design] .heat-0 { background: var(--surface-3); } html[data-design] .heat-1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-3)); } html[data-design] .heat-2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface-3)); } html[data-design] .heat-3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface-3)); } html[data-design] .heat-4 { background: var(--accent); }
+html[data-design] .notes-layout { height: calc(100vh - 220px); height: calc(100dvh - 220px); }
+html[data-design] .notes-sidebar, html[data-design] .note-editor { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--r-card); overflow: hidden; }
+html[data-design] .notes-sidebar { padding: 12px; }
+html[data-design] .filter-btn { height: 30px; padding: 0 14px; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); background: transparent; color: var(--text-2); font-size: 12px; font-weight: 500; }
+html[data-design] .filter-btn.active { background: var(--accent-container); color: var(--on-accent-container); border-color: transparent; }
+html[data-design] .note-list-item { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: transparent; text-align: left; color: inherit; }
+html[data-design] .note-list-item:hover { background: var(--hover); }
+html[data-design] .note-list-item.active { background: var(--accent-container); }
+html[data-design] .note-list-title { font-size: 14px; font-weight: 500; color: var(--text); }
+html[data-design] .note-list-preview { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .note-list-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+html[data-design] .note-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border: 0; border-radius: 11px; background: var(--surface-3); color: var(--text-2); font-size: 11px; font-weight: 500; }
+html[data-design] .note-tag.removable { cursor: pointer; } html[data-design] .note-tag.removable:hover { background: var(--pressed); }
+html[data-design] .editor-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--outline); }
+html[data-design] .note-title-field { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font-family: var(--font-display); font-size: 20px; font-weight: 500; outline: none; }
+html[data-design] .editor-actions { display: flex; gap: 2px; }
+html[data-design] .editor-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; min-width: 36px; justify-content: center; padding: 0 8px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text-2); font-size: 13px; }
+html[data-design] .editor-btn:hover { background: var(--hover); color: var(--text); }
+html[data-design] .editor-btn.on { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .editor-btn.danger:hover { color: var(--danger); }
+html[data-design] .editor-btn .ic { width: 20px; height: 20px; }
+html[data-design] .note-back { display: none; }
+html[data-design] .note-textarea { background: transparent; color: var(--text); border: 0; font-size: 15px; line-height: 1.6; padding: 16px 20px; }
+html[data-design] .note-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--outline); }
+html[data-design] .note-meta { display: flex; gap: 12px; font-size: 12px; color: var(--text-3); }
+html[data-design] .analytics-card h4 { font-size: 14px; font-weight: 600; color: var(--text); }
+html[data-design] .review-stat-box { background: var(--surface-2); border-radius: var(--radius-lg); border: 0; }
+html[data-design] .score-fg-ring { stroke: var(--accent); }
+html[data-design] .ring-fg, html[data-design] .pomo-ring-progress { stroke: var(--accent); }
+
+/* ---------- 8. NexAI chat ---------- */
+html[data-design] .ai-chat-area, html[data-design] .ai-context-panel { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--r-card); }
+html[data-design] .ai-layout { height: calc(100vh - 220px); height: calc(100dvh - 220px); }
+html[data-design] .msg-avatar { background: var(--accent-container); color: var(--on-accent-container); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+html[data-design] .msg-avatar .ic { width: 18px; height: 18px; }
+html[data-design] .chat-msg.user .msg-avatar { background: var(--accent-fill); color: var(--on-accent); }
+html[data-design] .msg-bubble { background: var(--surface-2); border: 0; color: var(--text); border-radius: 18px; }
+html[data-design] .chat-msg.user .msg-bubble { background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .chat-msg.error .msg-bubble { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+html[data-design] .msg-bubble.md > :first-child { margin-top: 0; } html[data-design] .msg-bubble.md > :last-child { margin-bottom: 0; }
+html[data-design] .msg-bubble.md p { margin: 0 0 8px; } html[data-design] .msg-bubble.md ul, html[data-design] .msg-bubble.md ol { margin: 0 0 8px 20px; } html[data-design] .msg-bubble.md li { margin: 2px 0; }
+html[data-design] .msg-bubble.md code { padding: 1px 5px; border-radius: 4px; background: var(--surface-3); font-family: var(--font-mono); font-size: .9em; }
+html[data-design] .msg-bubble.md .chat-code { margin: 6px 0 10px; padding: 12px 14px; overflow-x: auto; border-radius: var(--radius-md); background: var(--surface-3); }
+html[data-design] .msg-bubble.md .chat-code code { padding: 0; background: none; font-size: 12.5px; white-space: pre; }
+html[data-design] .msg-bubble.md .chat-heading { font-weight: 600; }
+html[data-design] .msg-bubble.md a { color: var(--accent); }
+html[data-design] .chat-input-row { align-items: flex-end; }
+html[data-design] .chat-send-btn { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--accent-fill); color: var(--on-accent); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+html[data-design="microsoft"] .chat-send-btn { border-radius: 4px; width: 36px; height: 36px; }
+html[data-design] .chat-list-item { border-radius: var(--radius-md); } html[data-design] .chat-list-item:hover { background: var(--hover); } html[data-design] .chat-list-item.active { background: var(--accent-container); }
+html[data-design] .typing-dot { background: var(--text-3); }
+
+/* ---------- 9. Dialogs, palette, menus, toasts ---------- */
+html[data-design] .modal-overlay { background: var(--scrim); backdrop-filter: none; }
+html[data-design] .modal { background: var(--surface); border: 0; border-radius: var(--radius-xl); box-shadow: var(--shadow-3); color: var(--text); }
+html[data-design="microsoft"] .modal { border: 1px solid var(--outline); }
+html[data-design] .modal-header h3 { font-size: 20px; font-weight: 500; }
+html[data-design="microsoft"] .modal-header h3 { font-size: 18px; font-weight: 600; }
+html[data-design] .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--text-2); }
+html[data-design] .modal-close:hover { background: var(--hover); }
+html[data-design] .modal-body label { font-size: 13px; font-weight: 500; color: var(--text-2); }
+html[data-design] .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+html[data-design] .modal-footer { gap: 8px; }
+html[data-design] .palette-overlay { align-items: flex-start; padding-top: 12vh; }
+html[data-design] .palette { width: min(640px, 100%); padding: 0; overflow: hidden; border-radius: 20px; }
+html[data-design="microsoft"] .palette { border-radius: 8px; }
+html[data-design] .palette-input { display: flex; align-items: center; gap: 12px; padding: 4px 16px; border-bottom: 1px solid var(--outline); color: var(--text-3); }
+html[data-design] .palette-input input { flex: 1; height: 52px; border: 0; background: transparent; color: var(--text); font-size: 16px; outline: none; }
+html[data-design] .palette .search-results-list { max-height: min(52vh, 420px); overflow-y: auto; padding: 8px; }
+html[data-design] .pal-group { padding: 8px 12px 4px; font-size: 12px; font-weight: 600; color: var(--text-3); }
+html[data-design] .pal-item { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 0; border-radius: 12px; cursor: pointer; background: transparent; }
+html[data-design="microsoft"] .pal-item { border-radius: 4px; }
+html[data-design] .pal-item:hover, html[data-design] .pal-item.active { background: var(--accent-container); }
+html[data-design] .pal-item .ic { color: var(--accent); }
+html[data-design] .pal-text { flex: 1; min-width: 0; }
+html[data-design] .pal-title { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .pal-detail { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-design] .search-result-type { font-size: 11px; font-weight: 500; color: var(--text-3); border: 0; background: transparent; }
+html[data-design] .palette-foot { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--outline); font-size: 12px; color: var(--text-3); }
+html[data-design] .shortcut-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--outline); font-size: 14px; }
+html[data-design] .menu-pop { position: fixed; z-index: 400; top: calc(var(--topbar-h) + 6px); right: 76px; min-width: 220px; padding: 8px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-3); border: 1px solid var(--outline); }
+html[data-design] .menu-pop[hidden] { display: none; }
+html[data-design="microsoft"] .menu-pop { border-radius: 8px; padding: 4px; }
+html[data-design] .menu-pop button { display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: 14px; text-align: left; }
+html[data-design="microsoft"] .menu-pop button { height: 36px; border-radius: 4px; }
+html[data-design] .menu-pop button:hover { background: var(--hover); } html[data-design] .menu-pop .ic { color: var(--text-2); }
+html[data-design] .toasts { position: fixed; z-index: 2000; left: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+html[data-design] .toast { pointer-events: auto; display: flex; align-items: center; gap: 16px; min-height: 48px; padding: 8px 8px 8px 16px; border-radius: 8px; background: var(--toast-bg); color: var(--toast-text); box-shadow: var(--shadow-3); font-size: 14px; animation: toastIn .18s ease-out; }
+html[data-design="microsoft"] .toast { border: 1px solid var(--outline); border-left: 4px solid var(--accent); border-radius: 4px; }
+html[data-design="microsoft"] .toast.error { border-left-color: var(--danger); }
+html[data-design] .toast.leaving { opacity: 0; transform: translateY(6px); transition: .15s; }
+html[data-design] .toast-text { flex: 1; }
+html[data-design] .toast-action, html[data-design] .toast-x { border: 0; background: transparent; color: var(--toast-action); font-weight: 600; font-size: 14px; padding: 8px 12px; border-radius: 999px; }
+html[data-design] .toast-x { color: var(--toast-text); padding: 6px; display: inline-flex; } html[data-design] .toast-x .ic { width: 18px; height: 18px; }
+html[data-design] .toast-action:hover { background: rgba(127, 127, 127, .2); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- 10. Settings dialog ---------- */
+html[data-design] .profile-modal { width: min(560px, 100%); }
+html[data-design] .profile-section { padding: 16px 0; border-top: 1px solid var(--outline); display: flex; flex-direction: column; gap: 10px; }
+html[data-design] .profile-section h4 { font-size: 15px; font-weight: 600; }
+html[data-design] .profile-help { font-size: 13px; color: var(--text-2); }
+html[data-design] .profile-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+html[data-design] .profile-avatar { background: var(--accent-fill); color: var(--on-accent); }
+html[data-design] .profile-danger h4 { color: var(--danger); }
+html[data-design] .design-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+html[data-design] .design-card { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 2px solid var(--outline); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; }
+html[data-design] .design-card.active { border-color: var(--accent); background: var(--accent-container); color: var(--on-accent-container); }
+html[data-design] .design-name { font-weight: 600; font-size: 14px; } html[data-design] .design-sub { font-size: 12px; opacity: .8; }
+html[data-design] .design-preview { display: grid; grid-template-columns: 22px 1fr; grid-template-rows: 10px 1fr 1fr; gap: 4px; height: 64px; padding: 6px; border-radius: 8px; margin-bottom: 6px; }
+html[data-design] .design-preview i { display: block; border-radius: 3px; }
+html[data-design] .dp-google { background: #F8FAFD; } html[data-design] .dp-google i:nth-child(1) { grid-row: 1 / 4; background: #D3E3FD; border-radius: 10px; } html[data-design] .dp-google i:nth-child(2) { background: #E9EEF6; border-radius: 6px; } html[data-design] .dp-google i:nth-child(3) { background: #fff; border-radius: 6px; box-shadow: 0 0 0 1px #E1E5EA; grid-row: 2 / 4; }
+html[data-design] .dp-microsoft { background: #F5F5F5; } html[data-design] .dp-microsoft i:nth-child(1) { grid-row: 1 / 4; background: #fff; border-radius: 2px; box-shadow: inset -2px 0 0 #0F6CBD; } html[data-design] .dp-microsoft i:nth-child(2) { background: #0F6CBD; border-radius: 2px; } html[data-design] .dp-microsoft i:nth-child(3) { background: #fff; border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.2); grid-row: 2 / 4; }
+html[data-design] .switch-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); }
+html[data-design] .inline-label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+html[data-design] #task-reminder-time-wrap.is-off { opacity: .55; }
+
+/* ---------- 11. Sign-in ---------- */
+html[data-design] .login-screen { background: var(--bg); padding: 16px; }
+html[data-design] .login-card { width: min(440px, 100%); padding: 40px 36px; background: var(--surface); border: 1px solid var(--outline); border-radius: 28px; box-shadow: none; text-align: center; }
+html[data-design="microsoft"] .login-card { border-radius: 8px; box-shadow: var(--shadow-3); border-color: transparent; text-align: left; }
+html[data-design] .login-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; }
+html[data-design="microsoft"] .login-brand { justify-content: flex-start; }
+html[data-design] .login-card h1 { font-size: 26px; font-weight: 500; margin-bottom: 8px; }
+html[data-design] .login-card p { color: var(--text-2); font-size: 14px; }
+html[data-design] #google-btn { display: flex; justify-content: center; margin: 22px 0 6px; min-height: 44px; }
+html[data-design="microsoft"] #google-btn { justify-content: flex-start; }
+html[data-design] .login-error { color: var(--danger); min-height: 18px; font-size: 13px; }
+html[data-design] .login-divider span { color: var(--text-3); background: var(--surface); }
+html[data-design] .login-guest-btn { width: 100%; }
+html[data-design] .login-note { color: var(--text-3); font-size: 12px; margin-top: 12px; }
+html[data-design] .login-note a { color: var(--accent); }
+html[data-design] .login-design { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--outline); font-size: 12px; color: var(--text-3); }
+html[data-design] .login-design .seg-btn { height: 30px; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); font-size: 12px; }
+html[data-design] .login-design .seg-btn.active { background: var(--accent-container); color: var(--on-accent-container); }
+
+/* ---------- 12. Mobile ---------- */
+html[data-design] .bottom-nav, html[data-design] .fab { display: none; }
+@media (max-width: 900px) {
+  html[data-design] .topbar { position: sticky; top: 0; z-index: 60; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; padding: 0 8px; padding-top: env(safe-area-inset-top, 0px); height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
+  html[data-design="microsoft"] .topbar { position: fixed; }
+  html[data-design="microsoft"] .main-content { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
+  html[data-design] .topbar-search { width: 40px; height: 40px; padding: 0; justify-content: center; justify-self: end; background: transparent; }
+  html[data-design] .topbar-search-text, html[data-design] .topbar-search .kbd-hint, html[data-design] .new-btn, html[data-design] .sync-chip span:last-child, html[data-design] #notif-btn, html[data-design] .theme-toggle { display: none; }
+  html[data-design] .sync-chip { margin: 0 4px; }
+  html[data-design] .brand-inline span { display: none; }
+  html[data-design] .breadcrumb { font-size: 18px; }
+  html[data-design="microsoft"] .breadcrumb { border: 0; padding-left: 0; font-size: 15px; font-weight: 600; opacity: 1; }
+  html[data-design="microsoft"] .brand-inline { display: none; }
+  html[data-design] .topbar-right { gap: 0; }
+  html[data-design] .main-content { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  html[data-design] .sidebar { top: 0; z-index: 300; width: min(300px, 86vw); background: var(--surface); box-shadow: var(--shadow-3); border-radius: 0 28px 28px 0; padding-top: env(safe-area-inset-top, 0px); }
+  html[data-design="microsoft"] .sidebar { border-radius: 0; }
+  html[data-design] .sidebar-logo { display: flex; }
+  html[data-design] .sidebar-backdrop { z-index: 250; background: var(--scrim); backdrop-filter: none; }
+  html[data-design] .bottom-nav { position: fixed; z-index: 200; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); height: calc(68px + env(safe-area-inset-bottom, 0px)); padding: 6px 4px env(safe-area-inset-bottom, 0px); background: var(--surface-2); border-top: 1px solid var(--outline); }
+  html[data-design="microsoft"] .bottom-nav { background: var(--surface); }
+  html[data-design] .bottom-nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; color: var(--text-2); font-size: 11px; font-weight: 500; position: relative; }
+  html[data-design] .bottom-nav button .ic { width: 24px; height: 24px; }
+  html[data-design="google"] .bottom-nav button.active .ic { background: var(--accent-container); color: var(--on-accent-container); width: 56px; height: 30px; padding: 3px 16px; border-radius: 16px; box-sizing: border-box; }
+  html[data-design="google"] .bottom-nav button.active { color: var(--text); font-weight: 600; }
+  html[data-design="microsoft"] .bottom-nav button.active { color: var(--accent); font-weight: 600; }
+  html[data-design] .fab { position: fixed; z-index: 190; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border: 0; border-radius: 16px; background: var(--accent-container); color: var(--on-accent-container); box-shadow: var(--shadow-3); }
+  html[data-design="microsoft"] .fab { border-radius: 50%; background: var(--accent-fill); color: var(--on-accent); }
+  html[data-design] .fab .ic { width: 26px; height: 26px; }
+  html[data-design] .menu-pop { top: auto; right: 16px; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+  html[data-design] .toasts { left: 12px; right: 12px; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); max-width: none; }
+  html[data-design] .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-design] .dashboard-widgets { grid-template-columns: 1fr; }
+  html[data-design] .hero { margin-top: 0; }
+  html[data-design] .view-header { align-items: stretch; }
+  html[data-design] .header-actions { width: 100%; }
+  html[data-design] .header-actions .input-inline { flex: 1 1 140px; min-width: 0; }
+  html[data-design] .notes-layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  html[data-design] .note-editor { display: none; min-height: calc(100dvh - 240px); }
+  html[data-design] .note-editor.is-open { display: flex; }
+  html[data-design] .notes-layout:has(.note-editor.is-open) .notes-sidebar { display: none; }
+  html[data-design] .note-back { display: inline-flex; }
+  html[data-design] .editor-btn-text { display: none; }
+  html[data-design] .ai-layout { grid-template-columns: 1fr; height: auto; }
+  html[data-design] .ai-chat-area { height: calc(100dvh - 300px); min-height: 380px; }
+  html[data-design] .modal { border-radius: 28px 28px 0 0; }
+  html[data-design] .palette-overlay { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
+  html[data-design] .palette { border-radius: 20px; }
+  html[data-design] .login-card { padding: 32px 22px; }
+  html[data-design] .design-picker { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { html[data-design] .modal-grid { grid-template-columns: 1fr; } html[data-design] .kanban-board { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { html[data-design] * { animation: none !important; transition: none !important; } }
+
+/* ---------- 13. Legacy clean-up ---------- */
+html[data-design] .topbar { box-shadow: none; }
+html[data-design] .topbar-right { flex-wrap: nowrap; min-width: 0; width: auto; overflow: visible; padding: 0; justify-content: flex-end; }
+html[data-design] .topbar-left { width: auto; }
+html[data-design] .stat-card::before, html[data-design] .stat-card::after, html[data-design] .widget::before, html[data-design] .logo-mark::after, html[data-design] .logo-mark::before { content: none; display: none; }
+html[data-design] .mini-time, html[data-design] .pomo-time, html[data-design] .priority-chip, html[data-design] .score-value, html[data-design] .pomo-stat-value, html[data-design] .clock, html[data-design] .plan-time, html[data-design] .task-due, html[data-design] .review-stat-val { font-family: var(--font-body); }
+html[data-design] .mini-time { color: var(--text); font-weight: 500; }
+html[data-design] .plan-item { background: var(--surface-2); border: 0; border-radius: var(--radius-md); }
+html[data-design] .search-result-item { border-radius: 12px; }
+@media (min-width: 901px) { html[data-design="google"] .breadcrumb { display: none; } }
+@media (max-width: 900px) {
+  html[data-design] .topbar-right { width: auto; flex-wrap: nowrap; overflow: visible; padding: 0; }
+  html[data-design] .topbar-left { width: auto; }
+}
+html[data-design] .topbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+html[data-design] .topbar-search { max-width: 640px; justify-self: start; }
+html[data-design="microsoft"] .topbar-search { justify-self: center; }
+@media (max-width: 900px) { html[data-design] .topbar-search { justify-self: end; max-width: 40px; } }
+
+/* ---------- 14. Final polish ---------- */
+html[data-design] .design-preview { width: 100%; box-sizing: border-box; }
+html[data-design] .modal-body .switch-row, html[data-design] .modal-body .inline-label { flex-direction: row; align-items: center; }
+html[data-design] .profile-section h4 { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--text); }
+html[data-design] .profile-danger h4 { color: var(--danger); }
+html[data-design] .search-result-type, html[data-design] .note-tag, html[data-design] .note-list-tags, html[data-design] .task-card-meta, html[data-design] .meta-chip, html[data-design] .due-chip, html[data-design] .col-count, html[data-design] .nav-badge, html[data-design] .kbd-hint { font-family: var(--font-body); }
+html[data-design] .hero-date .clock::before { content: "\00B7\00A0"; }
+@media (max-width: 900px) { html[data-design] .hero-date .clock { display: none; } }
+html[data-design] .ctx-val, html[data-design] .ctx-label { font-family: var(--font-body); }
+html[data-design] .login-screen { background-image: none; }
+html[data-design] .login-screen::before, html[data-design] .login-screen::after { display: none; }
+html[data-design] .login-card h1, html[data-design] .login-card > p { text-align: inherit; }
+html[data-design] .login-card .login-guest-btn { margin-top: 0; }

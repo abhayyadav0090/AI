@@ -3,8 +3,8 @@
   "short_name": "NexOS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#171018",
-  "theme_color": "#171018",
+  "background_color": "#131314",
+  "theme_color": "#131314",
   "icons": [
     {
       "src": "nexos-icon-192.png",
@@ -24,5 +24,12 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "id": "/",
+  "scope": "/",
+  "description": "AI productivity workspace: tasks, focus timer, habits and notes with a Gemini assistant.",
+  "categories": [
+    "productivity"
+  ],
+  "orientation": "any"
 }

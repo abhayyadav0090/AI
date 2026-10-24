@@ -1,6 +1,36 @@
-/* NexOS-only service worker. */
+/* NexOS service worker: task-reminder push notifications plus an offline fallback for the app shell. */
+const CACHE = 'nexos-shell-v3';
+
 self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()));
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (event) => event.waitUntil((async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((k) => k.startsWith('nexos-shell-') && k !== CACHE).map((k) => caches.delete(k)));
+  await self.clients.claim();
+})()));
+
+// Network first, so users always get the latest version; the cache is only used when the network fails.
+// API calls are never cached or intercepted.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(req);
+      if (res && res.ok && res.type === 'basic') {
+        const cache = await caches.open(CACHE);
+        cache.put(req, res.clone());
+      }
+      return res;
+    } catch (err) {
+      const hit = (await caches.match(req)) || (req.mode === 'navigate' ? await caches.match('/') : null);
+      if (hit) return hit;
+      throw err;
+    }
+  })());
+});
+
 self.addEventListener('push', (event) => {
   let data = {}; try { data = event.data ? event.data.json() : {}; } catch (_) {}
   const title = typeof data.title === 'string' ? data.title : 'NexOS reminder';

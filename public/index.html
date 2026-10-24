@@ -2,95 +2,112 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>NexOS — AI Productivity Workspace</title>
-<meta name="description" content="NexOS is an AI productivity workspace with Kanban tasks, focus timer, habit tracker and smart notes. Powered by Google Gemini.">
+<meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes, powered by Google Gemini.">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="apple-touch-icon" href="nexos-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="design.css">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#171018">
+<meta name="theme-color" content="#131314">
+<script>
+  /* Apply the saved design and theme before first paint so there is no flash. */
+  (function () {
+    var root = document.documentElement, ui = {};
+    try { ui = JSON.parse(localStorage.getItem('nexos_ui_v1') || '{}'); } catch (e) {}
+    root.dataset.design = ui.design === 'microsoft' ? 'microsoft' : 'google';
+    var t = ui.theme === 'light' || ui.theme === 'dark' ? ui.theme : 'system';
+    var dark = t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    root.dataset.theme = dark ? 'dark' : 'light';
+  })();
+</script>
 <style>
-  #task-modal, #search-modal, #plan-modal, #profile-modal { display: none !important; }
-  #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open { display: flex !important; }
-
-  .nexos-reminder-time{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary,#aaa)}
-  .nexos-reminder-toggle{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-secondary,#aaa)}
-  .nexos-reminder-toggle input{accent-color:var(--brand-marigold,#FAA000);width:15px;height:15px;margin:0}
-  .nexos-reminder-time.is-off input[type=time]{opacity:.55}
-  .nexos-reminder-time input{width:92px;min-width:0;padding:6px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.24));border-radius:8px;background:var(--bg-surface,#2A202C);color:inherit}
-  .nexos-reminder-time button{padding:6px 8px}
-  @media(max-width:700px){.nexos-reminder-time{gap:3px}.nexos-reminder-time input{width:78px}.nexos-reminder-time button{font-size:11px}}
-</style>
-
-<style>
-  .nexos-experience-switch{display:inline-flex;align-items:center;gap:4px;padding:3px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.25));border-radius:999px;flex-shrink:0}
-  .nexos-experience-current{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,rgba(58,15,52,.98),rgba(250,160,0,.3));white-space:nowrap}
-  .nexos-experience-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;text-decoration:none;font-size:12px;font-weight:650;padding:7px 10px;border-radius:999px;border:1px solid var(--glass-border-hover,rgba(221,227,232,.25));color:var(--text-primary,#f2edf3);background:linear-gradient(135deg,rgba(58,15,52,.88),rgba(250,160,0,.14));transition:transform .18s ease,border-color .18s ease,background .18s ease;flex-shrink:0}
-  .nexos-experience-link:hover{transform:translateY(-1px);border-color:#FAA000;background:linear-gradient(135deg,rgba(58,15,52,.98),rgba(250,160,0,.22))}
-  .nexos-experience-link:focus-visible{outline:2px solid #FAA000;outline-offset:2px}
-  @media(max-width:700px){.nexos-experience-current{width:auto;height:32px;padding:0 6px;font-size:10px}.nexos-experience-switch{gap:2px}.nexos-experience-link{width:32px;height:32px;padding:0;border-radius:10px;font-size:18px}.nexos-experience-label{display:none}}
+  #task-modal, #search-modal, #plan-modal, #profile-modal, #shortcuts-modal { display: none !important; }
+  #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open, #shortcuts-modal.is-open { display: flex !important; }
 </style>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9.2 4v16M14.8 4v16"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 3h5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.6 2.6 5-5.4"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8Z"/><path d="M19 3v3M17.5 4.5h3"/></symbol>
+  <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 9.2-5M18 11v5.5l1.5 2h-15M10 20.5a2 2 0 0 0 4 0M4 4l16 16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9M5 19.5h14"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.6 0-1.4-1.3-1.5-1.3-2.7 0-.9.7-1.5 1.6-1.5H16a4.5 4.5 0 0 0 4.5-4.5C20.5 6.6 16.9 3.5 12 3.5Z"/><path d="M7.8 11h.01M10.5 7.5h.01M15 7.8h.01"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5.5 13.5H11L10 21l8-11h-5.5z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 4h4M7 7l1 13h8l1-13M10.5 11v6M13.5 11v6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4M10 6l-6 6 6 6"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 12.5V5a1 1 0 0 1 1-1h7.5l7.5 7.5-8.5 8.5z"/><path d="M8.5 8.5h.01"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4M4 4v4h4M4 13a8 8 0 0 0 14 4M20 20v-4h-4"/></symbol>
+  <symbol id="i-waffle" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.7"/><circle cx="12" cy="5" r="1.7"/><circle cx="19" cy="5" r="1.7"/><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/><circle cx="5" cy="19" r="1.7"/><circle cx="12" cy="19" r="1.7"/><circle cx="19" cy="19" r="1.7"/></g></symbol>
+</svg>
+
+<a class="skip-link" href="#main">Skip to content</a>
 <div id="login-screen" class="login-screen" style="display:none">
   <div class="login-card">
-    <div class="logo-mark">N</div>
-    <h1>NexOS</h1>
-    <p>Plan your day, focus and track habits. Sign in to save your work to your account, or try it without one.</p>
+    <div class="login-brand"><div class="logo-mark">N</div><span class="logo-text">NexOS</span></div>
+    <h1>Plan your day. Stay focused.</h1>
+    <p>Tasks, a focus timer, habits and notes in one workspace, with an AI assistant that can see your plan. Sign in to save your work to your account, or try it without one.</p>
     <div id="google-btn"></div>
-    <p id="login-error" class="login-error"></p>
+    <p id="login-error" class="login-error" role="alert"></p>
     <div class="login-divider"><span>or</span></div>
     <button class="btn-outline login-guest-btn" type="button" onclick="startGuest()">Continue as guest</button>
     <p class="login-note">Guest data stays in this browser. NexAI needs a Google account.</p>
     <p class="login-note">NexOS only receives your name, email address and profile picture from Google. It never sees your password and cannot read your Gmail, Drive or contacts. <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+    <div class="login-design" role="group" aria-label="Design">
+      <span>Look and feel</span>
+      <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')">Google</button>
+      <button type="button" class="seg-btn" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')">Microsoft</button>
+    </div>
   </div>
 </div>
 
 <div id="app" style="display:none">
-  <div class="ambient-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-    <div class="grid-overlay"></div>
-  </div>
+  <div class="ambient-bg"></div>
 
-  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar({restoreFocus:true})" aria-hidden="true"></div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
   <nav class="sidebar" id="sidebar" aria-label="Main navigation" aria-hidden="false">
     <div class="sidebar-logo">
       <div class="logo-mark">N</div>
       <span class="logo-text">NexOS</span>
-      <button type="button" class="sidebar-close" onclick="closeSidebar({restoreFocus:true})" aria-label="Close navigation" title="Close menu">✕</button>
+      <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="sidebar-nav">
-      <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
-        <span class="nav-icon">⬡</span><span class="nav-label">Dashboard</span>
-      </button>
-      <button class="nav-item" data-view="kanban" onclick="switchView('kanban')">
-        <span class="nav-icon">▦</span><span class="nav-label">Kanban</span>
-      </button>
-      <button class="nav-item" data-view="pomodoro" onclick="switchView('pomodoro')">
-        <span class="nav-icon">◎</span><span class="nav-label">Focus</span>
-      </button>
-      <button class="nav-item" data-view="habits" onclick="switchView('habits')">
-        <span class="nav-icon">◈</span><span class="nav-label">Habits</span>
-      </button>
-      <button class="nav-item" data-view="notes" onclick="switchView('notes')">
-        <span class="nav-icon">◧</span><span class="nav-label">Notes</span>
-      </button>
-      <button class="nav-item" data-view="analytics" onclick="switchView('analytics')">
-        <span class="nav-icon">◬</span><span class="nav-label">Analytics</span>
-      </button>
-      <button class="nav-item" data-view="ai" onclick="switchView('ai')">
-        <span class="nav-icon">✦</span><span class="nav-label">NexAI</span>
-        <span class="nav-badge">AI</span>
-      </button>
-      <button class="nav-item" id="nav-profile" onclick="openProfile()">
-        <span class="nav-icon">◉</span><span class="nav-label">Profile</span>
-      </button>
+      <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Home</span></button>
+      <button class="nav-item" data-view="kanban" onclick="switchView('kanban')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-board"/></svg><span class="nav-label">Tasks</span></button>
+      <button class="nav-item" data-view="pomodoro" onclick="switchView('pomodoro')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-timer"/></svg><span class="nav-label">Focus</span></button>
+      <button class="nav-item" data-view="habits" onclick="switchView('habits')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-check"/></svg><span class="nav-label">Habits</span></button>
+      <button class="nav-item" data-view="notes" onclick="switchView('notes')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-note"/></svg><span class="nav-label">Notes</span></button>
+      <button class="nav-item" data-view="analytics" onclick="switchView('analytics')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-chart"/></svg><span class="nav-label">Insights</span></button>
+      <button class="nav-item" data-view="ai" onclick="switchView('ai')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span class="nav-label">NexAI</span><span class="nav-badge">AI</span></button>
+      <div class="nav-spacer"></div>
+      <button class="nav-item" id="nav-profile" onclick="openProfile()"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="nav-label">Settings</span></button>
     </div>
     <div class="sidebar-footer">
       <div class="user-avatar" id="user-avatar" onclick="openProfile()" title="Profile">U</div>
@@ -98,52 +115,55 @@
         <span class="user-name" id="user-name">You</span>
         <span class="user-status">● Online</span>
       </div>
-      <button class="logout-btn" onclick="logout()" title="Sign out">⏻</button>
+      <button class="logout-btn" onclick="logout()" title="Sign out" aria-label="Sign out">⏻</button>
     </div>
   </nav>
 
-  <main class="main-content">
+  <main class="main-content" id="main">
     <header class="topbar">
       <div class="topbar-left">
-        <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button>
-        <div class="breadcrumb" id="breadcrumb">Dashboard</div>
+        <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg></button>
+        <div class="brand-inline" aria-hidden="true"><svg class="ic waffle ic-fill"><use href="#i-waffle"/></svg><span>NexOS</span></div>
+        <div class="breadcrumb" id="breadcrumb">Home</div>
       </div>
+      <button type="button" class="topbar-search" onclick="openSearchModal()" aria-label="Search tasks, notes and actions">
+        <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span class="topbar-search-text">Search tasks, notes and actions</span><kbd class="kbd-hint" id="kbd-hint">Ctrl K</kbd>
+      </button>
       <div class="topbar-right">
-        <div class="nexos-experience-switch" role="group" aria-label="Choose NexOS experience">
-          <span class="nexos-experience-current" aria-current="page">Classic</span>
-          <a href="/enterprise" class="nexos-experience-link" title="Switch to Enterprise NexOS" aria-label="Switch to Enterprise NexOS"><span aria-hidden="true">◈</span><span class="nexos-experience-label">Enterprise</span></a>
-        </div>
-        <button class="btn-sm topbar-search-btn" onclick="openSearchModal()" title="Search tasks and notes (Ctrl or ⌘ + K)" aria-label="Search tasks and notes">🔍 <span class="hide-xs">Search</span> <kbd class="kbd-hint hide-xs">Ctrl/⌘ K</kbd></button>
-        <div class="topbar-overflow" id="topbar-overflow">
-          <button type="button" class="btn-icon topbar-overflow-toggle" id="topbar-overflow-toggle" onclick="toggleTopbarOverflow()" title="Notifications, reminders and data tools" aria-label="Open quick settings" aria-controls="topbar-overflow-panel" aria-expanded="false">•••</button>
-          <div class="topbar-overflow-panel" id="topbar-overflow-panel" role="group" aria-label="Notifications, reminders and data tools">
-            <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Enable notifications" aria-label="Enable browser notifications">🔔</button>
-            <label class="nexos-reminder-toggle" title="Turn task reminders on or off"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Alerts</span></label>
-            <label class="nexos-reminder-time" id="task-reminder-time-wrap" title="Daily task reminder time">⏰ <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"><button type="button" id="save-reminder-time" class="btn-sm" onclick="saveTaskReminderTime()">Save</button></label>
-            <button class="btn-icon" onclick="exportData()" title="Export JSON backup" aria-label="Export JSON backup">↓</button>
-            <button class="btn-icon" onclick="document.getElementById('import-file-input').click()" title="Import JSON backup" aria-label="Import JSON backup">↑</button>
-            <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
-          </div>
-        </div>
-        <div class="clock" id="topbar-clock">00:00</div>
-        <button class="btn-icon topbar-ai-shortcut" onclick="switchView('ai')" title="Ask NexAI" aria-label="Open NexAI">✦</button>
-        <button type="button" class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch to light theme" aria-label="Switch to light theme">☼</button>
+        <span class="sync-chip" id="sync-chip" role="status" aria-live="polite" data-state="saved"><span class="sync-dot"></span><span id="sync-text">Saved</span></span>
+        <button type="button" class="btn-primary new-btn" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>New</span></button>
+        <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Turn on due-date notifications" aria-label="Notifications"><svg class="ic ic-on" aria-hidden="true"><use href="#i-bell"/></svg><svg class="ic ic-off" aria-hidden="true"><use href="#i-bell-off"/></svg></button>
+        <button type="button" class="btn-icon theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+        <button type="button" class="btn-icon" onclick="NexUI.openSettings()" title="Settings and appearance" aria-label="Settings and appearance"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg></button>
+        <button type="button" class="top-avatar" id="top-avatar" onclick="openProfile()" aria-label="Account and settings">U</button>
       </div>
     </header>
 
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Primary">
+      <button type="button" data-bnav="dashboard" class="active" aria-current="page" onclick="switchView('dashboard')"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span>Home</span></button>
+      <button type="button" data-bnav="kanban" onclick="switchView('kanban')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg><span>Tasks</span></button>
+      <button type="button" data-bnav="pomodoro" onclick="switchView('pomodoro')"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg><span>Focus</span></button>
+      <button type="button" data-bnav="notes" onclick="switchView('notes')"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><span>Notes</span></button>
+      <button type="button" data-bnav="ai" onclick="switchView('ai')"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg><span>NexAI</span></button>
+    </nav>
+    <button type="button" class="fab" id="fab" aria-label="Create new" aria-haspopup="menu" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+
     <div class="view-container">
-      <!-- DASHBOARD -->
-      <section id="view-dashboard" class="view active">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Good <span id="greeting-time">morning</span></h1>
-            <p class="view-subtitle" id="dashboard-date">Loading…</p>
-          </div>
-          <div class="header-actions">
-            <button class="btn-outline" onclick="openPlanModal()">📅 Plan My Day</button>
-            <button class="btn-primary" onclick="switchView('ai')">✦ Ask NexAI</button>
-            <button type="button" class="btn-outline nexos-action-entry" id="nexos-action-mode-btn"
-              title="Ask NexAI to propose changes for your review" aria-label="Open NexAI Action Mode" aria-haspopup="dialog">⚡ Action Mode</button>
+      <!-- HOME -->
+      <section id="view-dashboard" class="view active" aria-label="Home">
+        <div class="hero">
+          <p class="hero-date"><span id="dashboard-date">Loading…</span> <span class="clock" id="topbar-clock">00:00:00</span></p>
+          <h1 class="view-title hero-title">Good <span id="greeting-time">morning</span><span id="greeting-name"></span></h1>
+          <form class="ask-box" onsubmit="return askFromHome(event)" role="search" aria-label="Ask NexAI">
+            <svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg>
+            <input id="home-ask" type="text" maxlength="4000" autocomplete="off" placeholder="Ask NexAI anything" aria-label="Ask NexAI">
+            <button class="ask-send" type="submit" aria-label="Send to NexAI"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg></button>
+          </form>
+          <div class="chip-row">
+            <button class="chip" type="button" onclick="openPlanModal()"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Plan my day</button>
+            <button type="button" class="chip nexos-action-entry" id="nexos-action-mode-btn" title="Ask NexAI to propose changes for your review" aria-label="Open NexAI Action Mode" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Action Mode</button>
+            <button class="chip" type="button" onclick="sendSuggestedPrompt('Analyze my productivity this week and give me 3 actionable tips')"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Analyze my week</button>
+            <button class="chip" type="button" onclick="sendSuggestedPrompt('Help me prioritize my current tasks using the Eisenhower matrix')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg>Prioritize tasks</button>
           </div>
         </div>
 
@@ -152,19 +172,19 @@
 
         <div class="stats-grid">
           <div class="stat-card" id="stat-tasks">
-            <div class="stat-label">Tasks Today</div>
+            <div class="stat-label">Open tasks</div>
             <div class="stat-value" id="stat-tasks-val">0</div>
-            <div class="stat-trend up">↑ Active</div>
+            <div class="stat-trend" id="stat-tasks-sub">Nothing due today</div>
           </div>
           <div class="stat-card" id="stat-focus">
-            <div class="stat-label">Focus Time</div>
+            <div class="stat-label">Focus today</div>
             <div class="stat-value" id="stat-focus-val">0m</div>
-            <div class="stat-trend">Today</div>
+            <div class="stat-trend">Completed sessions</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Habits Done</div>
+            <div class="stat-label">Habits today</div>
             <div class="stat-value" id="stat-habits-val">0%</div>
-            <div class="stat-trend up">↑ Today</div>
+            <div class="stat-trend" id="stat-habits-sub">No habits yet</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Notes</div>
@@ -176,18 +196,18 @@
         <div class="dashboard-widgets">
           <div class="widget widget-tasks">
             <div class="widget-header">
-              <h3>Today's Priorities</h3>
-              <button class="btn-sm" onclick="switchView('kanban')">View All →</button>
+              <h3>Today’s priorities</h3>
+              <button class="btn-sm" onclick="switchView('kanban')">All tasks</button>
             </div>
             <div id="dash-tasks-list" class="dash-list">
-              <div class="empty-state">No tasks yet. Add some in Kanban!</div>
+              <div class="empty-state">No tasks yet. Add some in Tasks.</div>
             </div>
           </div>
 
           <div class="widget widget-pomodoro">
             <div class="widget-header">
-              <h3>Focus Timer</h3>
-              <button class="btn-sm" onclick="switchView('pomodoro')">Open →</button>
+              <h3>Focus timer</h3>
+              <button class="btn-sm" onclick="switchView('pomodoro')">Open</button>
             </div>
             <div class="mini-timer">
               <div class="mini-ring">
@@ -198,7 +218,7 @@
                 <div class="mini-time" id="mini-timer-display">25:00</div>
               </div>
               <div class="mini-timer-controls">
-                <button class="btn-round" id="mini-play-btn" onclick="togglePomodoroFromDash()">▶</button>
+                <button class="btn-round" id="mini-play-btn" onclick="togglePomodoroFromDash()" aria-label="Start or pause the focus timer">▶</button>
                 <span class="mini-session-label" id="mini-session-label">Focus</span>
               </div>
             </div>
@@ -206,8 +226,8 @@
 
           <div class="widget widget-habits">
             <div class="widget-header">
-              <h3>Habit Streaks</h3>
-              <button class="btn-sm" onclick="switchView('habits')">View All →</button>
+              <h3>Habit streaks</h3>
+              <button class="btn-sm" onclick="switchView('habits')">All habits</button>
             </div>
             <div id="dash-habits-list" class="dash-list">
               <div class="empty-state">No habits tracked yet.</div>
@@ -216,8 +236,8 @@
 
           <div class="widget widget-notes">
             <div class="widget-header">
-              <h3>Recent Notes</h3>
-              <button class="btn-sm" onclick="switchView('notes')">View All →</button>
+              <h3>Recent notes</h3>
+              <button class="btn-sm" onclick="switchView('notes')">All notes</button>
             </div>
             <div id="dash-notes-list" class="dash-list">
               <div class="empty-state">No notes yet.</div>
@@ -226,9 +246,9 @@
         </div>
 
         <div class="ai-insight-bar" id="ai-insight-bar">
-          <span class="ai-insight-icon">✦</span>
-          <span id="ai-insight-text">Click to get an AI-powered daily insight…</span>
-          <button class="btn-sm" onclick="getDailyInsight()">Get Insight</button>
+          <svg class="ic ai-insight-icon" aria-hidden="true"><use href="#i-sparkle"/></svg>
+          <span id="ai-insight-text">Get one AI-powered insight about your day.</span>
+          <button class="btn-sm" onclick="getDailyInsight()">Get insight</button>
         </div>
       </section>
 
@@ -236,20 +256,25 @@
       <section id="view-kanban" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">Kanban Board</h1>
-            <p class="view-subtitle">Drag tasks across stages</p>
+            <h1 class="view-title">Tasks</h1>
+            <p class="view-subtitle">Move tasks across stages, or switch to the list.</p>
           </div>
           <div class="header-actions">
-            <input type="text" id="new-task-input" placeholder="New task title…" class="input-inline" onkeydown="if(event.key==='Enter')addTask()">
-            <select id="new-task-priority" class="select-inline">
+            <div class="seg" role="group" aria-label="Task view">
+              <button type="button" id="tv-board" class="seg-btn active" aria-pressed="true" onclick="NexUI.setTaskView('board')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg>Board</button>
+              <button type="button" id="tv-list" class="seg-btn" aria-pressed="false" onclick="NexUI.setTaskView('list')"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>List</button>
+            </div>
+            <input type="text" id="new-task-input" placeholder="Add a task" aria-label="New task title" class="input-inline" onkeydown="if(event.key==='Enter')addTask()">
+            <select id="new-task-priority" class="select-inline" aria-label="Priority">
               <option value="low">Low</option>
               <option value="medium" selected>Medium</option>
               <option value="high">High</option>
             </select>
-            <button class="btn-primary" onclick="addTask()">+ Add Task</button>
+            <button class="btn-primary" onclick="addTask()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add task</button>
           </div>
         </div>
 
+        <div class="task-list-view" id="task-list-view" hidden></div>
         <div class="kanban-board" id="kanban-board">
           <div class="kanban-col" data-col="todo">
             <div class="col-header">
@@ -290,8 +315,8 @@
       <section id="view-pomodoro" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">Focus Timer</h1>
-            <p class="view-subtitle">Deep work with Pomodoro technique</p>
+            <h1 class="view-title">Focus</h1>
+            <p class="view-subtitle">Work in focused sessions with short breaks</p>
           </div>
         </div>
         <div class="pomodoro-layout">
@@ -357,19 +382,19 @@
       <section id="view-habits" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">Habit Tracker</h1>
-            <p class="view-subtitle">Build streaks, build yourself</p>
+            <h1 class="view-title">Habits</h1>
+            <p class="view-subtitle">Check in daily and keep your streaks going</p>
           </div>
           <div class="header-actions">
-            <input type="text" id="new-habit-input" placeholder="New habit…" class="input-inline" onkeydown="if(event.key==='Enter')addHabit()">
-            <select id="new-habit-color" class="select-inline">
-              <option value="#3A0F34">Deep Aubergine</option>
-              <option value="#DDE3E8">Ice Silver</option>
-              <option value="#FAA000">Marigold</option>
-              <option value="#147A5C">Green</option>
-              <option value="#C63E5C">Rose</option>
+            <input type="text" id="new-habit-input" placeholder="Add a habit" aria-label="New habit name" class="input-inline" onkeydown="if(event.key==='Enter')addHabit()">
+            <select id="new-habit-color" class="select-inline" aria-label="Habit colour">
+              <option value="#4285F4">Blue</option>
+              <option value="#34A853">Green</option>
+              <option value="#F9AB00">Yellow</option>
+              <option value="#EA4335">Red</option>
+              <option value="#A142F4">Purple</option>
             </select>
-            <button class="btn-primary" onclick="addHabit()">+ Add Habit</button>
+            <button class="btn-primary" onclick="addHabit()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add habit</button>
           </div>
         </div>
 
@@ -393,19 +418,19 @@
       <section id="view-notes" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">Smart Notes</h1>
-            <p class="view-subtitle">Capture, organize, search</p>
+            <h1 class="view-title">Notes</h1>
+            <p class="view-subtitle">Capture ideas, tag them and find them again</p>
           </div>
           <div class="header-actions">
-            <input type="text" id="notes-search" placeholder="Search notes…" class="input-inline" oninput="searchNotes()">
-            <button class="btn-primary" onclick="newNote()">+ New Note</button>
+            <input type="text" id="notes-search" placeholder="Search notes" aria-label="Search notes" class="input-inline" oninput="searchNotes()">
+            <button class="btn-primary" onclick="newNote()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>New note</button>
           </div>
         </div>
 
         <div class="notes-layout">
           <div class="notes-sidebar">
-            <div class="notes-filter">
-              <button class="filter-btn active" onclick="filterNotes('all', this)">All</button>
+            <div class="notes-filter" role="group" aria-label="Filter notes">
+              <button class="filter-btn active" aria-pressed="true" onclick="filterNotes('all', this)">All</button>
               <button class="filter-btn" onclick="filterNotes('pinned', this)">Pinned</button>
               <button class="filter-btn" onclick="filterNotes('tagged', this)">Tagged</button>
             </div>
@@ -414,19 +439,20 @@
 
           <div class="note-editor" id="note-editor">
             <div class="editor-toolbar">
-              <input type="text" id="note-title-input" placeholder="Note title…" class="note-title-field">
+              <button type="button" class="editor-btn note-back" onclick="closeNoteEditor()" aria-label="Back to notes"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg></button>
+              <input type="text" id="note-title-input" placeholder="Title" aria-label="Note title" class="note-title-field">
               <div class="editor-actions">
-                <button class="editor-btn" onclick="togglePinNote()" id="pin-btn" title="Pin">📌</button>
-                <button class="editor-btn" onclick="addTagToNote()" title="Add tag">#</button>
-                <button class="editor-btn" onclick="summarizeNote()" title="AI Summarize">✦ AI</button>
-                <button class="editor-btn danger" onclick="deleteCurrentNote()" title="Delete">✕</button>
+                <button class="editor-btn" onclick="togglePinNote()" id="pin-btn" title="Pin note" aria-label="Pin note" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg></button>
+                <button class="editor-btn" onclick="addTagToNote()" title="Add tag" aria-label="Add tag"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg></button>
+                <button class="editor-btn" onclick="summarizeNote()" title="Summarise with AI" aria-label="Summarise with AI"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg><span class="editor-btn-text">Summarise</span></button>
+                <button class="editor-btn danger" onclick="deleteCurrentNote()" title="Delete note" aria-label="Delete note"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>
               </div>
             </div>
             <div class="note-tags-row" id="note-tags-row"></div>
-            <textarea id="note-content" placeholder="Start writing… (Markdown supported)" class="note-textarea"></textarea>
+            <textarea id="note-content" placeholder="Start writing" aria-label="Note content" class="note-textarea"></textarea>
             <div class="note-footer">
-              <span id="note-word-count">0 words</span>
-              <button class="btn-primary" onclick="saveCurrentNote()">Save Note</button>
+              <span class="note-meta"><span id="note-word-count">0 words</span><span id="note-save-state" class="note-save-state" aria-live="polite"></span></span>
+              <button class="btn-primary" onclick="saveCurrentNote()">Save note</button>
             </div>
           </div>
         </div>
@@ -436,7 +462,7 @@
       <section id="view-analytics" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">Analytics</h1>
+            <h1 class="view-title">Insights</h1>
             <p class="view-subtitle">Your productivity at a glance</p>
           </div>
           <div class="header-actions">
@@ -450,7 +476,7 @@
 
         <div class="analytics-grid">
           <div class="analytics-card wide">
-            <h4>Daily Focus Time (minutes)</h4>
+            <h4>Daily focus time (minutes)</h4>
             <div class="chart-wrap" style="height:220px;position:relative;">
               <canvas id="focusChart" role="img" aria-label="Daily focus time bar chart"></canvas>
             </div>
@@ -465,12 +491,12 @@
           </div>
 
           <div class="analytics-card">
-            <h4>Habit Completion %</h4>
+            <h4>Habit completion (30 days)</h4>
             <div id="habit-bars" class="habit-bars-container"></div>
           </div>
 
           <div class="analytics-card score-card">
-            <h4>Productivity Score</h4>
+            <h4>Productivity score</h4>
             <div class="score-ring-wrap">
               <svg viewBox="0 0 140 140" class="score-svg">
                 <circle cx="70" cy="70" r="58" class="score-bg-ring"/>
@@ -482,7 +508,7 @@
           </div>
 
           <div class="analytics-card wide">
-            <h4>Weekly Task Velocity</h4>
+            <h4>Tasks completed per day</h4>
             <div class="chart-wrap" style="height:200px;position:relative;">
               <canvas id="velocityChart" role="img" aria-label="Weekly task velocity line chart"></canvas>
             </div>
@@ -490,8 +516,8 @@
 
           <div class="analytics-card full-span" id="weekly-review-card">
             <div class="widget-header" style="margin-bottom:12px">
-              <h4 style="margin-bottom:0">Weekly Review (Last 7 Days vs Previous 7 Days)</h4>
-              <button class="btn-sm" onclick="saveWeeklyReviewNote()">◧ Save Review to Notes</button>
+              <h4 style="margin-bottom:0">Weekly review: last 7 days vs the 7 before</h4>
+              <button class="btn-sm" onclick="saveWeeklyReviewNote()">Save review as note</button>
             </div>
             <div id="weekly-review-body" class="weekly-review-grid"></div>
           </div>
@@ -502,12 +528,12 @@
       <section id="view-ai" class="view">
         <div class="view-header">
           <div>
-            <h1 class="view-title">NexAI <span class="ai-badge-title">✦ Powered by Gemini</span></h1>
+            <h1 class="view-title">NexAI <span class="ai-badge-title">Powered by Gemini</span></h1>
             <p class="view-subtitle">Your intelligent productivity companion</p>
           </div>
           <div class="header-actions">
-            <button class="btn-outline history-btn" onclick="document.querySelector('.ai-context-panel').scrollIntoView({ behavior: 'smooth' })">History</button>
-            <button class="btn-primary" onclick="newChat()">+ New Chat</button>
+            <button class="btn-outline history-btn" onclick="document.querySelector('.ai-context-panel').scrollIntoView({ behavior: 'smooth' })">Chat history</button>
+            <button class="btn-primary" onclick="newChat()"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>New chat</button>
           </div>
         </div>
 
@@ -515,7 +541,7 @@
           <div class="ai-chat-area">
             <div class="chat-messages" id="chat-messages">
               <div class="chat-msg assistant">
-                <div class="msg-avatar">✦</div>
+                <div class="msg-avatar"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg></div>
                 <div class="msg-bubble">
                   <p>Hello! I'm NexAI, your productivity assistant, powered by Google Gemini. I have full context of your tasks, habits, notes, and focus sessions.</p>
                 </div>
@@ -530,8 +556,8 @@
                 <button class="prompt-chip" onclick="sendSuggestedPrompt('What habits should I add based on productivity research?')">✨ Suggest habits</button>
               </div>
               <div class="chat-input-row">
-                <textarea id="chat-input" maxlength="4000" placeholder="Ask NexAI anything…" class="chat-textarea" onkeydown="handleChatKey(event)" rows="1"></textarea>
-                <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()"><span id="send-icon">↑</span></button>
+                <textarea id="chat-input" maxlength="4000" placeholder="Ask NexAI anything" aria-label="Message NexAI" class="chat-textarea" onkeydown="handleChatKey(event)" rows="1"></textarea>
+                <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" aria-label="Send message"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg></button>
               </div>
               <p class="chat-disclaimer">AI replies are generated by Google Gemini. Your chats are saved to your account.</p>
             </div>
@@ -559,79 +585,80 @@
 
 <!-- TASK DETAIL MODAL -->
 <div class="modal-overlay" id="task-modal" style="display:none" onclick="closeTaskModal(event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-task-title">
     <div class="modal-header">
-      <h3 id="modal-task-title">Task Details</h3>
-      <button onclick="closeTaskModal()" class="modal-close">✕</button>
+      <h3 id="modal-task-title">Edit task</h3>
+      <button onclick="closeTaskModal()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body">
       <label>Title<input type="text" id="modal-title-input" class="modal-input"></label>
       <label>Description<textarea id="modal-desc-input" class="modal-input modal-textarea" rows="3"></textarea></label>
-      <label>Stage
-        <select id="modal-col-input" class="modal-input">
-          <option value="todo">To Do</option>
-          <option value="inprogress">In Progress</option>
-          <option value="review">Review</option>
-          <option value="done">Done</option>
-        </select>
-      </label>
-      <label>Priority
-        <select id="modal-priority-input" class="modal-input">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </label>
-      <label>Due Date<input type="date" id="modal-due-input" class="modal-input"></label>
+      <div class="modal-grid">
+        <label>Stage
+          <select id="modal-col-input" class="modal-input">
+            <option value="todo">To do</option>
+            <option value="inprogress">In progress</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+        <label>Priority
+          <select id="modal-priority-input" class="modal-input">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+      </div>
+      <label>Due date<input type="date" id="modal-due-input" class="modal-input"></label>
     </div>
     <div class="modal-footer">
-      <button class="btn-outline" onclick="aiSuggestTask()">✦ AI Suggest</button>
+      <button class="btn-outline" onclick="aiSuggestTask()"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg>Suggest with AI</button>
       <button class="btn-primary" onclick="saveTaskModal()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- GLOBAL SEARCH MODAL -->
-<div class="modal-overlay" id="search-modal" style="display:none" onclick="closeSearchModal(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Search Tasks & Notes</h3>
-      <button onclick="closeSearchModal()" class="modal-close">✕</button>
+<!-- COMMAND PALETTE / SEARCH -->
+<div class="modal-overlay palette-overlay" id="search-modal" style="display:none" onclick="closeSearchModal(event)">
+  <div class="modal palette" role="dialog" aria-modal="true" aria-label="Search and commands">
+    <div class="palette-input">
+      <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+      <input type="text" id="global-search-input" placeholder="Search tasks and notes, or type a command" autocomplete="off" aria-label="Search" role="combobox" aria-expanded="true" aria-controls="global-search-results" oninput="runGlobalSearch()">
+      <kbd class="kbd-hint">Esc</kbd>
     </div>
-    <div class="modal-body">
-      <input type="text" id="global-search-input" class="modal-input" placeholder="Type to search tasks, notes, tags…" oninput="runGlobalSearch()">
-      <div id="global-search-results" class="search-results-list"></div>
-    </div>
+    <div id="global-search-results" class="search-results-list" role="listbox"></div>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span></div>
   </div>
 </div>
 
 <!-- PLAN MY DAY MODAL -->
 <div class="modal-overlay" id="plan-modal" style="display:none" onclick="closePlanModal(event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="plan-title">
     <div class="modal-header">
-      <h3>📅 Plan My Day</h3>
-      <button onclick="closePlanModal()" class="modal-close">✕</button>
+      <h3 id="plan-title">Plan my day</h3>
+      <button onclick="closePlanModal()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body">
       <p class="view-subtitle" id="plan-status-text" style="margin-bottom:8px">Your focused schedule built from your open tasks and habits.</p>
       <div id="plan-items-list" class="plan-items-list"></div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
-      <button class="btn-sm" onclick="buildQuickLocalPlan()">⚡ Instant Auto-Sort (0 AI)</button>
+      <button class="btn-sm" onclick="buildQuickLocalPlan()"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Sort by priority</button>
       <div style="display:flex;gap:8px">
-        <button class="btn-outline" id="plan-ai-btn" onclick="generateAIPlan(true)">✦ Generate with AI</button>
+        <button class="btn-outline" id="plan-ai-btn" onclick="generateAIPlan(true)"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg>Plan with AI</button>
         <button class="btn-primary" onclick="closePlanModal()">Done</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- PROFILE MODAL -->
+<!-- PROFILE + SETTINGS MODAL -->
 <div class="modal-overlay" id="profile-modal" style="display:none" onclick="closeProfile(event)">
-  <div class="modal profile-modal">
+  <div class="modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
     <div class="modal-header">
-      <h3>Profile</h3>
-      <button onclick="closeProfile()" class="modal-close" aria-label="Close profile">✕</button>
+      <h3 id="profile-title">Profile and settings</h3>
+      <button onclick="closeProfile()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="profile-identity">
@@ -652,13 +679,52 @@
         </div>
       </div>
 
+      <div class="profile-section" id="profile-appearance">
+        <h4>Appearance</h4>
+        <p class="profile-help">Pick the look you prefer. NexOS can follow Google’s Material design or Microsoft’s Fluent design.</p>
+        <div class="design-picker" role="group" aria-label="Design">
+          <button type="button" class="design-card" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">
+            <span class="design-preview dp-google"><i></i><i></i><i></i></span>
+            <span class="design-name">Google</span><span class="design-sub">Material 3, rounded and tonal</span>
+          </button>
+          <button type="button" class="design-card" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')" aria-pressed="false">
+            <span class="design-preview dp-microsoft"><i></i><i></i><i></i></span>
+            <span class="design-name">Microsoft</span><span class="design-sub">Fluent 2, compact and crisp</span>
+          </button>
+        </div>
+        <div class="seg seg-wide" role="group" aria-label="Theme">
+          <button type="button" class="seg-btn" data-theme-pick="light" onclick="NexUI.setTheme('light')"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
+          <button type="button" class="seg-btn" data-theme-pick="dark" onclick="NexUI.setTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
+          <button type="button" class="seg-btn" data-theme-pick="system" onclick="NexUI.setTheme('system')"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Match device</button>
+        </div>
+      </div>
+
+      <div class="profile-section" id="profile-reminders-section">
+        <h4>Reminders</h4>
+        <p class="profile-help">Get a notification when tasks are due or overdue. Time zone: <strong id="reminder-zone">Asia/Kolkata</strong> (updates to this device when you save).</p>
+        <label class="switch-row"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Remind me about due tasks</span></label>
+        <div class="profile-row" id="task-reminder-time-wrap">
+          <label class="inline-label">Daily at <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"></label>
+          <button type="button" id="save-reminder-time" class="btn-outline" onclick="saveTaskReminderTime()">Save reminders</button>
+        </div>
+        <button type="button" class="btn-sm" onclick="enableNotifications()"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>Allow browser notifications</button>
+      </div>
+
       <div class="profile-section">
         <h4>Your data</h4>
         <p class="profile-help" id="profile-data-help"></p>
         <div class="profile-row">
           <span class="profile-msg" id="profile-download-msg"></span>
-          <button class="btn-outline" id="profile-download-btn" onclick="downloadMyData()">↓ Download my data</button>
+          <button class="btn-outline" id="profile-download-btn" onclick="downloadMyData()"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Download my data</button>
         </div>
+        <div class="profile-row">
+          <span class="profile-help">Backup file (JSON)</span>
+          <span class="btn-pair">
+            <button type="button" class="btn-sm" onclick="exportData()"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Export</button>
+            <button type="button" class="btn-sm" onclick="document.getElementById('import-file-input').click()"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>Restore</button>
+          </span>
+        </div>
+        <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
       </div>
 
       <div class="profile-section profile-danger" id="profile-guest-section">
@@ -668,13 +734,47 @@
       </div>
 
       <div class="profile-section profile-danger" id="profile-delete-section">
-        <h4>Delete NexOS data</h4>
-        <p class="profile-help">Permanently deletes your NexOS tasks, habits, notes, focus history, NexAI chats and reminder settings. Your Google sign-in identity may remain available to other apps that share this database. This cannot be undone. Type DELETE to confirm.</p>
-        <input type="text" id="profile-delete-input" class="modal-input" placeholder="Type DELETE" autocomplete="off" oninput="updateDeleteButton()">
-        <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete NexOS data</button>
+        <h4>Delete account data</h4>
+        <p class="profile-help">Permanently deletes your tasks, habits, notes, focus history, NexAI chats and reminder subscriptions. This cannot be undone. Your Google name, email and photo record stays on the server so you can sign in again; ask the site owner if you want it removed too. Type DELETE to confirm.</p>
+        <input type="text" id="profile-delete-input" class="modal-input" placeholder="Type DELETE" autocomplete="off" aria-label="Type DELETE to confirm" oninput="updateDeleteButton()">
+        <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete my data</button>
         <span class="profile-msg error" id="profile-delete-msg"></span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- KEYBOARD SHORTCUTS -->
+<div class="modal-overlay" id="shortcuts-modal" style="display:none" onclick="NexUI.closeShortcuts(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+    <div class="modal-header">
+      <h3 id="shortcuts-title">Keyboard shortcuts</h3>
+      <button onclick="NexUI.closeShortcuts()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body shortcut-list">
+      <div><span>Search and commands</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
+      <div><span>Go to Home, Tasks, Focus, Habits, Notes, Insights, NexAI</span><span><kbd>Alt</kbd> <kbd>1</kbd>–<kbd>7</kbd></span></div>
+      <div><span>Save the open note</span><span><kbd>Ctrl</kbd> <kbd>S</kbd></span></div>
+      <div><span>Close a dialog or menu</span><span><kbd>Esc</kbd></span></div>
+      <div><span>Show this list</span><span><kbd>?</kbd></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW MENU + TOASTS -->
+<div class="menu-pop" id="new-menu" role="menu" aria-label="Create" hidden>
+  <button type="button" role="menuitem" onclick="NexUI.newItem('task')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg>New task</button>
+  <button type="button" role="menuitem" onclick="NexUI.newItem('note')"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg>New note</button>
+  <button type="button" role="menuitem" onclick="NexUI.newItem('habit')"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>New habit</button>
+  <button type="button" role="menuitem" onclick="NexUI.newItem('plan')"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Plan my day</button>
+  <button type="button" role="menuitem" onclick="NexUI.newItem('action')"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>NexAI Action Mode</button>
+</div>
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+<div class="modal-overlay" id="prompt-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="prompt-title">
+    <div class="modal-header"><h3 id="prompt-title">Add</h3></div>
+    <form class="modal-body" id="prompt-form"><input type="text" id="prompt-input" class="modal-input" maxlength="60" autocomplete="off" aria-labelledby="prompt-title"></form>
+    <div class="modal-footer"><button type="button" class="btn-outline" id="prompt-cancel">Cancel</button><button type="button" class="btn-primary" id="prompt-ok">Add</button></div>
   </div>
 </div>
 
@@ -682,5 +782,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="push-client.js"></script>
 <script src="app.js"></script>
+<script src="ui.js"></script>
 </body>
 </html>

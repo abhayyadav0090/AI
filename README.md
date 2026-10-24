@@ -9,8 +9,6 @@
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, a focus timer, a habit tracker, notes and analytics with NexAI, an assistant powered by Google Gemini that can see your tasks and habits.
 
 **Live demo:** https://ai-aqit.onrender.com
-
-The interface uses a distinct NexOS design system that combines a calm Material-inspired hierarchy with Fluent-style spacing, responsive navigation, and accessible controls.
 The demo runs on a free server, so the first load can take up to a minute.
 
 I built NexOS alone, using AI as a pair programmer. I wrote this README to explain what the app does and how it is put together.
@@ -58,13 +56,13 @@ I built NexOS alone, using AI as a pair programmer. I wrote this README to expla
 **General**
 - **Guest mode:** try the app without an account. Your data stays in your browser and NexAI is turned off
 - Google sign-in, with data saved per user in MongoDB. NexOS only receives your name, email and profile picture
-- **Profile panel** (sidebar): change your display name, download your data (workspace and NexAI chats), or delete your NexOS workspace data. The shared Google identity record is retained for other apps that use the same database. In guest mode: download your data or clear guest data on this device
-- Global search for tasks and notes (`Ctrl/⌘+K`)
+- **Profile panel** (sidebar): change your display name, download all your data (workspace and NexAI chats), delete your account and everything stored for it. In guest mode: download your data or clear guest data on this device
+- Global search for tasks and notes (`Ctrl+K`)
 - JSON backup and restore
-- In-tab due/overdue reminders plus optional Web Push notifications when push is configured and the server is awake
+- Browser notifications for tasks due today or overdue (only while the tab is open)
 - Starter data and a "Getting started" checklist for new users
-- Dark and light themes, responsive layout for phones and tablets, accessible focus states and a compact quick-settings panel on smaller screens
-- Keyboard shortcuts: `Ctrl+1` to `Ctrl+7` switch views, `Ctrl+K` search, `Ctrl+S` saves a note, `Esc` closes dialogs
+- Two designs, **Google** (Material 3) and **Microsoft** (Fluent 2), each in light, dark or match-device themes; responsive layout with a bottom navigation bar on phones
+- Keyboard shortcuts: `Alt+1` to `Alt+7` switch views, `Ctrl+K` opens search and commands, `Ctrl+S` saves a note, `?` lists shortcuts, `Esc` closes dialogs
 
 ---
 
@@ -152,7 +150,9 @@ Setup notes:
 .
 ├── public/
 │   ├── index.html       # Page structure and dialogs
-│   ├── style.css        # Design tokens, layout, dark and light themes
+│   ├── style.css        # Base layout and component styles
+│   ├── design.css       # Google and Microsoft designs, light and dark tokens
+│   ├── ui.js            # Appearance, toasts with Undo, New menu, task list view, sync status
 │   ├── app.js           # Frontend logic: tasks, timer, habits, notes, analytics, NexAI
 │   ├── manifest.json
 │   └── favicon.svg
@@ -197,7 +197,7 @@ NexOS does not use advertising or tracking scripts. In guest mode nothing leaves
 - The free Render server sleeps when idle, so the first request can be slow.
 - The free Gemini quota is small. When it runs out, NexAI shows a "busy" message until it resets.
 - Due-date notifications only work while NexOS is open in a browser tab, and many mobile browsers do not show them.
-- The built-in `npm test` script currently runs JavaScript syntax checks. End-to-end tests against real Google sign-in, Gemini, MongoDB, and push providers must be performed in an environment with those services configured.
+- There are no automated tests yet.
 
 ---
 
@@ -217,7 +217,7 @@ The delete-workspace action removes NexOS chats, workspace state, and NexOS push
 
 ## Daily task reminder time (2.0.1)
 
-Signed-in users can choose a daily task reminder time from Quick Settings. The preference is saved separately in MongoDB and applies to both in-app due notifications and server push reminders, using India Standard Time (Asia/Kolkata). The default is 09:00. Guest mode stores its reminder ON/OFF and time preference locally and supports in-tab notifications only; background push reminders require signing in. The background push scheduler polls every five minutes, so delivery is approximate rather than exact to the minute. A sleeping Render Free instance may delay background reminders until it wakes.
+Signed-in users can choose a daily task reminder time from the clock control beside the notification bell. The preference is saved separately in MongoDB and applies to both in-app due notifications and server push reminders, using India Standard Time (Asia/Kolkata). The default is 09:00. The background push scheduler polls every five minutes, so delivery is approximate rather than exact to the minute. A sleeping Render Free instance may delay background reminders until it wakes.
 
 
 ## Editorial visual refresh (2.1.0)
@@ -229,7 +229,5 @@ NexOS now uses a shared Ice Silver (`#DDE3E8`), Deep Aubergine (`#3A0F34`) and M
 The Dashboard now provides Plan My Day, Ask NexAI, and NexAI Action Mode together. Action Mode still drafts proposed changes for explicit review before anything is applied. Theme-specific control and Analytics chart colors have also been improved for light/dark consistency.
 
 
-## Classic and Enterprise experiences (2.3.0)
-- Classic NexOS: `/`
-- Enterprise NexOS: `/enterprise` (alias `/redesign`)
-Both experiences share the same server-side authenticated workspace. Enterprise uses the existing APIs for state, NexAI conversations, structured completion, and task reminder preferences.
+## Design, features and fixes (2.2.0)
+See `RELEASE-NOTES-2.2.0.md`. Highlights: Google and Microsoft designs you can switch in Settings, a home screen with an ask-NexAI box, a command palette (`Ctrl+K`), task list view, undo for deletes, notes that autosave, offline-friendly sign-in, per-user reminder time zones, and a set of bug fixes in the server and the app.

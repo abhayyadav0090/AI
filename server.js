@@ -27,7 +27,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "cdn.jsdelivr.net", "fonts.googleapis.com", "https://accounts.google.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "https://accounts.google.com"],
+      workerSrc: ["'self'"],
+      manifestSrc: ["'self'"],
       frameSrc: ["https://accounts.google.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com", "fonts.gstatic.com", "https://accounts.google.com"],
@@ -44,16 +46,25 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
-app.use(cors({
-  // Disallowed cross-origin requests receive no CORS headers instead of a server 500.
-  // Same-origin browser requests do not require CORS response headers.
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
-    cb(null, false);
-  },
+// A browser sends an Origin header on same-site POST/PUT/DELETE and font requests too.
+// Requests from the app's own host are therefore always allowed, even if ALLOWED_ORIGINS
+// is missing or has a typo; only foreign origins are checked against the list.
+function isAllowedOrigin(req, origin) {
+  if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
+  try {
+    const host = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim().toLowerCase();
+    return !!host && new URL(origin).host.toLowerCase() === host;
+  } catch (_) { return false; }
+}
+app.use('/api', (req, res, next) => {
+  if (isAllowedOrigin(req, req.headers.origin)) return next();
+  res.status(403).json({ error: 'This origin is not allowed to use the NexOS API.', code: 'ORIGIN_NOT_ALLOWED' });
+});
+app.use((req, res, next) => cors({
+  origin: (origin, cb) => cb(null, isAllowedOrigin(req, origin)),
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
-}));
+})(req, res, next));
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -92,7 +103,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false, index: false }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  maxAge: 0,
+  setHeaders: (res, file) => {
+    // Code and pages revalidate on every load (cheap 304s); images and icons can be cached.
+    res.setHeader('Cache-Control', /\.(png|svg|ico|webp|woff2?)$/i.test(file) ? 'public, max-age=604800' : 'no-cache');
+  },
+}));
 
 let dbPromise = null;
 function connectDB() {
@@ -105,7 +123,11 @@ function connectDB() {
   return dbPromise;
 }
 
-app.use(['/api/auth', '/api/me', '/api/state', '/api/push', '/api/chat', '/api/chats', '/api/complete'], async (req, res, next) => {
+const DB_ROUTES = ['/auth', '/me', '/state', '/push', '/chat', '/chats', '/complete'];
+app.use('/api', async (req, res, next) => {
+  const p = req.path;
+  if (p === '/auth/logout' || p === '/push/config') return next();
+  if (!DB_ROUTES.some((r) => p === r || p.startsWith(r + '/'))) return next();
   try { await connectDB(); next(); }
   catch (err) {
     console.error('MongoDB connection failed:', err.message);
@@ -119,6 +141,8 @@ const User = mongoose.model('User', new mongoose.Schema({
   name: String,
   nameCustom: { type: Boolean, default: false }, // true once the user picked their own display name
   picture: String,
+  // Sign-in cookies issued before this moment are rejected (set when the user deletes their NexOS data).
+  sessionsValidAfter: Date,
 }, { timestamps: true }));
 
 const UserState = mongoose.model('UserState', new mongoose.Schema({
@@ -148,6 +172,7 @@ const PushPreference = mongoose.model('PushPreference', new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true, index: true, required: true },
   reminderTime: { type: String, default: '09:00', match: /^([01]\d|2[0-3]):[0-5]\d$/ },
   enabled: { type: Boolean, default: true },
+  timeZone: { type: String, default: 'Asia/Kolkata' },
 }, { timestamps: true, minimize: false }));
 
 const MAX_MSG_CHARS = 4000;
@@ -172,18 +197,19 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-// Checks the login cookie AND that the account still exists, so a deleted
-// account can never be brought back by an old cookie on another device.
+// Checks the login cookie, that the account still exists, and that the cookie was not issued before the
+// user deleted their data, so an old cookie on another device cannot bring deleted data back.
 async function requireAuth(req, res, next) {
-  let id;
+  let id, issuedAt;
   try {
-    id = jwt.verify(req.cookies.token, process.env.JWT_SECRET).id;
+    const payload = jwt.verify(req.cookies.token, process.env.JWT_SECRET);
+    id = payload.id; issuedAt = (payload.iat || 0) * 1000;
   } catch {
     return res.status(401).json({ error: 'Not logged in' });
   }
   try {
-    const exists = await User.exists({ _id: id });
-    if (!exists) {
+    const user = await User.findById(id).select('sessionsValidAfter').lean();
+    if (!user || (user.sessionsValidAfter && issuedAt < user.sessionsValidAfter.getTime())) {
       res.clearCookie('token');
       return res.status(401).json({ error: 'Not logged in' });
     }
@@ -201,8 +227,12 @@ app.get('/api/config', (req, res) => {
 
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential } = req.body || {};
     if (!credential) return res.status(400).json({ error: 'credential required' });
+    if (!process.env.JWT_SECRET) {
+      console.error('Sign-in blocked: JWT_SECRET is not set.');
+      return res.status(500).json({ error: 'Sign-in is not set up on the server.', code: 'AUTH_CONFIG' });
+    }
     const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
     const p = ticket.getPayload();
     if (!p.email_verified) return res.status(401).json({ error: 'Email not verified' });
@@ -213,9 +243,10 @@ app.post('/api/auth/google', async (req, res) => {
     if (!user.nameCustom) user.name = p.name; // a name the user chose is never overwritten by Google's
     await user.save();
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie('token', token, { httpOnly: true, secure: isProd || req.secure, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.json({ name: user.name, email: user.email, picture: user.picture });
   } catch (err) {
+    console.warn('Google sign-in failed:', err.message);
     res.status(401).json({ error: 'Google login failed' });
   }
 });
@@ -257,7 +288,9 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   await UserState.deleteMany({ userId: req.userId });
   await PushSubscription.deleteMany({ userId: req.userId, app: 'nexos' });
   await PushPreference.deleteOne({ userId: req.userId });
-  // Keep the shared Google identity record; other independently deployed apps may use it.
+  // Keep the shared Google identity record (other independently deployed apps may use it), but sign out
+  // every device so none of them can write the deleted data back.
+  await User.updateOne({ _id: req.userId }, { sessionsValidAfter: new Date() });
   res.clearCookie('token');
   res.json({ ok: true });
 }));
@@ -285,7 +318,9 @@ function fromB64url(value) {
   return Buffer.from(normalized + '='.repeat((4 - normalized.length % 4) % 4), 'base64');
 }
 function vapidPrivateKeyObject() {
-  const raw = fromB64url(VAPID_PRIVATE_KEY);
+  let raw = fromB64url(VAPID_PRIVATE_KEY);
+  // A key whose first byte is zero can be stored one byte short; restore the padding.
+  if (raw.length >= 30 && raw.length < 32) raw = Buffer.concat([Buffer.alloc(32 - raw.length), raw]);
   if (raw.length !== 32) throw new Error('VAPID_PRIVATE_KEY must decode to 32 bytes.');
   // RFC 5915 ECPrivateKey wrapper using the prime256v1 curve OID.
   const der = Buffer.concat([
@@ -369,17 +404,22 @@ async function sendWebPush(subscription, payload) {
   }
   return { ok: true };
 }
-function indiaDateKey(date = new Date()) {
+const DEFAULT_TIME_ZONE = 'Asia/Kolkata';
+function validTimeZone(tz) {
+  if (typeof tz !== 'string' || !tz || tz.length > 64) return false;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch (_) { return false; }
+}
+function zonedDateKey(date = new Date(), timeZone = DEFAULT_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(date).reduce((out, part) => {
     if (part.type !== 'literal') out[part.type] = part.value;
     return out;
   }, {});
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
-function indiaTimeKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date).reduce((out, part) => { if (part.type !== 'literal') out[part.type] = part.value; return out; }, {});
+function zonedTimeKey(date = new Date(), timeZone = DEFAULT_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date).reduce((out, part) => { if (part.type !== 'literal') out[part.type] = part.value; return out; }, {});
   return `${parts.hour}:${parts.minute}`;
 }
 function taskDueKey(dateKey, taskId) { return `${dateKey}:${String(taskId)}`; }
@@ -392,7 +432,7 @@ app.get('/api/push/config', (req, res) => {
 app.get('/api/push/preferences', requireAuth, wrap(async (req, res) => {
   const preference = await PushPreference.findOne({ userId: req.userId }).lean();
   res.set('Cache-Control', 'no-store');
-  res.json({ reminderTime: preference?.reminderTime || '09:00', enabled: preference?.enabled !== false, timeZone: 'Asia/Kolkata' });
+  res.json({ reminderTime: preference?.reminderTime || '09:00', enabled: preference?.enabled !== false, timeZone: preference?.timeZone || DEFAULT_TIME_ZONE });
 }));
 
 app.put('/api/push/preferences', requireAuth, wrap(async (req, res) => {
@@ -408,9 +448,13 @@ app.put('/api/push/preferences', requireAuth, wrap(async (req, res) => {
     if (typeof req.body.enabled !== 'boolean') return res.status(400).json({ error: 'Reminder enabled must be true or false.' });
     updates.enabled = req.body.enabled;
   }
+  if (req.body?.timeZone !== undefined) {
+    if (!validTimeZone(req.body.timeZone)) return res.status(400).json({ error: 'Unknown time zone.' });
+    updates.timeZone = req.body.timeZone;
+  }
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'Provide a reminder time or enabled setting.' });
   const preference = await PushPreference.findOneAndUpdate({ userId: req.userId }, { $set: updates }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true });
-  res.json({ ok: true, reminderTime: preference.reminderTime || '09:00', enabled: preference.enabled !== false, timeZone: 'Asia/Kolkata' });
+  res.json({ ok: true, reminderTime: preference.reminderTime || '09:00', enabled: preference.enabled !== false, timeZone: preference.timeZone || DEFAULT_TIME_ZONE });
 }));
 
 app.post('/api/push/subscribe', requireAuth, wrap(async (req, res) => {
@@ -467,13 +511,18 @@ async function checkAndSendDueTaskPushes() {
   if (!pushConfigured() || mongoose.connection.readyState !== 1 || pushSweepRunning) return;
   pushSweepRunning = true;
   try {
-    const todayKey = indiaDateKey();
-    const states = await UserState.find({}).select('userId data').lean();
+    const userIds = await PushSubscription.distinct('userId', { app: 'nexos' });
+    if (!userIds.length) return;
+    const prefs = new Map((await PushPreference.find({ userId: { $in: userIds } }).lean()).map((p) => [String(p.userId), p]));
+    const states = await UserState.find({ userId: { $in: userIds } }).select('userId data.tasks').lean();
+    const now = new Date();
     for (const item of states) {
-      const preference = await PushPreference.findOne({ userId: item.userId }).lean();
+      const preference = prefs.get(String(item.userId));
       if (preference?.enabled === false) continue;
       const reminderTime = preference?.reminderTime || '09:00';
-      if (indiaTimeKey() < reminderTime) continue;
+      const timeZone = validTimeZone(preference?.timeZone) ? preference.timeZone : DEFAULT_TIME_ZONE;
+      const todayKey = zonedDateKey(now, timeZone);
+      if (zonedTimeKey(now, timeZone) < reminderTime) continue;
       const tasks = Array.isArray(item.data && item.data.tasks) ? item.data.tasks : [];
       const due = tasks.filter((task) => task && task.id != null && task.col !== 'done'
         && typeof task.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && task.due <= todayKey)
@@ -485,7 +534,7 @@ async function checkAndSendDueTaskPushes() {
         let expired = false;
         // Keep dedupe storage bounded: only retain keys for today and yesterday.
         const cutoff = new Date(Date.now() - 2 * 86400000);
-        const minKeyDate = indiaDateKey(cutoff);
+        const minKeyDate = zonedDateKey(cutoff, timeZone);
         const oldSentKeys = Array.isArray(subscription.sentKeys) ? subscription.sentKeys : [];
         const retained = oldSentKeys.filter((key) => typeof key === 'string' && key.slice(0, 10) >= minKeyDate);
         if (retained.length !== oldSentKeys.length) { subscription.sentKeys = retained; changed = true; }
@@ -540,7 +589,7 @@ function startTaskPushScheduler() {
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: require('./package.json').version });
+  res.json({ status: 'ok', db: mongoose.connection.readyState === 1 ? 'connected' : 'idle', timestamp: new Date().toISOString(), version: require('./package.json').version });
 });
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
@@ -684,23 +733,36 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
   }
 });
 
-app.get(['/enterprise', '/redesign'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
-});
-
-app.get('/', (req, res) => res.redirect(302, '/enterprise'));
-
-app.get('/classic', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
 });
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Last resort: always answer with JSON, never an HTML stack page.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.', code: 'BAD_REQUEST' });
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'That request is too large.', code: 'TOO_LARGE' });
+  console.error('Unhandled error:', err && err.message);
+  res.status(500).json({ error: 'Something went wrong.', code: 'SERVER_ERROR' });
+});
+
+function reportConfig() {
+  const missing = [
+    ['MONGO_URI', process.env.MONGO_URI], ['JWT_SECRET', process.env.JWT_SECRET],
+    ['GOOGLE_CLIENT_ID', process.env.GOOGLE_CLIENT_ID], ['GEMINI_API_KEY', process.env.GEMINI_API_KEY],
+  ].filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length) console.warn(`Config warning: missing ${missing.join(', ')}. Related features will not work until they are set.`);
+  if (!process.env.ALLOWED_ORIGINS) console.warn('Config note: ALLOWED_ORIGINS is not set. Requests from the app\'s own host still work.');
+}
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`NexOS running on port ${PORT}`);
+    reportConfig();
     startTaskPushScheduler();
   });
 }
