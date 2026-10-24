@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # NexOS: AI Productivity Workspace
 
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)
@@ -231,3 +232,6 @@ The Dashboard now provides Plan My Day, Ask NexAI, and NexAI Action Mode togethe
 
 ## Design, features and fixes (2.2.0)
 See `RELEASE-NOTES-2.2.0.md`. Highlights: Google and Microsoft designs you can switch in Settings, a home screen with an ask-NexAI box, a command palette (`Ctrl+K`), task list view, undo for deletes, notes that autosave, offline-friendly sign-in, per-user reminder time zones, and a set of bug fixes in the server and the app.
+=======
+# AI
+>>>>>>> 0efe084 (Initial commit)
