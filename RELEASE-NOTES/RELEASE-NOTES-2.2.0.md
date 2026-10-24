@@ -1,48 +1,29 @@
-# NexOS 2.2.0: design, features and bug fixes
+# NexOS 2.2.0 — UI Reliability & Productivity Polish
 
-## New design
-- **Two designs, one switch.** Settings → Appearance (or the palette icon in the top bar, or the sign-in screen) switches between **Google** (Material 3: tonal surfaces, pill controls, gradient greeting, navigation rail) and **Microsoft** (Fluent 2: brand-blue header, compact 4 px controls, left-indicator navigation). Each has light, dark and *match device* themes. The choice is saved per device.
-- Real SVG icons instead of text symbols; one consistent look in every view.
-- Phones get a bottom navigation bar and a floating **New** button. The overflowing top bar is gone.
+## Design and experience
+- Refined NexOS into a calmer productivity-workspace UI inspired by Material-style hierarchy and Fluent-style spacing, while retaining NexOS's own aubergine, marigold and ice-silver palette.
+- Added a responsive quick-settings popover at tablet and phone widths for notification permission, task reminder ON/OFF and time, and JSON export/import controls.
+- Added consistent, visible `:focus-visible` treatment and improved disabled-control feedback.
+- Tightened mobile topbar sizing, dashboard action spacing, and small-screen popover sizing.
+- Updated the PWA manifest base colors to match the app's dark theme and optimized the font request to only load fonts used by the UI.
 
-## New features
-- **Home** with an "Ask NexAI" box, quick chips, tasks you can tick off in place, habit check-ins and a sorted priorities list (overdue, then due today, then by priority).
-- **Command palette** (`Ctrl+K`): jump to any view, create things, start the timer, switch design, or search tasks and notes with arrow-key navigation.
-- **Task list view** next to the board, grouped by Overdue / Today / Upcoming / No due date / Completed.
-- **Undo** after deleting or completing a task, deleting a habit or deleting a note.
-- **Notes autosave** and a back button on phones.
-- **Sync status** chip (Saved, Saving, Offline, Sign in to sync).
-- **Offline friendly:** a returning user stays signed in through a server hiccup or no connection, the app shell loads from a cache, and changes sync when the connection returns.
-- **Reminder time zone** per user (defaults to India time, switches to your device's zone when you save reminders).
-- NexAI replies render lists, code blocks, links and bold text safely.
-- Countdown in the browser tab title while the focus timer runs, plus a notification when a session ends in a background tab.
-- Keyboard shortcuts list (`?`), accessible dialogs (focus moves in, is kept inside, and returns), skip link.
+## Correctness and accessibility
+- Fixed mobile navigation accessibility state with `aria-hidden`, `inert`, expanded labels, Escape/backdrop close behavior, focus restoration, and resize reconciliation.
+- Fixed Profile opened from the mobile drawer so it also removes the drawer backdrop and page scroll lock.
+- Added validation before switching sections to prevent a bad view name from blanking the workspace.
+- Added a timeout for Google Identity Services loading so the sign-in screen can return a useful error instead of waiting forever.
+- Keep the greeting/date correct if the tab remains open across an hour or midnight.
+- Today's dashboard task list now sorts by priority, then due date and recency.
+- Habit checkmark foreground color now adapts to user-selected habit colors for better contrast.
+- Fixed guest reminder settings: reminder ON/OFF and time now persist locally for guest mode; guests are not sent to sign-in-only push APIs.
+- Corrected primary-button color tokens so dark mode uses a lighter aubergine control surface instead of a low-contrast dark-on-dark button.
+- Synchronized `package.json` and `package-lock.json` release versions (2.2.0).
 
-## Bugs fixed
-**Server**
-- Same-site requests could fail with a 500 error when `ALLOWED_ORIGINS` was missing or had a typo. The app's own host is now always allowed; foreign origins get a clear JSON 403.
-- Unknown `/api/...` URLs returned the home page with status 200. They now return a JSON 404, and server errors are always JSON.
-- Sign-out and the push config waited up to 8 seconds when the database was slow or down.
-- The reminder job loaded every user's full data every 5 minutes. It now loads only users who have a reminder subscription.
-- Generated VAPID private keys could be one byte short about 1 time in 256.
-- Deleting your data did not sign out other devices, which could write the deleted data back. They are now signed out.
-- Google sign-in failures were silent in the logs; the reason is now logged. Missing settings are reported at startup.
-- Static files were never cached; they now revalidate with ETags. The content-security policy no longer allows `unsafe-eval`.
-- `docker-compose.yml` referenced a Dockerfile that did not exist; one is included.
+## Preserved
+- Dashboard Plan My Day, Ask NexAI and Action Mode actions.
+- Task/notes/habits/focus state shape, Google sign-in, MongoDB integration, existing AI endpoints, and configurable task reminder ON/OFF/time settings.
+- No Render environment variables, secrets, or Kartik Maas files are changed by this release.
 
-**App**
-- Habit streaks showed 0 every morning until today was ticked.
-- Text typed in a note was lost if you opened another note before pressing Save.
-- On phones, opening Profile from the menu left the page dimmed and scroll-locked.
-- The focus timer ran slow in background tabs; it now follows the clock.
-- Habit colours saved by older versions were invisible in one theme.
-- "Today's priorities" ignored priority and due date, and the stat cards showed fixed "up" arrows.
-- Ctrl+1 to Ctrl+7 never worked in Chrome and Firefox because browsers reserve them; use Alt+1 to Alt+7.
-- Esc did not close every dialog; the Google sign-in button could wait forever if its script was blocked.
-- Drag highlights could stay stuck after dropping outside the board; analytics charts were rebuilt while hidden.
-- Browser alert pop-ups were replaced by non-blocking messages. A session that expires now says so instead of failing silently.
-- The Alerts checkbox overlapped its label and the reminder time was cut off.
-- The account-deletion text now says what is kept: the Google name, email and photo record stays on the server because it can be shared with other apps. The privacy page says the same.
-
-## Known limitation
-Two devices editing at the same moment still follow "last save wins" for the whole workspace. Autosave keeps the window small; a per-item merge is a good next step.
+## Validation
+- JavaScript syntax checks, CSS parsing, JSON parsing, HTML ID/handler-reference checks, required-feature checks and ZIP integrity are run locally.
+- Live Render deployment, browser-level interaction on real devices, Google sign-in, MongoDB, and actual Web Push delivery have not been tested as part of this ZIP build.

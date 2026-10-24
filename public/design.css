@@ -579,3 +579,14 @@ html[data-design] .login-screen { background-image: none; }
 html[data-design] .login-screen::before, html[data-design] .login-screen::after { display: none; }
 html[data-design] .login-card h1, html[data-design] .login-card > p { text-align: inherit; }
 html[data-design] .login-card .login-guest-btn { margin-top: 0; }
+
+
+/* Dual experience switch — Classic view. */
+.nexos-experience-switch{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid var(--glass-border-hover,rgba(128,128,128,.28));border-radius:999px;background:var(--bg-card,rgba(128,128,128,.08));white-space:nowrap;flex-shrink:0}
+.nexos-experience-current,.nexos-experience-link{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.2;text-decoration:none;white-space:nowrap}
+.nexos-experience-current{color:var(--text-on-accent,#fff);background:linear-gradient(135deg,#3A0F34,#80506e)}
+.nexos-experience-link{color:var(--text-main,var(--text-primary,#e8e8e8));border:1px solid transparent;transition:background .16s ease,border-color .16s ease}
+.nexos-experience-link:hover{background:var(--bg-card-hover,rgba(128,128,128,.15));border-color:var(--accent-primary,#FAA000)}
+.nexos-experience-link:focus-visible{outline:2px solid var(--focus-ring,#FAA000);outline-offset:2px}
+@media(max-width:700px){.topbar-right .nexos-experience-switch{gap:2px;padding:2px}.topbar-right .nexos-experience-current,.topbar-right .nexos-experience-link{padding:6px 7px;font-size:10px}.topbar-right .nexos-experience-label{display:inline}.topbar-right .nexos-experience-link{gap:3px}}
+@media(max-width:390px){.topbar-right .nexos-experience-current{display:none}.topbar-right .nexos-experience-link{border-color:var(--glass-border-hover,rgba(128,128,128,.28));border-radius:9px}.topbar-right .nexos-experience-label{display:inline}}

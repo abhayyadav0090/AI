@@ -1,14 +1,14 @@
 {
   "name": "nexos-ai-productivity-os",
-  "version": "2.2.0",
-  "description": "NexOS \u2014 AI-powered productivity workspace",
+  "version": "2.3.2",
+  "description": "NexOS \u2014 Classic and Enterprise productivity experiences sharing authenticated workspace data",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for vanilla JS frontend'",
     "lint": "eslint server.js",
-    "test": "node --check server.js && node --check public/app.js && node --check public/push-client.js && node --check public/sw.js",
+    "test": "node --check server.js && node --check public/app.js && node --check public/ui.js && node --check public/push-client.js && node --check public/sw.js && node scripts/check-enterprise-inline.js && node scripts/test-enterprise-bridge.js",
     "generate:vapid": "node scripts/generate-vapid-keys.js"
   },
   "keywords": [

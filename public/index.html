@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>NexOS — AI Productivity Workspace</title>
+<title>NexOS Classic — Dual Experience Workspace</title>
 <meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes, powered by Google Gemini.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -130,6 +130,10 @@
         <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span class="topbar-search-text">Search tasks, notes and actions</span><kbd class="kbd-hint" id="kbd-hint">Ctrl K</kbd>
       </button>
       <div class="topbar-right">
+        <div class="nexos-experience-switch" role="group" aria-label="Choose NexOS experience">
+          <span class="nexos-experience-current" aria-current="page">Classic</span>
+          <a href="/enterprise" class="nexos-experience-link" title="Switch to Enterprise NexOS" aria-label="Switch to Enterprise NexOS"><span aria-hidden="true">◈</span><span class="nexos-experience-label">Enterprise</span></a>
+        </div>
         <span class="sync-chip" id="sync-chip" role="status" aria-live="polite" data-state="saved"><span class="sync-dot"></span><span id="sync-text">Saved</span></span>
         <button type="button" class="btn-primary new-btn" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>New</span></button>
         <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Turn on due-date notifications" aria-label="Notifications"><svg class="ic ic-on" aria-hidden="true"><use href="#i-bell"/></svg><svg class="ic ic-off" aria-hidden="true"><use href="#i-bell-off"/></svg></button>
@@ -781,7 +785,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="push-client.js"></script>
-<script src="app.js"></script>
 <script src="ui.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
