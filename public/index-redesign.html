@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#080c14">
 <title>NexOS Enterprise — Dual Experience Workspace</title>
-<meta name="description" content="Next-Generation Enterprise AI Productivity Workspace blending Google Material You and Microsoft Fluent 2 Design with Copilot & Gemini Dual AI.">
+<meta name="description" content="NexOS Enterprise: tasks, timeblocking, a focus studio, habits, notes and a Gemini-powered assistant. Shares your data with Classic NexOS.">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -306,7 +306,8 @@ body {
 
 /* Layout Shell */
 #nexus-app {
-  position: relative; z-index: 1; display: flex; min-height: 100vh;
+  /* No z-index here: it made the whole app one layer, so the page backdrop and the bottom bar painted on top of the phone drawer. */
+  position: relative; display: flex; min-height: 100vh;
 }
 
 /* Sidebar */
@@ -1582,7 +1583,47 @@ html, body {
 @media(max-width:1120px){.enterprise-connection-badge{display:none}}
 @media(max-width:768px){.nexos-experience-switch a,.nexos-experience-switch span{padding:5px 7px;font-size:10px}.sidebar-experience-switch a,.sidebar-experience-switch span{padding:6px 8px;font-size:11px}}
 
+
+/* ==========================================================================
+   NAVIGATION, TOP BAR AND ACCESSIBILITY FIXES (2.4.0)
+   ========================================================================== */
+/* !important: several components set "outline: none" with more specific selectors, which left keyboard users with no visible focus. */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent-primary) !important; outline-offset: 2px !important;
+}
+textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:focus-visible { outline-offset: -2px !important; }
+.modal-overlay-backdrop > [role="dialog"]:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+.topbar { gap: 12px; }
+.topbar-left { flex: 1 1 0; min-width: 0; }
+.view-breadcrumb { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.view-breadcrumb h2, #topbar-view-title { margin: 0; font: inherit; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.topbar-right { flex: 0 0 auto; gap: 8px; }
+.topbar-right > * { flex-shrink: 0; }
+.copilot-sparkle-badge { border: 0; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.topbar-plan { white-space: nowrap; padding: 7px 14px; font-size: 13px; }
+.topbar-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-medium); background: var(--bg-card); color: var(--text-main); font-size: 16px; cursor: pointer; }
+.topbar-icon-btn:hover, .topbar-icon-btn[aria-expanded="true"] { background: var(--bg-card-hover); }
+.topbar-signin { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: var(--radius-full); border: 1px solid var(--accent-primary); color: var(--accent-primary); font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.topbar-signin[hidden] { display: none; }
+.clock-inline { margin-left: 6px; font-variant-numeric: tabular-nums; }
+.clock-inline:not(:empty)::before { content: "\00B7\00A0"; }
+.prefs-popover { position: fixed; z-index: 450; top: 58px; right: 16px; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; border-radius: 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-medium); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 10px; }
+.prefs-popover[hidden] { display: none; }
+.prefs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+.prefs-row select { max-width: 190px; }
+.prefs-row .audio-soundscape-picker { display: inline-flex !important; }
+@media (max-width: 1280px) { .enterprise-connection-badge, .copilot-sparkle-badge { display: none !important; } }
+@media (max-width: 1100px) { .hide-mobile-search-text, .omni-kbd { display: none !important; } .omni-search-trigger { padding: 6px 10px; } }
+@media (min-width: 993px) { .sidebar-experience-switch { display: none !important; } }
+@media (max-width: 992px) { .topbar-right .nexos-experience-switch { display: none !important; } .sidebar-experience-switch { display: inline-flex !important; } body.drawer-open { overflow: hidden; } }
+@media (max-width: 768px) { .topbar-plan { display: none !important; } .topbar { padding-left: 12px; padding-right: 12px; } .prefs-popover { top: 54px; right: 12px; } }
+@media (pointer: coarse) { .nav-kbd, .omni-kbd { display: none !important; } }
 </style>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
 
@@ -1594,7 +1635,7 @@ html, body {
 
 <div id="nexus-app">
   <!-- SIDEBAR -->
-  <aside class="sidebar" id="app-sidebar">
+  <aside class="sidebar" id="app-sidebar" aria-label="Navigation">
     <div>
       <div class="sidebar-brand">
         <div class="brand-logo-icon">N</div>
@@ -1602,49 +1643,49 @@ html, body {
           <span class="brand-title">NexOS</span>
           <span class="brand-badge">Enterprise</span>
         </div>
-        <button class="sidebar-mobile-close-btn" onclick="closeSidebarDrawer()" title="Close navigation">✕</button>
+        <button class="sidebar-mobile-close-btn" onclick="closeSidebarDrawer()" title="Close navigation" aria-label="Close navigation">✕</button>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="Workspace views">
         <button class="nav-btn active" data-view="dashboard" onclick="switchNexusView('dashboard')">
           <span class="nav-icon">⬡</span>
           <span>Dashboard</span>
-          <span class="nav-kbd">⌘1</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="1">Alt+1</span>
         </button>
         <button class="nav-btn" data-view="kanban" onclick="switchNexusView('kanban')">
           <span class="nav-icon">▦</span>
           <span>Kanban Board</span>
-          <span class="nav-kbd">⌘2</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
         </button>
         <button class="nav-btn" data-view="calendar" onclick="switchNexusView('calendar')">
           <span class="nav-icon">📅</span>
           <span>Timeblocking</span>
-          <span class="nav-kbd">⌘8</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
         </button>
         <button class="nav-btn" data-view="focus" onclick="switchNexusView('focus')">
           <span class="nav-icon">◎</span>
           <span>Deep Focus</span>
-          <span class="nav-kbd">⌘3</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="3">Alt+3</span>
         </button>
         <button class="nav-btn" data-view="habits" onclick="switchNexusView('habits')">
           <span class="nav-icon">◈</span>
           <span>Habit Mastery</span>
-          <span class="nav-kbd">⌘4</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="4">Alt+4</span>
         </button>
         <button class="nav-btn" data-view="notes" onclick="switchNexusView('notes')">
           <span class="nav-icon">◧</span>
           <span>Smart Notes</span>
-          <span class="nav-kbd">⌘5</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="5">Alt+5</span>
         </button>
         <button class="nav-btn" data-view="analytics" onclick="switchNexusView('analytics')">
           <span class="nav-icon">◬</span>
           <span>Analytics</span>
-          <span class="nav-kbd">⌘6</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
         </button>
         <button class="nav-btn" data-view="ai" onclick="switchNexusView('ai')">
           <span class="nav-icon">✦</span>
-          <span>Copilot & Gemini</span>
-          <span class="nav-kbd">⌘7</span>
+          <span>NexAI</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
         </button>
       </nav>
     </div>
@@ -1680,8 +1721,8 @@ html, body {
       <div class="topbar-left">
         <button class="mobile-menu-toggle" onclick="toggleSidebarDrawer()" aria-label="Open navigation menu" aria-controls="app-sidebar" aria-expanded="false" id="enterprise-menu-toggle">☰</button>
         <div class="view-breadcrumb">
-          <span id="topbar-view-title">Dashboard</span>
-          <span class="copilot-sparkle-badge" onclick="toggleFloatingCopilotDrawer()" title="Open omnipresent Copilot drawer (Ctrl+\)">✦ Gemini Copilot</span>
+          <h2 id="topbar-view-title">Dashboard</h2>
+          <button type="button" class="copilot-sparkle-badge" onclick="toggleFloatingCopilotDrawer()" title="Open the NexAI panel (Ctrl+\)" aria-label="Open the NexAI panel">✦ NexAI</button>
         </div>
       </div>
 
@@ -1691,55 +1732,49 @@ html, body {
           <span class="active" aria-current="page" title="Current experience">Enterprise</span>
         </div>
         <span id="enterprise-connection-badge" class="enterprise-connection-badge" role="status" aria-live="polite">Connecting…</span>
-        <button class="btn-secondary topbar-hide-tablet" onclick="openEnterpriseAlerts()" style="font-size:12px;padding:6px 12px;border-radius:var(--radius-full)" title="Task reminder settings">🔔 Alerts</button>
-
-        <!-- Omnibar Trigger -->
-        <button class="omni-search-trigger" onclick="openCommandPalette()" title="Quick search & commands (Ctrl+K)">
-          <span>🔍</span>
-          <span class="hide-mobile-search-text">Quick Search…</span>
-          <span class="omni-kbd hide-mobile">⌘K</span>
+        <a class="topbar-signin" id="enterprise-signin-btn" href="/classic?next=enterprise" hidden>Sign in</a>
+        <button class="omni-search-trigger" onclick="openCommandPalette()" title="Quick search and commands (Ctrl+K)" aria-label="Search and commands">
+          <span aria-hidden="true">🔍</span>
+          <span class="hide-mobile-search-text">Quick search…</span>
+          <span class="omni-kbd hide-mobile" id="omni-kbd" aria-hidden="true">Ctrl K</span>
         </button>
+        <button class="btn-primary topbar-plan" onclick="openPlanScheduleModal()">📅 Plan Day</button>
+        <button type="button" class="topbar-icon-btn" id="prefs-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="prefs-popover" title="Display, sound and alerts" aria-label="Display, sound and alerts" onclick="togglePrefsPopover(event)">⚙</button>
+      </div>
+    </header>
 
-        <!-- Audio Soundscapes Generator -->
-        <div class="audio-soundscape-picker topbar-hide-mobile" title="Procedural Ambient Focus Generator (Web Audio)">
-          <span>🎧</span>
+    <div class="prefs-popover" id="prefs-popover" role="dialog" aria-label="Display, sound and alerts" hidden>
+      <div class="prefs-row"><label for="theme-selector">Theme</label>
+        <select class="theme-dropdown" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch theme">
+          <option value="fluent-dark">🔵 Fluent</option>
+            <option value="material-dark">🔴 Material</option>
+            <option value="fluent-light">☀️ Light</option>
+            <option value="material-light">⚪ M3</option>
+            <option value="cyber-aubergine">🟣 Overgame</option>
+        </select></div>
+      <div class="prefs-row"><label for="density-selector">Density</label>
+        <select class="density-dropdown" onchange="applyDensity(this.value)" id="density-selector" title="View density">
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+          <option value="spacious">Spacious</option>
+        </select></div>
+      <div class="prefs-row"><label for="soundscape-select">Focus sound</label>
+        <div class="audio-soundscape-picker" title="Ambient sound made in your browser">
           <select class="audio-select" id="soundscape-select" onchange="changeAmbientTrack(this.value)">
             <option value="none">Mute</option>
-            <option value="rain">Rain & Thunder</option>
+            <option value="rain">Rain &amp; Thunder</option>
             <option value="waves">Ocean Waves</option>
             <option value="cafe">Cafe Ambience</option>
             <option value="forest">Forest Breeze</option>
             <option value="binaural">432Hz Alpha Focus</option>
           </select>
-          <button class="audio-play-toggle" id="audio-play-btn" onclick="toggleAmbientAudio()">▶</button>
-        </div>
-
-        <!-- Compact Audio Toggle for Mobile -->
-        <button class="show-mobile-only" id="audio-mobile-btn" onclick="toggleAmbientAudio()" title="Toggle Ambient Audio">🎧</button>
-
-        <!-- UI Sound Feedback Toggle -->
-        <button class="ui-sound-toggle-btn topbar-hide-mobile" id="ui-sound-btn" onclick="toggleUISound()" title="Toggle tactile UI sounds">🔊</button>
-
-        <!-- Density Selector -->
-        <select class="density-dropdown topbar-hide-tablet" onchange="applyDensity(this.value)" id="density-selector" title="View density">
-          <option value="comfortable">Comfortable</option>
-          <option value="compact">Compact</option>
-          <option value="spacious">Spacious</option>
-        </select>
-
-        <!-- Theme Selector -->
-        <select class="theme-dropdown topbar-compact-theme" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch Theme">
-          <option value="fluent-dark">🔵 Fluent</option>
-          <option value="material-dark">🔴 Material</option>
-          <option value="fluent-light">☀️ Light</option>
-          <option value="material-light">⚪ M3</option>
-          <option value="cyber-aubergine">🟣 Overgame</option>
-        </select>
-
-        <div class="topbar-clock topbar-hide-tablet" id="live-clock-display">00:00</div>
-        <button class="btn-primary topbar-hide-mobile" onclick="openPlanScheduleModal()">📅 Plan Day</button>
-      </div>
-    </header>
+          <button class="audio-play-toggle" id="audio-play-btn" onclick="toggleAmbientAudio()" aria-label="Play or pause the focus sound">▶</button>
+        </div></div>
+      <div class="prefs-row"><span>Interface sounds</span>
+        <button class="ui-sound-toggle-btn" id="ui-sound-btn" onclick="toggleUISound()" title="Toggle interface sounds" aria-label="Toggle interface sounds">🔊</button></div>
+      <div class="prefs-row"><span>Task reminders</span>
+        <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="closePrefsPopover(); openEnterpriseAlerts()">🔔 Alerts…</button></div>
+    </div>
 
     <!-- CONTENT VIEWS -->
     <div class="view-content-wrapper">
@@ -1749,11 +1784,11 @@ html, body {
         <div class="view-banner">
           <div>
             <h1 class="view-headline">Good <span id="dash-greeting-time">day</span>, <span id="dash-user-headline">Executive</span></h1>
-            <p class="view-subheadline" id="dash-date-string">Loading real-time schedule…</p>
+            <p class="view-subheadline"><span id="dash-date-string">Loading real-time schedule…</span><span class="clock-inline" id="live-clock-display" aria-hidden="true"></span></p>
           </div>
           <div class="view-actions-cluster">
             <button class="btn-secondary" onclick="openActionPlanModal()">⚡ Action Mode</button>
-            <button class="btn-primary" onclick="toggleFloatingCopilotDrawer()">✦ Copilot Drawer</button>
+            <button class="btn-primary" onclick="toggleFloatingCopilotDrawer()">✦ NexAI panel</button>
           </div>
         </div>
 
@@ -1762,7 +1797,7 @@ html, body {
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Active Tasks</span><span class="kpi-icon">▦</span></div>
             <div class="kpi-value" id="kpi-tasks-val">0</div>
-            <div class="kpi-footer"><span class="kpi-trend-positive">↑ Active sprint tasks</span></div>
+            <div class="kpi-footer"><span class="kpi-trend-positive">Open sprint tasks</span></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Focus Time</span><span class="kpi-icon">◎</span></div>
@@ -1770,9 +1805,9 @@ html, body {
             <div class="kpi-footer"><span class="kpi-trend-positive">Deep work today</span></div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-header"><span class="kpi-title">Habit Streaks</span><span class="kpi-icon">◈</span></div>
+            <div class="kpi-header"><span class="kpi-title">Habits Today</span><span class="kpi-icon">◈</span></div>
             <div class="kpi-value" id="kpi-habits-val">0%</div>
-            <div class="kpi-footer"><span class="kpi-trend-positive">Completed today</span></div>
+            <div class="kpi-footer"><span class="kpi-trend-positive">Done today</span></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Smart Notes</span><span class="kpi-icon">◧</span></div>
@@ -1846,7 +1881,7 @@ html, body {
           <div class="ai-insight-content">
             <span class="ai-sparkle-icon">✦</span>
             <div>
-              <div style="font-size:12px;font-weight:700;color:var(--accent-primary);text-transform:uppercase;letter-spacing:0.06em">Copilot Executive Insight</div>
+              <div style="font-size:12px;font-weight:700;color:var(--accent-primary);text-transform:uppercase;letter-spacing:0.06em">Workspace insight</div>
               <div class="ai-insight-text" id="dash-ai-insight-text">Analyzing your active workspace state…</div>
             </div>
           </div>
@@ -2212,7 +2247,7 @@ html, body {
       <section class="view-pane" id="pane-ai">
         <div class="view-banner">
           <div>
-            <h1 class="view-headline">Nexus Copilot & Gemini Assistant</h1>
+            <h1 class="view-headline">NexAI Assistant</h1>
             <p class="view-subheadline">Omniscient intelligence with live context awareness of your active workspace.</p>
           </div>
           <div class="view-actions-cluster">
@@ -2228,7 +2263,7 @@ html, body {
               <div class="chat-msg-row assistant">
                 <div class="chat-avatar-circle">✦</div>
                 <div class="chat-bubble-card">
-                  <p><strong>Hello! I am your Nexus Copilot</strong>, powered by Google Gemini and Microsoft productivity principles.</p>
+                  <p><strong>Hello! I'm NexAI</strong>, your productivity assistant, powered by Google Gemini.</p>
                   <p style="margin-top:6px">I have full real-time awareness of your active Kanban tasks, habits, deep focus minutes, and notes. Ask me to prioritize your day, draft project plans, or invoke <strong>Action Mode</strong> to propose workspace changes!</p>
                 </div>
               </div>
@@ -2243,7 +2278,7 @@ html, body {
               </div>
 
               <div class="chat-input-textarea-row">
-                <textarea id="ai-chat-input" placeholder="Ask Copilot anything about your tasks, schedule, or notes… (Enter to send)" class="chat-input-box" rows="1" onkeydown="handleChatInputKey(event)"></textarea>
+                <textarea id="ai-chat-input" placeholder="Ask NexAI anything about your tasks, schedule, or notes… (Enter to send)" class="chat-input-box" rows="1" onkeydown="handleChatInputKey(event)"></textarea>
                 <button class="voice-input-btn" id="chat-voice-btn" onclick="toggleVoiceDictation('chat')" title="Voice to text">🎙️</button>
                 <button class="btn-primary" onclick="sendAIChatMessage()" id="ai-send-btn">Send ➔</button>
               </div>
@@ -2279,7 +2314,7 @@ html, body {
   <div class="floating-drawer-header">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:16px;color:var(--accent-primary)">✦</span>
-      <strong style="font-size:14px">Copilot Assistant</strong>
+      <strong style="font-size:14px">NexAI Assistant</strong>
     </div>
     <button class="modal-close-btn" onclick="toggleFloatingCopilotDrawer()">✕</button>
   </div>
@@ -2291,7 +2326,7 @@ html, body {
   </div>
   <div class="ai-input-dock">
     <div class="chat-input-textarea-row">
-      <textarea id="floating-chat-input" placeholder="Ask Copilot while working…" class="chat-input-box" rows="1" onkeydown="handleFloatingChatKey(event)"></textarea>
+      <textarea id="floating-chat-input" placeholder="Ask NexAI while working…" class="chat-input-box" rows="1" onkeydown="handleFloatingChatKey(event)"></textarea>
       <button class="btn-primary" onclick="sendFloatingChatMessage()">Send</button>
     </div>
   </div>
@@ -2424,11 +2459,11 @@ html, body {
 <div class="modal-overlay-backdrop" id="modal-action-mode" onclick="handleBackdropClick(event, 'modal-action-mode')">
   <div class="modal-dialog-card" style="width:min(640px, 94vw)">
     <div class="modal-dialog-header">
-      <h3 class="modal-dialog-title">⚡ Copilot Action Mode</h3>
+      <h3 class="modal-dialog-title">⚡ NexAI Action Mode</h3>
       <button class="modal-close-btn" onclick="closeModal('modal-action-mode')">✕</button>
     </div>
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">
-      Describe what you want Copilot to execute. It will draft reviewable changes before anything touches your data.
+      Describe what you want NexAI to do. It will draft reviewable changes before anything touches your data.
     </p>
     <textarea id="action-mode-input-text" placeholder="e.g., Create 3 tasks for preparing my portfolio launch, set the design review to High priority due tomorrow, and make a launch checklist note." class="inline-add-input" style="width:100%;height:80px;resize:vertical;margin-bottom:12px"></textarea>
     <div style="display:flex;gap:10px;margin-bottom:14px">
@@ -2445,7 +2480,7 @@ html, body {
 <!-- MOBILE BACKDROP & BOTTOM NAVIGATION -->
 <div class="mobile-sidebar-backdrop" id="mobile-sidebar-backdrop" onclick="closeSidebarDrawer()"></div>
 
-<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Primary">
   <button class="mob-nav-item active" data-view="dashboard" onclick="switchNexusView('dashboard')">
     <span class="mob-nav-icon">⬡</span>
     <span class="mob-nav-label">Home</span>
@@ -2462,11 +2497,11 @@ html, body {
     <span class="mob-nav-icon">◧</span>
     <span class="mob-nav-label">Notes</span>
   </button>
-  <button class="mob-nav-item" data-view="copilot" onclick="toggleFloatingCopilotDrawer()">
+  <button class="mob-nav-item" data-view="copilot" onclick="toggleFloatingCopilotDrawer()" aria-label="NexAI assistant">
     <span class="mob-nav-icon">✦</span>
-    <span class="mob-nav-label">Copilot</span>
+    <span class="mob-nav-label">NexAI</span>
   </button>
-  <button class="mob-nav-item" data-view="more" onclick="toggleSidebarDrawer()">
+  <button class="mob-nav-item" data-view="more" onclick="toggleSidebarDrawer()" aria-label="More views" aria-controls="app-sidebar">
     <span class="mob-nav-icon">☰</span>
     <span class="mob-nav-label">More</span>
   </button>
@@ -2516,38 +2551,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   updateEnterpriseConnectionBadge();
 });
 
-function loadWorkspaceState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      state = { ...state, ...parsed };
-      // One-time preference migration: make Overgame the initial Enterprise theme.
-      // After this migration, the user's future theme choice is respected.
-      if (!parsed.enterpriseThemeDefaultMigrated) {
-        state.theme = 'cyber-aubergine';
-        state.enterpriseThemeDefaultMigrated = true;
-      }
-    } else {
-      state.enterpriseThemeDefaultMigrated = true;
-      loadSampleWorkspaceData(false);
-    }
-  } catch (e) {
-    console.warn('Error loading state:', e);
-  }
-}
-
-function saveWorkspaceState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('Error saving state:', e);
-  }
-  updateKPICounters();
-}
-
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function uid() {
@@ -2587,50 +2592,73 @@ function initFluentMouseSpotlight() {
 }
 
 // Navigation
+const NEXUS_VIEWS = {
+  dashboard: 'Dashboard', kanban: 'Kanban Sprint Board', calendar: 'Timeblocking Studio', focus: 'Deep Focus Studio',
+  habits: 'Habit Mastery', notes: 'Smart Docs & Notes', analytics: 'Executive Analytics', ai: 'NexAI Assistant'
+};
+const MOBILE_PRIMARY_VIEWS = ['dashboard', 'kanban', 'focus', 'notes'];
+let currentViewTitle = 'Dashboard';
 function switchNexusView(name) {
+  if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
   playTactileClick();
-  document.querySelectorAll('.view-pane').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.mob-nav-item').forEach(b => b.classList.remove('active'));
-  
-  const pane = document.getElementById('pane-' + name);
-  if (pane) pane.classList.add('active');
-  
-  const btn = document.querySelector(`.sidebar-nav [data-view="${name}"]`);
-  if (btn) btn.classList.add('active');
-  const mobBtn = document.querySelector(`.mobile-bottom-nav [data-view="${name}"]`);
-  if (mobBtn) mobBtn.classList.add('active');
-
-  const titles = {
-    dashboard: 'Dashboard', kanban: 'Kanban Sprint Board', calendar: 'Timeblocking Studio',
-    focus: 'Deep Focus Studio', habits: 'Habit Mastery', notes: 'Smart Docs & Notes',
-    analytics: 'Executive Analytics', ai: 'Copilot & Gemini Dual AI'
-  };
+  document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+  document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
+    const on = b.dataset.view === name;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  // The phone bar lists four views; anything else highlights "More" so you always see where you are.
+  document.querySelectorAll('.mob-nav-item').forEach(b => {
+    const on = b.dataset.view === 'more' ? !MOBILE_PRIMARY_VIEWS.includes(name) : b.dataset.view === name;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  currentViewTitle = NEXUS_VIEWS[name];
   const titleEl = document.getElementById('topbar-view-title');
-  if (titleEl) titleEl.textContent = titles[name] || name;
-
+  if (titleEl) titleEl.textContent = currentViewTitle;
+  document.title = `${currentViewTitle} · NexOS Enterprise`;
   if (name === 'analytics') renderAnalyticsCharts();
   if (name === 'calendar') renderCalendarTimeline();
-  if (window.innerWidth <= 992) closeSidebarDrawer();
+  closeSidebarDrawer();
+  closePrefsPopover();
 }
 
-function toggleSidebarDrawer() {
-  playTactileClick();
+function isDrawerLayout() { return window.innerWidth <= 992; }
+// On phones and tablets the sidebar is an off-screen drawer: hide it from keyboards and screen readers while closed.
+function syncDrawerA11y() {
   const sb = document.getElementById('app-sidebar');
-  const bd = document.getElementById('mobile-sidebar-backdrop');
   if (!sb) return;
-  const isOpen = sb.classList.toggle('open');
-  if (bd) bd.classList.toggle('visible', isOpen);
-  const menuBtn = document.getElementById('enterprise-menu-toggle');
-  if (menuBtn) menuBtn.setAttribute('aria-expanded', String(isOpen));
+  const hidden = isDrawerLayout() && !sb.classList.contains('open');
+  sb.inert = hidden;
+  if (hidden) sb.setAttribute('aria-hidden', 'true'); else sb.removeAttribute('aria-hidden');
+}
+let drawerOpener = null;
+function toggleSidebarDrawer() {
+  const sb = document.getElementById('app-sidebar');
+  if (!sb) return;
+  if (sb.classList.contains('open')) { closeSidebarDrawer(); return; }
+  if (!isDrawerLayout()) return;
+  playTactileClick();
+  drawerOpener = document.activeElement;
+  sb.classList.add('open');
+  document.getElementById('mobile-sidebar-backdrop')?.classList.add('visible');
+  document.body.classList.add('drawer-open');
+  document.getElementById('enterprise-menu-toggle')?.setAttribute('aria-expanded', 'true');
+  syncDrawerA11y();
+  setTimeout(() => (sb.querySelector('.sidebar-mobile-close-btn') || sb.querySelector('.nav-btn'))?.focus({ preventScroll: true }), 30);
 }
 function closeSidebarDrawer() {
   const sb = document.getElementById('app-sidebar');
-  const bd = document.getElementById('mobile-sidebar-backdrop');
-  if (sb) sb.classList.remove('open');
-  if (bd) bd.classList.remove('visible');
-  const menuBtn = document.getElementById('enterprise-menu-toggle');
-  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+  if (!sb) return;
+  const wasOpen = sb.classList.contains('open');
+  sb.classList.remove('open');
+  document.getElementById('mobile-sidebar-backdrop')?.classList.remove('visible');
+  document.body.classList.remove('drawer-open');
+  document.getElementById('enterprise-menu-toggle')?.setAttribute('aria-expanded', 'false');
+  syncDrawerA11y();
+  if (wasOpen && drawerOpener && drawerOpener.isConnected && drawerOpener.offsetParent !== null) { drawerOpener.focus({ preventScroll: true }); }
+  else if (wasOpen) document.getElementById('enterprise-menu-toggle')?.focus({ preventScroll: true });
+  drawerOpener = null;
 }
 
 // Themes & Density
@@ -2759,7 +2787,7 @@ function renderDashboard() {
             </span>
             <div style="display:flex;align-items:center;gap:10px">
               <span class="streak-pill">🔥 ${h.streak || 0}d</span>
-              <button class="habit-day-check-btn ${isDone ? 'checked' : ''}" style="width:28px;height:28px;font-size:11px" onclick="toggleHabitCheck('${h.id}', '${today()}')">✓</button>
+              <button class="habit-day-check-btn ${isDone ? 'checked' : ''}" style="width:28px;height:28px;font-size:11px" aria-pressed="${isDone ? 'true' : 'false'}" aria-label="${escapeHtml(h.name)}: done today" onclick="toggleHabitCheck('${h.id}', '${today()}')">✓</button>
             </div>
           </div>
         `;
@@ -3104,13 +3132,24 @@ function saveTaskModal() {
   playTactileClick();
 }
 
-function aiBreakdownActiveTask() {
+async function enterpriseComplete(prompt, system) {
+  if (enterpriseSession.mode !== 'account') throw new Error('NexAI needs a signed-in account. Choose Sign in at the top, then try again.');
+  const response = await fetch('/api/complete', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, system }) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `NexAI is unavailable (${response.status})`);
+  return String(payload.text || '').trim();
+}
+async function aiBreakdownActiveTask() {
   const title = document.getElementById('task-modal-title').value.trim();
-  if (!title) return;
+  if (!title) { showToast('Add a task title first.'); return; }
   const descEl = document.getElementById('task-modal-desc');
-  descEl.value = (descEl.value ? descEl.value + '\n\n' : '') +
-    '✦ Copilot Breakdown:\n• Phase 1: Research specifications & prerequisites\n• Phase 2: Core implementation sprint (25m Pomodoro)\n• Phase 3: Verification & stakeholder sign-off';
-  showToast('Breakdown suggested by Copilot');
+  try {
+    showToast('NexAI is breaking this task down…');
+    const text = await enterpriseComplete(`Break this task into 3 to 5 concrete steps. Reply with a short plain bulleted list only.\n\nTask: ${title}\nDetails: ${descEl.value.trim() || 'none'}`, 'You are a concise productivity assistant.');
+    if (!text) throw new Error('NexAI returned nothing. Please try again.');
+    descEl.value = (descEl.value ? descEl.value + '\n\n' : '') + text;
+    showToast('Steps added from NexAI');
+  } catch (err) { showToast(err.message || 'NexAI could not break this task down.'); }
 }
 
 // ---------------- POMODORO & PROCEDURAL AUDIO 3.0 ----------------
@@ -3133,32 +3172,47 @@ function togglePomodoro() {
   else startPomodoro();
 }
 
+let pomoEndAt = 0;
+function pomoTick() {
+  const left = Math.max(0, Math.ceil((pomoEndAt - Date.now()) / 1000));
+  if (left > 0) {
+    if (left !== state.pomoTimeRemaining) { state.pomoTimeRemaining = left; renderPomTimerUI(); updatePomoTitle(); }
+    return;
+  }
+  state.pomoTimeRemaining = 0;
+  renderPomTimerUI();
+  completePomodoroInterval();
+}
+function updatePomoTitle() {
+  if (!state.pomoRunning) { document.title = `${currentViewTitle} · NexOS Enterprise`; return; }
+  const m = Math.floor(state.pomoTimeRemaining / 60), s = state.pomoTimeRemaining % 60;
+  document.title = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} · ${state.pomoMode === 'focus' ? 'Focus' : 'Break'} · NexOS`;
+}
+document.addEventListener('visibilitychange', () => { if (state.pomoRunning) pomoTick(); }); // catch up after a background tab
 function startPomodoro() {
+  if (state.pomoRunning && pomoTimerInterval) return;
+  if (state.pomoTimeRemaining <= 0) state.pomoTimeRemaining = state.pomoTotalTime;
   state.pomoRunning = true;
   document.getElementById('pomo-hero-btn').textContent = '❚❚';
   const dashBtn = document.getElementById('dash-pomo-btn');
   if (dashBtn) dashBtn.textContent = 'Pause Focus';
-
-  if (!pomoTimerInterval) {
-    pomoTimerInterval = setInterval(() => {
-      if (state.pomoTimeRemaining > 0) {
-        state.pomoTimeRemaining--;
-        renderPomTimerUI();
-      } else {
-        completePomodoroInterval();
-      }
-    }, 1000);
-  }
+  // Count against the clock, not interval ticks: browsers slow timers in background tabs.
+  pomoEndAt = Date.now() + state.pomoTimeRemaining * 1000;
+  if (pomoTimerInterval) clearInterval(pomoTimerInterval);
+  pomoTimerInterval = setInterval(pomoTick, 250);
+  updatePomoTitle();
   playTactileClick();
 }
 
 function pausePomodoro() {
+  if (state.pomoRunning && pomoEndAt) state.pomoTimeRemaining = Math.max(0, Math.ceil((pomoEndAt - Date.now()) / 1000));
   state.pomoRunning = false;
   if (pomoTimerInterval) { clearInterval(pomoTimerInterval); pomoTimerInterval = null; }
   const btn = document.getElementById('pomo-hero-btn');
   if (btn) btn.textContent = '▶';
   const dashBtn = document.getElementById('dash-pomo-btn');
   if (dashBtn) dashBtn.textContent = 'Start Focus';
+  updatePomoTitle();
   playTactileClick();
 }
 
@@ -3366,7 +3420,7 @@ function renderHabits() {
           ${dates.map(d => {
             const checked = h.checks && h.checks[d];
             return `
-              <button class="habit-day-check-btn ${checked ? 'checked' : ''}" onclick="toggleHabitCheck('${h.id}', '${d}')">
+              <button class="habit-day-check-btn ${checked ? 'checked' : ''}" aria-pressed="${checked ? 'true' : 'false'}" aria-label="${escapeHtml(h.name)} on ${d}" onclick="toggleHabitCheck('${h.id}', '${d}')">
                 ${checked ? '✓' : ''}
               </button>
             `;
@@ -3385,7 +3439,7 @@ function getPast7Dates() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
+    arr.push(localDateKey(d));
   }
   return arr;
 }
@@ -3400,8 +3454,9 @@ function toggleHabitCheck(id, dateStr) {
   // Compute streak
   let streak = 0;
   let cur = new Date();
+  if (!habit.checks[localDateKey(cur)]) cur.setDate(cur.getDate() - 1); // today not ticked yet: the streak continues from yesterday
   while (true) {
-    const ds = cur.toISOString().slice(0, 10);
+    const ds = localDateKey(cur);
     if (habit.checks[ds]) {
       streak++;
       cur.setDate(cur.getDate() - 1);
@@ -3459,7 +3514,7 @@ function renderHeatmap() {
     for (let d = 6; d >= 0; d--) {
       const dt = new Date();
       dt.setDate(now.getDate() - (w * 7 + d));
-      const ds = dt.toISOString().slice(0, 10);
+      const ds = localDateKey(dt);
 
       let count = 0;
       state.habits.forEach(h => { if (h.checks && h.checks[ds]) count++; });
@@ -3607,13 +3662,18 @@ function filterNotesSearch(q) {
   renderNotesList();
 }
 
-function aiSummarizeActiveNote() {
+async function aiSummarizeActiveNote() {
   const textarea = document.getElementById('note-editor-textarea');
-  if (!textarea || !textarea.value) return;
-  textarea.value += '\n\n## ✦ Copilot Executive Summary\n• Key deliverables and timeboxed milestones specified.\n• Dependencies identified and scheduled into active sprint.';
-  handleNoteContentChange();
-  showToast('AI Summary appended to document');
-  playHarmonicChime();
+  if (!textarea || !textarea.value.trim()) { showToast('Write something in the note first.'); return; }
+  try {
+    showToast('NexAI is summarizing…');
+    const summary = await enterpriseComplete(`Summarize this note in 2 to 3 sentences:\n\n${textarea.value.slice(0, 10000)}`, 'You are a concise productivity assistant.');
+    if (!summary) throw new Error('NexAI returned nothing. Please try again.');
+    textarea.value = `## Summary\n${summary}\n\n---\n\n${textarea.value}`;
+    handleNoteContentChange();
+    showToast('Summary added to the top of the note');
+    playHarmonicChime();
+  } catch (err) { showToast(err.message || 'NexAI could not summarize this note.'); }
 }
 
 function exportCurrentNoteMarkdown() {
@@ -3768,90 +3828,14 @@ function sendQuickPrompt(promptText) {
   sendAIChatMessage();
 }
 
-function sendAIChatMessage() {
-  const input = document.getElementById('ai-chat-input');
-  const msg = input.value.trim();
-  if (!msg) return;
 
-  const box = document.getElementById('ai-messages-scroll-area');
-  box.innerHTML += `
-    <div class="chat-msg-row user">
-      <div class="chat-avatar-circle">U</div>
-      <div class="chat-bubble-card"><p>${escapeHtml(msg)}</p></div>
-    </div>
-  `;
 
-  input.value = '';
-  box.scrollTop = box.scrollHeight;
-  playTactileClick();
-
-  setTimeout(() => {
-    const reply = generateIntelligentCopilotReply(msg);
-    box.innerHTML += `
-      <div class="chat-msg-row assistant">
-        <div class="chat-avatar-circle">✦</div>
-        <div class="chat-bubble-card">${renderSimpleMarkdown(reply)}</div>
-      </div>
-    `;
-    box.scrollTop = box.scrollHeight;
-  }, 400);
-}
-
-function generateIntelligentCopilotReply(msg) {
-  const q = msg.toLowerCase();
-  const tasksActive = state.tasks.filter(t => t.stage !== 'done');
-  const highPri = state.tasks.filter(t => t.priority === 'high' && t.stage !== 'done');
-  const focusMins = state.pomodoroStats.totalMins || 0;
-  const pendingHabits = state.habits.filter(h => !h.checks || !h.checks[today()]);
-
-  if (q.includes('analyze') || q.includes('week') || q.includes('productivity')) {
-    return `### 📊 Copilot Sprint Analysis\n\n` +
-      `Here is your real-time workspace snapshot:\n\n` +
-      `- **Open Tasks:** ${tasksActive.length} active (${highPri.length} marked High priority)\n` +
-      `- **Focus Hours:** ${focusMins} minutes logged\n` +
-      `- **Pending Habits:** ${pendingHabits.length} left to complete today\n\n` +
-      `**Executive Recommendations:**\n` +
-      `1. **First 90 Minutes:** Execute "${highPri[0]?.title || tasksActive[0]?.title || 'your core deliverable'}" before meetings.\n` +
-      `2. **Focus Studio:** Run a 25-minute Pomodoro session with Ambient Rain soundscape.\n` +
-      `3. **Habit Streak:** Complete "${pendingHabits[0]?.name || 'your routine'}" to preserve compounding momentum.`;
-  }
-
-  if (q.includes('prioritize') || q.includes('eisenhower')) {
-    return `### 🎯 Prioritization Framework\n\n` +
-      `- **Urgent & High Impact (Do Now):** ${highPri.map(t => `"${t.title}"`).join(', ') || 'No critical bottlenecks'}\n` +
-      `- **Important, Not Urgent (Schedule):** ${state.tasks.filter(t => t.priority === 'medium' && t.stage !== 'done').map(t => `"${t.title}"`).slice(0, 3).join(', ') || 'Plan sprint goals'}\n` +
-      `- **Low Effort / Quick Wins:** ${state.tasks.filter(t => t.priority === 'low' && t.stage !== 'done').map(t => `"${t.title}"`).join(', ') || 'Routine admin'}`;
-  }
-
-  if (q.includes('plan') || q.includes('schedule') || q.includes('day')) {
-    return `### 📅 Optimized Daily Schedule\n\n` +
-      `- **09:00 - 10:30:** Deep Focus Sprint (Tackle: ${highPri[0]?.title || 'Top priority task'})\n` +
-      `- **10:30 - 10:45:** Audio break & hydration\n` +
-      `- **10:45 - 12:00:** Kanban board task reviews & execution\n` +
-      `- **14:00 - 15:00:** Habit check-ins & Smart Notes synthesis\n` +
-      `- **17:00 - 17:30:** Daily retrospective in Analytics`;
-  }
-
-  return `I have analyzed your request against your active workspace! You currently have **${tasksActive.length} active tasks**, **${focusMins} focus minutes**, and **${state.habits.length} habits tracked**.\n\nHow can I help you accelerate your output today? Try asking me to **"Plan my day"** or invoke **"⚡ Action Mode"**!`;
-}
-
-function startNewAIChatSession() {
-  const box = document.getElementById('ai-messages-scroll-area');
-  box.innerHTML = `
-    <div class="chat-msg-row assistant">
-      <div class="chat-avatar-circle">✦</div>
-      <div class="chat-bubble-card">
-        <p><strong>New session initiated.</strong> How can Copilot assist your sprint today?</p>
-      </div>
-    </div>
-  `;
-  playTactileClick();
-}
-
-// Floating Copilot Drawer
+// Floating NexAI panel
 function toggleFloatingCopilotDrawer() {
   const drawer = document.getElementById('floating-copilot-drawer');
-  drawer.classList.toggle('open');
+  if (!drawer) return;
+  const open = drawer.classList.toggle('open');
+  document.querySelector('.mob-nav-item[data-view="copilot"]')?.classList.toggle('active', open);
   playTactileClick();
 }
 
@@ -3860,34 +3844,6 @@ function handleFloatingChatKey(e) {
     e.preventDefault();
     sendFloatingChatMessage();
   }
-}
-
-function sendFloatingChatMessage() {
-  const input = document.getElementById('floating-chat-input');
-  const msg = input.value.trim();
-  if (!msg) return;
-
-  const box = document.getElementById('floating-copilot-messages');
-  box.innerHTML += `
-    <div class="chat-msg-row user">
-      <div class="chat-avatar-circle">U</div>
-      <div class="chat-bubble-card"><p>${escapeHtml(msg)}</p></div>
-    </div>
-  `;
-  input.value = '';
-  box.scrollTop = box.scrollHeight;
-  playTactileClick();
-
-  setTimeout(() => {
-    const reply = generateIntelligentCopilotReply(msg);
-    box.innerHTML += `
-      <div class="chat-msg-row assistant">
-        <div class="chat-avatar-circle">✦</div>
-        <div class="chat-bubble-card">${renderSimpleMarkdown(reply)}</div>
-      </div>
-    `;
-    box.scrollTop = box.scrollHeight;
-  }, 350);
 }
 
 // Voice Dictation (Web Speech API)
@@ -3944,61 +3900,6 @@ function openActionPlanModal() {
   playTactileClick();
 }
 
-function draftCopilotActions() {
-  const text = document.getElementById('action-mode-input-text').value.trim();
-  if (!text) return;
-
-  proposedActions = [
-    { id: 'act_1', type: 'create_task', title: 'Prepare project deployment checklist', priority: 'high', stage: 'todo', due: today() },
-    { id: 'act_2', type: 'create_task', title: 'Run automated end-to-end audit', priority: 'medium', stage: 'todo', due: today() },
-    { id: 'act_3', type: 'create_note', title: 'Deployment Brief & Architecture', content: '# Release Notes\n- Verified build integrity\n- High availability cluster online' }
-  ];
-
-  const results = document.getElementById('action-proposals-results-list');
-  results.innerHTML = proposedActions.map(a => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-subtle)">
-      <input type="checkbox" checked id="${a.id}" style="accent-color:var(--accent-primary);width:16px;height:16px">
-      <div style="flex:1">
-        <strong style="font-size:13px">${a.type === 'create_task' ? 'Create Task: ' + a.title : 'Create Note: ' + a.title}</strong>
-        <div style="font-size:11.5px;color:var(--text-secondary)">Priority: ${a.priority || 'N/A'} · Due: ${a.due || 'N/A'}</div>
-      </div>
-    </div>
-  `).join('');
-
-  document.getElementById('action-mode-approve-btn').disabled = false;
-  showToast('3 proposed actions drafted for review');
-  playTactileClick();
-}
-
-function executeApprovedActions() {
-  proposedActions.forEach(a => {
-    const chk = document.getElementById(a.id);
-    if (chk && chk.checked) {
-      if (a.type === 'create_task') {
-        state.tasks.push({
-          id: uid(), title: a.title, desc: 'Generated by Copilot Action Mode',
-          stage: a.stage || 'todo', priority: a.priority || 'medium', due: a.due || today(),
-          created: Date.now(), subtasks: [], tags: []
-        });
-      } else if (a.type === 'create_note') {
-        state.notes.unshift({
-          id: uid(), title: a.title, content: a.content || '',
-          tags: ['action-mode'], created: Date.now()
-        });
-      }
-    }
-  });
-
-  saveWorkspaceState();
-  renderKanban();
-  renderNotesList();
-  renderDashboard();
-  renderCalendarTimeline();
-  closeModal('modal-action-mode');
-  showToast('Approved actions applied to workspace!');
-  playHarmonicChime();
-}
-
 // ---------------- DAY PLANNER MODAL ----------------
 function openPlanScheduleModal() {
   generateAutoSchedule();
@@ -4053,7 +3954,7 @@ function handleCommandPaletteSearch(q) {
   items.push({ icon: '◎', label: 'Go to Deep Focus Studio', category: 'Navigation', action: () => switchNexusView('focus') });
   items.push({ icon: '◈', label: 'Go to Habit Mastery', category: 'Navigation', action: () => switchNexusView('habits') });
   items.push({ icon: '◧', label: 'Go to Smart Notes', category: 'Navigation', action: () => switchNexusView('notes') });
-  items.push({ icon: '✦', label: 'Open Copilot Assistant', category: 'AI', action: () => switchNexusView('ai') });
+  items.push({ icon: '✦', label: 'Open NexAI Assistant', category: 'AI', action: () => switchNexusView('ai') });
   items.push({ icon: '⚡', label: 'Invoke Action Mode', category: 'AI', action: () => openActionPlanModal() });
   items.push({ icon: '+', label: 'Create New Task', category: 'Action', action: () => openNewTaskModal() });
   items.push({ icon: '+', label: 'Create New Note', category: 'Action', action: () => quickCreateNote() });
@@ -4094,26 +3995,23 @@ function executeCommandItem(idx) {
   }
 }
 
-// Global Keyboard Shortcuts
+// Global keyboard shortcuts
+const VIEW_KEYS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'focus', Digit4: 'habits', Digit5: 'notes', Digit6: 'analytics', Digit7: 'ai', Digit8: 'calendar' };
 document.addEventListener('keydown', e => {
+  if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_KEYS[e.code]) { e.preventDefault(); switchNexusView(VIEW_KEYS[e.code]); return; }
   if (e.metaKey || e.ctrlKey) {
     if (e.key === 'k' || e.key === 'K') { e.preventDefault(); openCommandPalette(); }
-    if (e.key === '1') { e.preventDefault(); switchNexusView('dashboard'); }
-    if (e.key === '2') { e.preventDefault(); switchNexusView('kanban'); }
-    if (e.key === '3') { e.preventDefault(); switchNexusView('focus'); }
-    if (e.key === '4') { e.preventDefault(); switchNexusView('habits'); }
-    if (e.key === '5') { e.preventDefault(); switchNexusView('notes'); }
-    if (e.key === '6') { e.preventDefault(); switchNexusView('analytics'); }
-    if (e.key === '7') { e.preventDefault(); switchNexusView('ai'); }
-    if (e.key === '8') { e.preventDefault(); switchNexusView('calendar'); }
     if (e.key === '\\') { e.preventDefault(); toggleFloatingCopilotDrawer(); }
-    if (e.key === 's' && document.getElementById('pane-notes')?.classList.contains('active')) {
+    if ((e.key === 's' || e.key === 'S') && document.getElementById('pane-notes')?.classList.contains('active')) {
       e.preventDefault(); saveActiveNote();
     }
+    return;
   }
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-overlay-backdrop').forEach(m => m.classList.remove('open'));
     document.getElementById('floating-copilot-drawer')?.classList.remove('open');
+    document.querySelector('.mob-nav-item[data-view="copilot"]')?.classList.remove('active');
+    closeSidebarDrawer(); closePrefsPopover();
     if (document.body.classList.contains('zen-mode')) toggleZenMode();
   }
 });
@@ -4328,7 +4226,7 @@ function enterpriseToClassicRoot(existingRoot) {
   root.habits = state.habits.map(h => ({ ...(prevHabits.get(String(h.id)) || {}), ...h, checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Math.max(0, Number(h.streak) || 0) }));
   root.notes = normalizeEnterpriseNotes(state.notes).map(n => ({ ...(prevNotes.get(String(n.id)) || {}), ...n }));
   root.pomodoroLog = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || ''))).map(l => ({ date: String(l.date), minutes: Math.max(0, Number(l.minutes) || 0) }));
-  const nowDate = new Date().toISOString().slice(0, 10);
+  const nowDate = localDateKey();
   const todayLog = root.pomodoroLog.filter(l => l.date === nowDate);
   root.pomodoroStats = {
     ...(root.pomodoroStats && typeof root.pomodoroStats === 'object' ? root.pomodoroStats : {}),
@@ -4348,6 +4246,47 @@ function enterpriseToClassicRoot(existingRoot) {
     activeChatId: state.activeChatId || null
   };
   return root;
+}
+// ---- local calendar date (the app keys habits and focus logs by the user's own day) ----
+function localDateKey(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// ---- merging shared records so a save never wipes changes made on another device or in Classic ----
+function stableKey(value) {
+  return JSON.stringify(value, (k, v) => (v && typeof v === 'object' && !Array.isArray(v))
+    ? Object.keys(v).sort().reduce((o, key) => { o[key] = v[key]; return o; }, {}) : v);
+}
+function pickShared(root) {
+  const r = root && typeof root === 'object' ? root : {};
+  return { tasks: Array.isArray(r.tasks) ? r.tasks : [], habits: Array.isArray(r.habits) ? r.habits : [], notes: Array.isArray(r.notes) ? r.notes : [], pomodoroLog: Array.isArray(r.pomodoroLog) ? r.pomodoroLog : [] };
+}
+// Three-way merge by id. remote = what the server has now, local = what this screen has, base = what this screen last synced.
+function mergeById(remote, local, base) {
+  const index = arr => { const m = new Map(); (Array.isArray(arr) ? arr : []).forEach(x => { if (x && x.id != null) m.set(String(x.id), x); }); return m; };
+  const R = index(remote), L = index(local), B = index(base);
+  const out = [], seen = new Set();
+  for (const [id, l] of L) {
+    seen.add(id);
+    const r = R.get(id), b = B.get(id);
+    const editedHere = !b || stableKey(l) !== stableKey(b);
+    if (r) out.push(editedHere ? { ...r, ...l } : r);   // changed here: ours wins field by field; untouched here: take theirs
+    else if (!b || editedHere) out.push(l);              // new here, or edited here after someone deleted it elsewhere
+    // untouched here but deleted elsewhere: stays deleted
+  }
+  for (const [id, r] of R) if (!seen.has(id) && !B.has(id)) out.push(r); // added elsewhere
+  return out; // deleted here (in base, not in local) are not carried over
+}
+function mergeLogs(remote, local, base) {
+  const key = l => `${l.date}|${l.minutes}`;
+  const counts = new Map();
+  (Array.isArray(base) ? base : []).forEach(l => counts.set(key(l), (counts.get(key(l)) || 0) + 1));
+  const seen = new Map(), added = [];
+  (Array.isArray(local) ? local : []).forEach(l => {
+    const n = (seen.get(key(l)) || 0) + 1; seen.set(key(l), n);
+    if (n > (counts.get(key(l)) || 0)) added.push(l); // logged on this screen since the last sync
+  });
+  return [...(Array.isArray(remote) ? remote : []), ...added];
 }
 function enterpriseLocalKey() { return enterpriseSession.cacheKey || ENTERPRISE_LOCAL_STATE; }
 function setEnterpriseCacheKey() {
@@ -4373,6 +4312,12 @@ function updateEnterpriseConnectionBadge() {
         ? 'The account could not be reached. Changes are cached locally and are not being uploaded.'
         : 'Preview mode: data stays in this browser. Open Classic NexOS to sign in or continue as guest.';
   if (enterpriseSession.lastError) { el.textContent = 'Sync needs attention'; el.dataset.mode = 'sync-error'; el.title = enterpriseSession.lastError; }
+  const signIn = document.getElementById('enterprise-signin-btn');
+  if (signIn) {
+    signIn.hidden = !(enterpriseSession.mode === 'preview' || enterpriseSession.mode === 'guest');
+    // Coming back from Classic and still not signed in? Plain Classic link, so the two pages never bounce.
+    signIn.href = new URLSearchParams(location.search).get('from') === 'classic' ? '/classic' : '/classic?next=enterprise';
+  }
   const nameEl = document.getElementById('sidebar-user-name');
   const roleEl = document.getElementById('enterprise-user-status');
   const avatarEl = document.getElementById('sidebar-user-avatar');
@@ -4420,6 +4365,7 @@ async function loadWorkspaceState() {
           state = classicRootToEnterprise({}, enterprisePrefsFromLocal(localEnterpriseAccount));
         }
         enterpriseSession.mode = 'account';
+        enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(enterpriseSession.rootState || {}));
         enterpriseSession.ready = true;
       } catch (err) {
         console.warn('Enterprise cloud state unavailable; keeping account-scoped local cache.', err);
@@ -4447,6 +4393,7 @@ async function loadWorkspaceState() {
       ? classicRootToEnterprise(guestRoot, enterprisePrefsFromLocal(localGuest))
       : (localGuest && typeof localGuest === 'object' ? { ...state, ...localGuest } : { ...state, tasks: [], habits: [], notes: [], pomodoroLog: [] });
     enterpriseSession.rootState = guestRoot || {};
+    enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(enterpriseSession.rootState));
     enterpriseSession.ready = true;
     try { localStorage.setItem(enterpriseSession.cacheKey, JSON.stringify(state)); } catch (_) {}
     updateEnterpriseConnectionBadge();
@@ -4475,39 +4422,77 @@ function scheduleEnterpriseCloudSave(delay = 700) {
     showToast('Workspace is saved locally, but cloud sync failed. Please try again.');
   }); }, delay);
 }
+function buildMergedRoot(remoteRoot) {
+  const next = enterpriseToClassicRoot(remoteRoot);                     // top-level settings, Enterprise prefs
+  const baseRoot = enterpriseSession.rootState || {};
+  const local = pickShared(enterpriseToClassicRoot(baseRoot));           // this screen's records
+  const base = enterpriseSession.baseCanon || pickShared(baseRoot);      // as last synced
+  const remote = pickShared(remoteRoot);
+  next.tasks = mergeById(remote.tasks, local.tasks, base.tasks);
+  next.habits = mergeById(remote.habits, local.habits, base.habits);
+  next.notes = mergeById(remote.notes, local.notes, base.notes);
+  next.pomodoroLog = mergeLogs(remote.pomodoroLog, local.pomodoroLog, base.pomodoroLog);
+  const nowDate = localDateKey();
+  const todayLog = next.pomodoroLog.filter(l => l.date === nowDate);
+  next.pomodoroStats = { ...(next.pomodoroStats || {}), totalToday: todayLog.reduce((sum, l) => sum + (Number(l.minutes) || 0), 0), sessionsToday: todayLog.length, lastDate: todayLog.length ? nowDate : ((next.pomodoroStats && next.pomodoroStats.lastDate) || '') };
+  if (!next.notes.some(n => n.id === next.currentNoteId)) next.currentNoteId = next.notes[0]?.id || null;
+  return next;
+}
+// Bring records that arrived from elsewhere into this screen. Runs in the same tick as the merge, so nothing typed in between is lost.
+function adoptMergedIntoState(next) {
+  const before = stableKey({ t: state.tasks, h: state.habits, n: state.notes, l: state.pomodoroLog });
+  const fresh = classicRootToEnterprise(next, {});
+  state.tasks = fresh.tasks; state.habits = fresh.habits; state.notes = fresh.notes; state.pomodoroLog = fresh.pomodoroLog;
+  if (!state.notes.some(n => n.id === state.currentNoteId)) state.currentNoteId = state.notes[0]?.id || null;
+  return before !== stableKey({ t: state.tasks, h: state.habits, n: state.notes, l: state.pomodoroLog });
+}
+function showRemoteChanges() {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (!/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) { try { renderAllViews(); } catch (_) {} }
+  showToast('Updated with changes from another device');
+}
 async function persistEnterpriseWorkspace() {
   try { localStorage.setItem(enterpriseLocalKey(), JSON.stringify(state)); } catch (_) {}
   if (!enterpriseSession.ready) return false;
   if (enterpriseSession.mode === 'preview') return true;
   if (enterpriseSession.mode === 'guest') {
-    const base = readJSONStorage(ENTERPRISE_GUEST_STATE) || enterpriseSession.rootState || {};
-    const next = enterpriseToClassicRoot(base);
+    const remoteRoot = readJSONStorage(ENTERPRISE_GUEST_STATE) || enterpriseSession.rootState || {};
+    const next = buildMergedRoot(remoteRoot);
+    const changed = adoptMergedIntoState(next);
     localStorage.setItem(ENTERPRISE_GUEST_STATE, JSON.stringify(next));
     enterpriseSession.rootState = next;
+    enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(next));
+    if (changed) showRemoteChanges();
     return true;
   }
   if (enterpriseSession.mode !== 'account') return false;
   if (enterpriseSession.saving) { scheduleEnterpriseCloudSave(500); return false; }
   enterpriseSession.saving = true;
+  const previousRoot = enterpriseSession.rootState, previousBase = enterpriseSession.baseCanon;
   try {
-    // Read-modify-write preserves Classic-only settings and future fields in the shared
-    // state document; the shared records below are written in Classic's canonical shape.
+    // Read what the server has now, merge it with this screen's edits, then write it back.
     const getResponse = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
+    if (getResponse.status === 401) throw new Error('Your session expired. Open Classic NexOS to sign in again; your changes are kept on this device.');
     if (!getResponse.ok) throw new Error(`Workspace read failed (${getResponse.status})`);
     const current = await getResponse.json();
-    const next = enterpriseToClassicRoot(current.state || enterpriseSession.rootState || {});
-    const body = JSON.stringify({ state: next });
+    const next = buildMergedRoot(current.state || enterpriseSession.rootState || {});
+    const changed = adoptMergedIntoState(next);
+    enterpriseSession.rootState = next;
+    enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(next));
     const putResponse = await fetch('/api/state', {
       method: 'PUT', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' }, body
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: next })
     });
     const result = await putResponse.json().catch(() => ({}));
     if (!putResponse.ok) throw new Error(result.error || `Workspace save failed (${putResponse.status})`);
-    enterpriseSession.rootState = next;
     enterpriseSession.lastError = '';
     try { localStorage.removeItem('nexos_pending_sync_v2_user_' + enterpriseHash(enterpriseSession.user?.email || enterpriseSession.user?._id || enterpriseSession.user?.id)); } catch (_) {}
     updateEnterpriseConnectionBadge();
+    if (changed) showRemoteChanges();
     return true;
+  } catch (err) {
+    enterpriseSession.rootState = previousRoot; enterpriseSession.baseCanon = previousBase; // nothing was written: keep the old baseline
+    throw err;
   } finally { enterpriseSession.saving = false; }
 }
 function saveWorkspaceState() {
@@ -4733,8 +4718,10 @@ async function saveEnterpriseReminderPreferences() {
   if (button) button.disabled = true;
   try {
     const pref = { enabled, reminderTime };
+    let zone = '';
+    try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) {}
     if (enterpriseSession.mode === 'account') {
-      const response = await fetch('/api/push/preferences', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pref) });
+      const response = await fetch('/api/push/preferences', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(zone ? { ...pref, timeZone: zone } : pref) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || `Save failed (${response.status})`);
     } else if (enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview') {
@@ -4743,7 +4730,7 @@ async function saveEnterpriseReminderPreferences() {
       throw new Error('Your account server is currently unavailable. Please reconnect before changing shared reminder settings.');
     }
     enterpriseReminderPreferences = pref;
-    if (msg) msg.textContent = enabled ? `Task reminders are ON after ${reminderTime} IST.` : 'Task reminders are OFF. Your tasks and due dates are unchanged.';
+    if (msg) msg.textContent = enabled ? `Task reminders are ON after ${reminderTime}${enterpriseSession.mode === 'account' ? ' (your device time zone)' : ''}.` : 'Task reminders are OFF. Your tasks and due dates are unchanged.';
     showToast('Task reminder preferences saved');
   } catch (err) { if (msg) msg.textContent = err.message || 'Could not save preferences.'; }
   finally { if (button) button.disabled = false; }
@@ -4789,6 +4776,65 @@ window.addEventListener('pagehide', () => {
   }
 });
 
+
+// ---------------- 2.4.0: preferences popover, key labels, dialogs, drawer, offline shell ----------------
+function togglePrefsPopover(event) {
+  if (event) event.stopPropagation();
+  const pop = document.getElementById('prefs-popover');
+  if (!pop) return;
+  const open = pop.hidden;
+  pop.hidden = !open;
+  document.getElementById('prefs-btn')?.setAttribute('aria-expanded', String(open));
+  if (open) pop.querySelector('select, button')?.focus({ preventScroll: true });
+}
+function closePrefsPopover() {
+  const pop = document.getElementById('prefs-popover');
+  if (pop && !pop.hidden) { pop.hidden = true; document.getElementById('prefs-btn')?.setAttribute('aria-expanded', 'false'); }
+}
+document.addEventListener('click', e => { if (!e.target.closest('#prefs-popover, #prefs-btn')) closePrefsPopover(); });
+window.addEventListener('resize', () => { if (!isDrawerLayout()) closeSidebarDrawer(); else syncDrawerA11y(); });
+window.addEventListener('DOMContentLoaded', () => {
+  syncDrawerA11y();
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+  document.querySelectorAll('.nav-kbd[data-key]').forEach(k => { k.textContent = (mac ? '⌥' : 'Alt+') + k.dataset.key; });
+  const omni = document.getElementById('omni-kbd'); if (omni) omni.textContent = mac ? '⌘K' : 'Ctrl K';
+  // Dialogs: name them, move focus in, keep Tab inside, return focus when closed.
+  let n = 0;
+  document.querySelectorAll('.modal-overlay-backdrop').forEach(o => {
+    const box = o.firstElementChild; if (!box) return;
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('tabindex', '-1');
+    const title = box.querySelector('.modal-dialog-title, h2, h3');
+    if (title) { if (!title.id) title.id = 'dialog-title-' + (++n); box.setAttribute('aria-labelledby', title.id); } else box.setAttribute('aria-label', 'Dialog');
+    box.querySelectorAll('.modal-close-btn').forEach(c => { if (!c.getAttribute('aria-label')) c.setAttribute('aria-label', 'Close'); });
+  });
+  document.querySelectorAll('button').forEach(b => { if (!b.textContent.trim() && !b.getAttribute('aria-label') && b.title) b.setAttribute('aria-label', b.title); });
+  const opened = new Map();
+  const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  const focusables = el => [...el.querySelectorAll('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && visible(x));
+  new MutationObserver(list => {
+    for (const m of list) {
+      const el = m.target;
+      if (!el.classList || !el.classList.contains('modal-overlay-backdrop')) continue;
+      const isOpen = el.classList.contains('open');
+      if (isOpen && !opened.has(el)) {
+        opened.set(el, document.activeElement);
+        setTimeout(() => { if (!el.contains(document.activeElement)) (el.firstElementChild || el).focus({ preventScroll: true }); }, 40);
+      } else if (!isOpen && opened.has(el)) {
+        const prev = opened.get(el); opened.delete(el);
+        if (prev && prev.isConnected && prev.focus && visible(prev)) prev.focus({ preventScroll: true });
+      }
+    }
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const overlay = [...opened.keys()].pop(); if (!overlay) return;
+    const list = focusables(overlay); if (!list.length) return;
+    const first = list[0], last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+});
 </script>
 </body>
 </html>

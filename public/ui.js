@@ -173,8 +173,11 @@
       opened.set(el, document.activeElement);
       setTimeout(() => {
         if (el.contains(document.activeElement)) return;
-        const list = focusables(el);
-        (list.find(n => !n.classList.contains('modal-close')) || list[0] || el).focus();
+        // Focus the dialog itself, never a text field: focusing a field raises the on-screen keyboard on phones
+        // and resizes the page. Dialogs that want typing (search, tag prompt) focus their own field.
+        const box = el.querySelector('.modal') || el;
+        if (!box.hasAttribute('tabindex')) box.setAttribute('tabindex', '-1');
+        box.focus({ preventScroll: true });
       }, 40);
     } else if (!isOpen && opened.has(el)) {
       const prev = opened.get(el); opened.delete(el);

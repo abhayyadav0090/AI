@@ -1,13 +1,9 @@
 FROM node:20-alpine
-
-ENV NODE_ENV=production PORT=3000
 WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
-COPY --chown=node:node . .
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
 USER node
-
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

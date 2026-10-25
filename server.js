@@ -27,7 +27,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com", "https://accounts.google.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "https://accounts.google.com"],
       workerSrc: ["'self'"],
       manifestSrc: ["'self'"],
       frameSrc: ["https://accounts.google.com"],
@@ -45,23 +45,24 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim()).filter(Boolean);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
+// A browser sends an Origin header on same-site POST/PUT/DELETE and font requests too.
+// Requests from the app's own host are therefore always allowed, even if ALLOWED_ORIGINS
+// is missing or has a typo; only foreign origins are checked against the list.
 function isAllowedOrigin(req, origin) {
-  if (!origin) return true; // Non-browser tools and same-origin requests without Origin.
-  if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
+  if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return true;
   try {
     const host = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim().toLowerCase();
     return !!host && new URL(origin).host.toLowerCase() === host;
   } catch (_) { return false; }
 }
-// CORS alone only omits response headers; it does not stop a disallowed request from reaching an API.
 app.use('/api', (req, res, next) => {
-  if (req.method === 'OPTIONS' || isAllowedOrigin(req, req.headers.origin)) return next();
-  return res.status(403).json({ error: 'This origin is not allowed to use the NexOS API.', code: 'ORIGIN_NOT_ALLOWED' });
+  if (isAllowedOrigin(req, req.headers.origin)) return next();
+  res.status(403).json({ error: 'This origin is not allowed to use the NexOS API.', code: 'ORIGIN_NOT_ALLOWED' });
 });
 app.use((req, res, next) => cors({
   origin: (origin, cb) => cb(null, isAllowedOrigin(req, origin)),
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 })(req, res, next));
 
@@ -103,11 +104,10 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public'), {
-  index: false,
   etag: true,
   maxAge: 0,
   setHeaders: (res, file) => {
-    // Revalidate HTML/CSS/JS after a deploy; versionless images/fonts may be cached for a week.
+    // Code and pages revalidate on every load (cheap 304s); images and icons can be cached.
     res.setHeader('Cache-Control', /\.(png|svg|ico|webp|woff2?)$/i.test(file) ? 'public, max-age=604800' : 'no-cache');
   },
 }));
@@ -126,12 +126,12 @@ function connectDB() {
 const DB_ROUTES = ['/auth', '/me', '/state', '/push', '/chat', '/chats', '/complete'];
 app.use('/api', async (req, res, next) => {
   const p = req.path;
-  if (req.method === 'OPTIONS' || p === '/auth/logout' || p === '/push/config') return next();
-  if (!DB_ROUTES.some((route) => p === route || p.startsWith(route + '/'))) return next();
+  if (p === '/auth/logout' || p === '/push/config') return next();
+  if (!DB_ROUTES.some((r) => p === r || p.startsWith(r + '/'))) return next();
   try { await connectDB(); next(); }
   catch (err) {
     console.error('MongoDB connection failed:', err.message);
-    res.status(503).json({ error: 'Database unavailable', code: 'DATABASE_UNAVAILABLE' });
+    res.status(503).json({ error: 'Database unavailable' });
   }
 });
 
@@ -141,7 +141,7 @@ const User = mongoose.model('User', new mongoose.Schema({
   name: String,
   nameCustom: { type: Boolean, default: false }, // true once the user picked their own display name
   picture: String,
-  // Sign-in cookies issued before this moment are rejected after workspace data deletion.
+  // Sign-in cookies issued before this moment are rejected (set when the user deletes their NexOS data).
   sessionsValidAfter: Date,
 }, { timestamps: true }));
 
@@ -197,13 +197,13 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-// Validate both account existence and whether a token predates a user-requested data wipe.
+// Checks the login cookie, that the account still exists, and that the cookie was not issued before the
+// user deleted their data, so an old cookie on another device cannot bring deleted data back.
 async function requireAuth(req, res, next) {
   let id, issuedAt;
   try {
     const payload = jwt.verify(req.cookies.token, process.env.JWT_SECRET);
-    id = payload.id;
-    issuedAt = (payload.iat || 0) * 1000;
+    id = payload.id; issuedAt = (payload.iat || 0) * 1000;
   } catch {
     return res.status(401).json({ error: 'Not logged in' });
   }
@@ -288,7 +288,8 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   await UserState.deleteMany({ userId: req.userId });
   await PushSubscription.deleteMany({ userId: req.userId, app: 'nexos' });
   await PushPreference.deleteOne({ userId: req.userId });
-  // Keep the shared Google identity record, but invalidate existing NexOS sessions on every device.
+  // Keep the shared Google identity record (other independently deployed apps may use it), but sign out
+  // every device so none of them can write the deleted data back.
   await User.updateOne({ _id: req.userId }, { sessionsValidAfter: new Date() });
   res.clearCookie('token');
   res.json({ ok: true });
@@ -318,7 +319,7 @@ function fromB64url(value) {
 }
 function vapidPrivateKeyObject() {
   let raw = fromB64url(VAPID_PRIVATE_KEY);
-  // Restore a leading zero byte if a base64url representation dropped it.
+  // A key whose first byte is zero can be stored one byte short; restore the padding.
   if (raw.length >= 30 && raw.length < 32) raw = Buffer.concat([Buffer.alloc(32 - raw.length), raw]);
   if (raw.length !== 32) throw new Error('VAPID_PRIVATE_KEY must decode to 32 bytes.');
   // RFC 5915 ECPrivateKey wrapper using the prime256v1 curve OID.
@@ -451,7 +452,7 @@ app.put('/api/push/preferences', requireAuth, wrap(async (req, res) => {
     if (!validTimeZone(req.body.timeZone)) return res.status(400).json({ error: 'Unknown time zone.' });
     updates.timeZone = req.body.timeZone;
   }
-  if (!Object.keys(updates).length) return res.status(400).json({ error: 'Provide a reminder time, enabled setting or time zone.' });
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'Provide a reminder time or enabled setting.' });
   const preference = await PushPreference.findOneAndUpdate({ userId: req.userId }, { $set: updates }, { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true });
   res.json({ ok: true, reminderTime: preference.reminderTime || '09:00', enabled: preference.enabled !== false, timeZone: preference.timeZone || DEFAULT_TIME_ZONE });
 }));
@@ -510,7 +511,6 @@ async function checkAndSendDueTaskPushes() {
   if (!pushConfigured() || mongoose.connection.readyState !== 1 || pushSweepRunning) return;
   pushSweepRunning = true;
   try {
-    // Only query workspaces belonging to users who have an active NexOS push subscription.
     const userIds = await PushSubscription.distinct('userId', { app: 'nexos' });
     if (!userIds.length) return;
     const prefs = new Map((await PushPreference.find({ userId: { $in: userIds } }).lean()).map((p) => [String(p.userId), p]));
@@ -533,7 +533,7 @@ async function checkAndSendDueTaskPushes() {
         let changed = false;
         let expired = false;
         // Keep dedupe storage bounded: only retain keys for today and yesterday.
-        const cutoff = new Date(now.getTime() - 2 * 86400000);
+        const cutoff = new Date(Date.now() - 2 * 86400000);
         const minKeyDate = zonedDateKey(cutoff, timeZone);
         const oldSentKeys = Array.isArray(subscription.sentKeys) ? subscription.sentKeys : [];
         const retained = oldSentKeys.filter((key) => typeof key === 'string' && key.slice(0, 10) >= minKeyDate);
@@ -733,26 +733,23 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
   }
 });
 
-// Unknown API paths should not fall through to the HTML application shell.
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
 });
 
-app.get(['/enterprise', '/redesign'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
-});
-
-app.get('/', (req, res) => res.redirect(302, '/enterprise'));
-
-app.get('/classic', (req, res) => {
+// Two experiences share one account and one set of data: Classic (the default) and Enterprise.
+app.get(['/classic', '/classic/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+app.get(['/enterprise', '/enterprise/', '/redesign', '/redesign/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
 });
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Last-resort JSON handler, including malformed/oversized JSON bodies.
+// Last resort: always answer with JSON, never an HTML stack page.
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON.', code: 'BAD_REQUEST' });
@@ -765,9 +762,9 @@ function reportConfig() {
   const missing = [
     ['MONGO_URI', process.env.MONGO_URI], ['JWT_SECRET', process.env.JWT_SECRET],
     ['GOOGLE_CLIENT_ID', process.env.GOOGLE_CLIENT_ID], ['GEMINI_API_KEY', process.env.GEMINI_API_KEY],
-  ].filter(([, value]) => !value).map(([key]) => key);
-  if (missing.length) console.warn(`Config warning: missing ${missing.join(', ')}. Related features will not work until set.`);
-  if (!process.env.ALLOWED_ORIGINS) console.warn('Config note: ALLOWED_ORIGINS is not set; the app host is allowed automatically.');
+  ].filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length) console.warn(`Config warning: missing ${missing.join(', ')}. Related features will not work until they are set.`);
+  if (!process.env.ALLOWED_ORIGINS) console.warn('Config note: ALLOWED_ORIGINS is not set. Requests from the app\'s own host still work.');
 }
 
 if (require.main === module) {

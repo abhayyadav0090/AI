@@ -78,7 +78,7 @@ Changes the signed-in user's display name. Body: `{ "name": "..." }` (1 to 60 ch
 
 ## `DELETE /api/me`
 
-Deletes the signed-in user's NexOS workspace state, saved NexAI chats, NexOS push subscriptions and reminder preference. The shared Google identity record is intentionally retained because other independently deployed apps may use the same database. Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
+Deletes the signed-in user's account and everything stored for it (workspace data and NexAI chats). Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
 
 ---
 
@@ -125,3 +125,11 @@ When running with the backend, `app.js` calls `/api/chat` and `/api/complete` in
 
 There is no standalone mode. All AI calls go through the backend, which calls Google Gemini with `GEMINI_API_KEY`.
 
+
+
+## Changes in 2.2.0
+- Unknown `/api/*` paths now return `404` with `{ "error": "Not found", "code": "NOT_FOUND" }` instead of the HTML page.
+- Requests whose `Origin` is neither the app's own host nor listed in `ALLOWED_ORIGINS` get `403` with `code: "ORIGIN_NOT_ALLOWED"`.
+- `GET/PUT /api/push/preferences` now include `timeZone` (an IANA name such as `Asia/Kolkata`). Reminders are evaluated in that zone; the default is `Asia/Kolkata`.
+- `POST /api/auth/logout` and `GET /api/push/config` no longer wait for the database.
+- `DELETE /api/me` also signs out every device (cookies issued before deletion are rejected).
