@@ -586,3 +586,30 @@ html[data-design] .login-card .login-guest-btn { margin-top: 0; }
   html[data-design] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), html[data-design] select, html[data-design] textarea { font-size: 16px; }
 }
 html[data-design] .modal:focus { outline: none; }
+
+/* ---------- 16. Experience switch and appearance menu ---------- */
+html[data-design] .experience-switch { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--bar-field); font-size: 13px; font-weight: 500; flex: none; }
+html[data-design] .experience-switch .exp-btn { display: inline-flex; align-items: center; height: 28px; padding: 0 14px; border-radius: 999px; color: var(--bar-field-text); text-decoration: none; white-space: nowrap; }
+html[data-design] .experience-switch a.exp-btn:hover { background: var(--bar-hover); }
+html[data-design] .experience-switch .exp-btn.active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
+html[data-design="microsoft"] .experience-switch { border-radius: 4px; }
+html[data-design="microsoft"] .experience-switch .exp-btn { border-radius: 3px; color: #fff; height: 26px; }
+html[data-design="microsoft"] .experience-switch .exp-btn.active { background: #fff; color: var(--accent-hover); }
+html[data-design] .experience-switch.in-drawer { display: none; }
+@media (min-width: 901px) { html[data-design="google"] .topbar-left .experience-switch { margin-left: 4px; } }
+@media (max-width: 900px) {
+  html[data-design] .topbar .experience-switch { display: none; }
+  html[data-design] .experience-switch.in-drawer { display: flex; margin: 4px 16px 10px; background: var(--surface-2); }
+  html[data-design] .experience-switch.in-drawer .exp-btn { flex: 1; justify-content: center; color: var(--text-2); }
+  html[data-design] .experience-switch.in-drawer .exp-btn.active { background: var(--accent-container); color: var(--on-accent-container); }
+  html[data-design="microsoft"] .experience-switch.in-drawer .exp-btn.active { background: var(--accent-fill); color: var(--on-accent); }
+}
+html[data-design] .appearance-pop { right: 56px; width: 280px; padding: 12px; }
+html[data-design] .appearance-pop .ap-label { margin: 4px 4px 6px; font-size: 12px; font-weight: 600; color: var(--text-3); }
+html[data-design] .appearance-pop .ap-row { display: flex; gap: 6px; margin-bottom: 10px; }
+html[data-design] .appearance-pop .ap-row .seg-btn { flex: 1; height: 36px; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); background: transparent; }
+html[data-design] .appearance-pop .ap-row .seg-btn:last-child { border-right: 1px solid var(--outline-strong); }
+html[data-design] .appearance-pop .ap-row .seg-btn.active { background: var(--accent-container); color: var(--on-accent-container); border-color: transparent; }
+html[data-design] .appearance-pop .ap-more { height: 40px; justify-content: center; color: var(--accent); font-weight: 500; }
+@media (max-width: 900px) { html[data-design] .appearance-pop { top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px) + 6px); bottom: auto; right: 8px; } }
+html[data-design] .hero-title { max-width: none; }

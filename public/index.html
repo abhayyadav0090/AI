@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>NexOS</title>
+<title>NexOS — AI Productivity Workspace</title>
 <meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes, powered by Google Gemini.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -98,6 +98,10 @@
       <span class="logo-text">NexOS</span>
       <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
+    <div class="experience-switch in-drawer" role="group" aria-label="Choose experience">
+      <span class="exp-btn active" aria-current="page">Classic</span>
+      <a class="exp-btn" href="/enterprise" title="Open Enterprise mode">Enterprise</a>
+    </div>
     <div class="sidebar-nav">
       <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Home</span></button>
       <button class="nav-item" data-view="kanban" onclick="switchView('kanban')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-board"/></svg><span class="nav-label">Tasks</span></button>
@@ -125,6 +129,10 @@
         <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg></button>
         <div class="brand-inline" aria-hidden="true"><svg class="ic waffle ic-fill"><use href="#i-waffle"/></svg><span>NexOS</span></div>
         <div class="breadcrumb" id="breadcrumb">Home</div>
+        <div class="experience-switch" role="group" aria-label="Choose experience">
+          <span class="exp-btn active" aria-current="page">Classic</span>
+          <a class="exp-btn" href="/enterprise" title="Open Enterprise mode">Enterprise</a>
+        </div>
       </div>
       <button type="button" class="topbar-search" onclick="openSearchModal()" aria-label="Search tasks, notes and actions">
         <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span class="topbar-search-text">Search tasks, notes and actions</span><kbd class="kbd-hint" id="kbd-hint">Ctrl K</kbd>
@@ -134,7 +142,7 @@
         <button type="button" class="btn-primary new-btn" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>New</span></button>
         <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Turn on due-date notifications" aria-label="Notifications"><svg class="ic ic-on" aria-hidden="true"><use href="#i-bell"/></svg><svg class="ic ic-off" aria-hidden="true"><use href="#i-bell-off"/></svg></button>
         <button type="button" class="btn-icon theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg></button>
-        <button type="button" class="btn-icon" onclick="NexUI.openSettings()" title="Settings and appearance" aria-label="Settings and appearance"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg></button>
+        <button type="button" class="btn-icon" id="appearance-btn" onclick="NexUI.toggleAppearanceMenu(event)" aria-haspopup="menu" aria-expanded="false" title="Appearance" aria-label="Appearance"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg></button>
         <button type="button" class="top-avatar" id="top-avatar" onclick="openProfile()" aria-label="Account and settings">U</button>
       </div>
     </header>
@@ -771,6 +779,20 @@
 </div>
 
 <!-- NEW MENU + TOASTS -->
+<div class="menu-pop appearance-pop" id="appearance-menu" role="menu" aria-label="Appearance" hidden>
+  <p class="ap-label">Design</p>
+  <div class="ap-row">
+    <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Google</button>
+    <button type="button" class="seg-btn" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')" aria-pressed="false">Microsoft</button>
+  </div>
+  <p class="ap-label">Theme</p>
+  <div class="ap-row">
+    <button type="button" class="seg-btn" data-theme-pick="light" onclick="NexUI.setTheme('light')" aria-pressed="false">Light</button>
+    <button type="button" class="seg-btn" data-theme-pick="dark" onclick="NexUI.setTheme('dark')" aria-pressed="false">Dark</button>
+    <button type="button" class="seg-btn" data-theme-pick="system" onclick="NexUI.setTheme('system')" aria-pressed="false">Auto</button>
+  </div>
+  <button type="button" class="ap-more" onclick="NexUI.closeMenus(); NexUI.openSettings()">More settings…</button>
+</div>
 <div class="menu-pop" id="new-menu" role="menu" aria-label="Create" hidden>
   <button type="button" role="menuitem" onclick="NexUI.newItem('task')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg>New task</button>
   <button type="button" role="menuitem" onclick="NexUI.newItem('note')"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg>New note</button>

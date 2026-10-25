@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="fluent-dark" data-density="comfortable">
+<html lang="en" data-theme="cyber-aubergine" data-density="comfortable">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
@@ -1590,6 +1590,8 @@ html, body {
 /* !important: several components set "outline: none" with more specific selectors, which left keyboard users with no visible focus. */
 button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--accent-primary) !important; outline-offset: 2px !important;
+  /* The ring appears at once (components use "transition: all", which faded it in over 0.2s). */
+  transition: outline-width 0s, outline-offset 0s, outline-color 0s, background-color .2s, color .2s, border-color .2s, box-shadow .2s, transform .2s, opacity .2s !important;
 }
 textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:focus-visible { outline-offset: -2px !important; }
 .modal-overlay-backdrop > [role="dialog"]:focus { outline: none; }
@@ -1622,6 +1624,14 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 @media (max-width: 768px) { .topbar-plan { display: none !important; } .topbar { padding-left: 12px; padding-right: 12px; } .prefs-popover { top: 54px; right: 12px; } }
 @media (pointer: coarse) { .nav-kbd, .omni-kbd { display: none !important; } }
 </style>
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('nexos_enterprise_theme');
+      if (['fluent-dark', 'material-dark', 'fluent-light', 'material-light', 'cyber-aubergine'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
@@ -2664,6 +2674,7 @@ function closeSidebarDrawer() {
 // Themes & Density
 function applyNexusTheme(theme) {
   state.theme = theme;
+  try { localStorage.setItem('nexos_enterprise_theme', theme); } catch (_) {}
   document.documentElement.setAttribute('data-theme', theme);
   const sel = document.getElementById('theme-selector');
   if (sel) sel.value = theme;
@@ -4207,7 +4218,12 @@ function classicRootToEnterprise(root, localPrefs = {}) {
       streak: Math.max(0, Number(stats.streak ?? saved.pomodoroStats?.longestStreak) || 0)
     },
     currentNoteId: saved.currentNoteId || pref.currentNoteId || null,
-    theme: ['fluent-dark', 'material-dark', 'fluent-light', 'material-light', 'cyber-aubergine'].includes(pref.theme) ? pref.theme : 'fluent-dark',
+    theme: (() => {
+      const known = ['fluent-dark', 'material-dark', 'fluent-light', 'material-light', 'cyber-aubergine'];
+      if (!known.includes(pref.theme)) return 'cyber-aubergine';                        // nothing chosen yet: Overgame
+      if (pref.themeVersion !== 2 && pref.theme === 'fluent-dark') return 'cyber-aubergine'; // still on the old default: move to Overgame once
+      return pref.theme;
+    })(),
     density: ['comfortable', 'compact', 'spacious'].includes(pref.density) ? pref.density : 'comfortable',
     uiSoundEnabled: pref.uiSoundEnabled !== false,
     pomoTimeRemaining: Math.max(0, Number(pref.pomoTimeRemaining) || 25 * 60),
@@ -4238,7 +4254,7 @@ function enterpriseToClassicRoot(existingRoot) {
   root.currentNoteId = state.currentNoteId && root.notes.some(n => n.id === state.currentNoteId) ? state.currentNoteId : (root.notes[0]?.id || null);
   // Classic's theme remains independently stored; Enterprise gets its own theme/density.
   root.enterpriseWorkspace = {
-    theme: state.theme, density: state.density || 'comfortable',
+    theme: state.theme, themeVersion: 2, density: state.density || 'comfortable',
     uiSoundEnabled: state.uiSoundEnabled !== false,
     pomodoroStats: { ...state.pomodoroStats },
     pomoTimeRemaining: state.pomoTimeRemaining, pomoTotalTime: state.pomoTotalTime,
@@ -4524,13 +4540,23 @@ async function postEnterpriseChat(message, box) {
   const pending = appendEnterpriseChatBubble(box, 'assistant', 'Thinking…');
   const sendButton = document.getElementById('ai-send-btn');
   if (sendButton) sendButton.disabled = true;
+  const send = chatId => fetch('/api/chat', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId: chatId || undefined, message, system: enterpriseWorkspaceContext() })
+  });
+  // The conversation we remember may have been deleted (Classic's chat list, the server's old-chat limit, a data reset).
+  const chatIsGone = (response, payload) => response.status === 404 && (payload.code === 'CHAT_NOT_FOUND' || /chat not found/i.test(payload.error || ''))
+    || response.status === 400 && /invalid chat/i.test(payload.error || '');
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId: state.activeChatId || undefined, message, system: enterpriseWorkspaceContext() })
-    });
-    const payload = await response.json().catch(() => ({}));
+    let response = await send(state.activeChatId);
+    let payload = await response.json().catch(() => ({}));
+    if (!response.ok && state.activeChatId && chatIsGone(response, payload)) {
+      state.activeChatId = null;
+      response = await send(null);                       // start a fresh conversation with the same message
+      payload = await response.json().catch(() => ({}));
+      if (response.ok) showToast('Your earlier conversation was no longer saved, so this is a new one.');
+    }
     if (!response.ok) throw new Error(payload.error || `NexAI request failed (${response.status})`);
     state.activeChatId = String(payload.chatId || state.activeChatId || '');
     if (pending) pending.innerHTML = renderSimpleMarkdown(payload.text || 'No response received.');
@@ -4591,6 +4617,7 @@ async function openEnterpriseChat(id) {
   try {
     const response = await fetch(`/api/chats/${id}`, { credentials: 'same-origin', cache: 'no-store' });
     const payload = await response.json().catch(() => ({}));
+    if (response.status === 404) { if (state.activeChatId === id) { state.activeChatId = null; saveWorkspaceState(); } refreshEnterpriseChatList(); throw new Error('That conversation was deleted.'); }
     if (!response.ok) throw new Error(payload.error || 'Could not open this conversation');
     state.activeChatId = String(payload.chat?.id || id);
     const box = document.getElementById('ai-messages-scroll-area');
@@ -4601,9 +4628,13 @@ async function openEnterpriseChat(id) {
 }
 async function loadEnterpriseChatHistory() {
   await refreshEnterpriseChatList();
-  if (enterpriseSession.mode !== 'account' || !state.activeChatId || !/^[a-f0-9]{24}$/i.test(String(state.activeChatId))) return;
+  if (enterpriseSession.mode !== 'account' || !state.activeChatId || !/^[a-f0-9]{24}$/i.test(String(state.activeChatId))) {
+    if (state.activeChatId && enterpriseSession.mode === 'account') { state.activeChatId = null; saveWorkspaceState(); } // not a real chat id
+    return;
+  }
   try {
     const response = await fetch(`/api/chats/${state.activeChatId}`, { credentials: 'same-origin', cache: 'no-store' });
+    if (response.status === 404) { state.activeChatId = null; saveWorkspaceState(); return; } // it was deleted: forget it
     if (!response.ok) return;
     const payload = await response.json();
     const box = document.getElementById('ai-messages-scroll-area');

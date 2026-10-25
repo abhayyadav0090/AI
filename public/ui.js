@@ -112,6 +112,19 @@
     const menu = document.getElementById('new-menu');
     if (menu && !menu.hidden) menu.hidden = true;
     document.getElementById('new-btn')?.setAttribute('aria-expanded', 'false');
+    const look = document.getElementById('appearance-menu');
+    if (look && !look.hidden) look.hidden = true;
+    document.getElementById('appearance-btn')?.setAttribute('aria-expanded', 'false');
+  }
+  function toggleAppearanceMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('appearance-menu');
+    if (!menu) return;
+    const willOpen = menu.hidden;
+    closeMenus();
+    menu.hidden = !willOpen;
+    document.getElementById('appearance-btn')?.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) { syncAppearanceControls(); menu.querySelector('.seg-btn.active, .seg-btn')?.focus({ preventScroll: true }); }
   }
   function toggleNewMenu(event) {
     if (event) event.stopPropagation();
@@ -130,7 +143,7 @@
     else if (kind === 'plan') openPlanModal();
     else if (kind === 'action') openNexAIActionMode();
   }
-  document.addEventListener('click', e => { if (!e.target.closest('#new-menu, #new-btn, #fab')) closeMenus(); });
+  document.addEventListener('click', e => { if (!e.target.closest('#new-menu, #new-btn, #fab, #appearance-menu, #appearance-btn')) closeMenus(); });
 
   // ───────── dialogs ─────────
   function openSettings() {
@@ -256,7 +269,7 @@
 
   window.NexUI = {
     apply, hasPrefs: () => readPrefs().saved, savePrefs, setDesign, setTheme, syncAppearanceControls,
-    toast, setSync, closeMenus, toggleNewMenu, newItem, openSettings, openShortcuts, closeShortcuts, closeAll,
+    toast, setSync, closeMenus, toggleNewMenu, toggleAppearanceMenu, newItem, openSettings, openShortcuts, closeShortcuts, closeAll,
     promptText, setTaskView, renderTaskList,
   };
 })();

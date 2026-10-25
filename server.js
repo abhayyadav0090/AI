@@ -679,7 +679,7 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) =
     if (chatId) {
       if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
       chat = await Chat.findOne({ _id: chatId, userId: req.userId });
-      if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+      if (!chat) return res.status(404).json({ error: 'Chat not found.', code: 'CHAT_NOT_FOUND' });
     } else {
       chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
     }
