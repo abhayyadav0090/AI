@@ -613,3 +613,11 @@ html[data-design] .appearance-pop .ap-row .seg-btn.active { background: var(--ac
 html[data-design] .appearance-pop .ap-more { height: 40px; justify-content: center; color: var(--accent); font-weight: 500; }
 @media (max-width: 900px) { html[data-design] .appearance-pop { top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px) + 6px); bottom: auto; right: 8px; } }
 html[data-design] .hero-title { max-width: none; }
+html[data-design] .appearance-pop a.seg-btn { text-decoration: none; color: inherit; }
+
+/* ---------- 17. Long text must never widen the page ---------- */
+html[data-design] .dashboard-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { html[data-design] .dashboard-widgets { grid-template-columns: minmax(0, 1fr); } }
+html[data-design] .widget, html[data-design] .dash-list, html[data-design] .dash-note-item, html[data-design] .dash-task-item, html[data-design] .dash-task-main, html[data-design] .dash-habit-item, html[data-design] .tl-main, html[data-design] .note-list-item { min-width: 0; }
+html[data-design] .dash-note-item { overflow: hidden; }
+html[data-design] .dash-note-title, html[data-design] .dash-note-preview, html[data-design] .dash-task-title, html[data-design] .dash-habit-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
