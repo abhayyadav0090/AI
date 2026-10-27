@@ -118,7 +118,7 @@ function normalizeState(saved, replace = false) {
   next.pomodoroStats = { ...defaults.pomodoroStats, ...(next.pomodoroStats && typeof next.pomodoroStats === 'object' ? next.pomodoroStats : {}) };
   next.dueNotificationsSeen = next.dueNotificationsSeen && typeof next.dueNotificationsSeen === 'object' && !Array.isArray(next.dueNotificationsSeen) ? next.dueNotificationsSeen : {};
   next.theme = ['light', 'dark', 'system'].includes(next.theme) ? next.theme : 'system';
-  next.design = next.design === 'microsoft' ? 'microsoft' : 'google';
+  next.design = (next.design === 'apple' || next.design === 'microsoft') ? 'apple' : 'google';
   next.seeded = !!next.seeded;
   next.hideGuide = !!next.hideGuide;
   next.usedAI = !!next.usedAI;
@@ -370,7 +370,7 @@ async function showLogin() {
     holder.innerHTML = '';
     google.accounts.id.renderButton(holder, {
       theme: root.theme === 'dark' ? 'filled_black' : 'outline', size: 'large', text: 'signin_with',
-      shape: root.design === 'microsoft' ? 'rectangular' : 'pill', width: 280,
+      shape: 'pill', width: 280,
     });
   } catch (e) {
     errEl.innerHTML = 'Could not load Google sign-in. Check your connection or ad blocker. <button type="button" class="link-btn" onclick="showLogin()">Try again</button>';
@@ -2303,7 +2303,7 @@ function paletteActions(query) {
     go('dashboard', 'Home'), go('kanban', 'Tasks'), go('pomodoro', 'Focus'), go('habits', 'Habits'), go('notes', 'Notes'), go('analytics', 'Insights'), go('ai', 'NexAI'),
     { icon: 'moon', title: 'Switch between light and dark', kind: 'Appearance', run: toggleTheme },
     { icon: 'palette', title: 'Use Google design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('google') },
-    { icon: 'palette', title: 'Use Microsoft design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('microsoft') },
+    { icon: 'palette', title: 'Use Apple design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('apple') },
     { icon: 'download', title: 'Download backup', kind: 'Data', run: exportData },
     { icon: 'keyboard', title: 'Keyboard shortcuts', kind: 'Help', run: () => window.NexUI && NexUI.openShortcuts() },
     { icon: 'sparkle', title: 'Open Enterprise mode', kind: 'Switch', run: () => { location.href = '/enterprise'; } },

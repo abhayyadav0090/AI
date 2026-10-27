@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>NexOS — AI Productivity Workspace</title>
+<title>NexOS</title>
 <meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes, powered by Google Gemini.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -20,7 +20,7 @@
   (function () {
     var root = document.documentElement, ui = {};
     try { ui = JSON.parse(localStorage.getItem('nexos_ui_v1') || '{}'); } catch (e) {}
-    root.dataset.design = ui.design === 'microsoft' ? 'microsoft' : 'google';
+    root.dataset.design = (ui.design === 'apple' || ui.design === 'microsoft') ? 'apple' : 'google'; /* 'microsoft' was the old name of this slot */
     var t = ui.theme === 'light' || ui.theme === 'dark' ? ui.theme : 'system';
     var dark = t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
     root.dataset.theme = dark ? 'dark' : 'light';
@@ -83,7 +83,7 @@
     <div class="login-design" role="group" aria-label="Design">
       <span>Look and feel</span>
       <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')">Google</button>
-      <button type="button" class="seg-btn" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')">Microsoft</button>
+      <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')">Apple</button>
     </div>
   </div>
 </div>
@@ -689,15 +689,15 @@
 
       <div class="profile-section" id="profile-appearance">
         <h4>Appearance</h4>
-        <p class="profile-help">Pick the look you prefer. NexOS can follow Google’s Material design or Microsoft’s Fluent design.</p>
+        <p class="profile-help">Pick the look you prefer. NexOS can follow Google’s Material design or Apple’s glass design.</p>
         <div class="design-picker" role="group" aria-label="Design">
           <button type="button" class="design-card" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">
             <span class="design-preview dp-google"><i></i><i></i><i></i></span>
             <span class="design-name">Google</span><span class="design-sub">Material 3, rounded and tonal</span>
           </button>
-          <button type="button" class="design-card" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')" aria-pressed="false">
-            <span class="design-preview dp-microsoft"><i></i><i></i><i></i></span>
-            <span class="design-name">Microsoft</span><span class="design-sub">Fluent 2, compact and crisp</span>
+          <button type="button" class="design-card" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">
+            <span class="design-preview dp-apple"><i></i><i></i><i></i></span>
+            <span class="design-name">Apple</span><span class="design-sub">Liquid glass, soft and translucent</span>
           </button>
         </div>
         <div class="seg seg-wide" role="group" aria-label="Theme">
@@ -788,7 +788,7 @@
   <p class="ap-label">Design</p>
   <div class="ap-row">
     <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Google</button>
-    <button type="button" class="seg-btn" data-design-pick="microsoft" onclick="NexUI.setDesign('microsoft')" aria-pressed="false">Microsoft</button>
+    <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Apple</button>
   </div>
   <p class="ap-label">Theme</p>
   <div class="ap-row">

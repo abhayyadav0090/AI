@@ -61,7 +61,7 @@ I built NexOS alone, using AI as a pair programmer. I wrote this README to expla
 - JSON backup and restore
 - Browser notifications for tasks due today or overdue (only while the tab is open)
 - Starter data and a "Getting started" checklist for new users
-- Two designs, **Google** (Material 3) and **Microsoft** (Fluent 2), each in light, dark or match-device themes; responsive layout with a bottom navigation bar on phones
+- Two designs, **Google** (Material 3) and **Apple** (liquid glass), each in light, dark or match-device themes; responsive layout with a bottom navigation bar on phones
 - Keyboard shortcuts: `Alt+1` to `Alt+7` switch views, `Ctrl+K` opens search and commands, `Ctrl+S` saves a note, `?` lists shortcuts, `Esc` closes dialogs
 
 ---
@@ -151,7 +151,7 @@ Setup notes:
 ├── public/
 │   ├── index.html       # Page structure and dialogs
 │   ├── style.css        # Base layout and component styles
-│   ├── design.css       # Google and Microsoft designs, light and dark tokens
+│   ├── design.css       # Google and Apple designs, light and dark tokens
 │   ├── index-redesign.html  # Enterprise experience (single page)
 │   ├── ui.js            # Appearance, toasts with Undo, New menu, task list view, sync status
 │   ├── app.js           # Frontend logic: tasks, timer, habits, notes, analytics, NexAI
@@ -231,7 +231,7 @@ The Dashboard now provides Plan My Day, Ask NexAI, and NexAI Action Mode togethe
 
 
 ## Design, features and fixes (2.2.0)
-See `RELEASE-NOTES-2.2.0.md`. Highlights: Google and Microsoft designs you can switch in Settings, a home screen with an ask-NexAI box, a command palette (`Ctrl+K`), task list view, undo for deletes, notes that autosave, offline-friendly sign-in, per-user reminder time zones, and a set of bug fixes in the server and the app.
+See `RELEASE-NOTES-2.2.0.md`. Highlights: Google and Apple designs you can switch in Settings, a home screen with an ask-NexAI box, a command palette (`Ctrl+K`), task list view, undo for deletes, notes that autosave, offline-friendly sign-in, per-user reminder time zones, and a set of bug fixes in the server and the app.
 
 
 ## Two experiences (2.4.0)
@@ -241,3 +241,5 @@ See `RELEASE-NOTES-2.2.0.md`. Highlights: Google and Microsoft designs you can s
 They use the same sign-in and the same data. Shortcuts in Enterprise: `Alt+1` to `Alt+8` switch views, `Ctrl+K` search and commands, `Ctrl+\` NexAI panel. Run `npm test` for the script checks and the Enterprise unit tests. See `RELEASE-NOTES-2.4.0.md`.
 
 ![Enterprise](docs/screenshots/enterprise-dashboard.png)
+
+![Apple design](docs/screenshots/dashboard-apple.png)

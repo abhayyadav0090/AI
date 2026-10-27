@@ -21,12 +21,12 @@ const classic = {
   pomodoroLog: [{ date: '2026-10-23', minutes: 25 }],
   pomodoroStats: { totalToday: 25, sessionsToday: 1, longestStreak: 1, lastDate: '2026-10-23' },
   currentNoteId: 'shared-note', theme: 'dark', seeded: true, dailyPlan: { date: '2026-10-23', items: [] },
-  enterpriseWorkspace: { theme: 'fluent-light', density: 'compact', pomodoroStats: { totalMins: 175, sessions: 7, streak: 4 } }
+  enterpriseWorkspace: { theme: 'apple-light', density: 'compact', pomodoroStats: { totalMins: 175, sessions: 7, streak: 4 } }
 };
 let enterprise = context.classicRootToEnterprise(classic, {});
 if (enterprise.tasks[0].stage !== 'inprogress' || enterprise.tasks[0].priority !== 'high') throw new Error('Classic task did not map to Enterprise status/priority.');
 if (enterprise.habits[0].checks['2026-10-23'] !== true || enterprise.notes[0].content !== 'Content') throw new Error('Habits/notes did not load from the shared backend state.');
-if (enterprise.pomodoroStats.totalMins !== 175 || enterprise.theme !== 'fluent-light') throw new Error('Enterprise UI preferences/focus stats were not loaded.');
+if (enterprise.pomodoroStats.totalMins !== 175 || enterprise.theme !== 'apple-light') throw new Error('Enterprise UI preferences/focus stats were not loaded.');
 enterprise.tasks[0].stage = 'review';
 enterprise.tasks[0].desc = 'updated from enterprise';
 enterprise.tasks.push({ id: 'new-enterprise-task', title: 'Created in Enterprise', stage: 'todo', priority: 'medium', due: '2026-10-26', created: 789, tags: [], subtasks: [] });
@@ -39,7 +39,7 @@ if (!merged.tasks.some(t => t.id === 'new-enterprise-task')) throw new Error('Ne
 if (merged.notes[0].content !== 'Edited in Enterprise') throw new Error('Enterprise note edits did not map back to shared state.');
 if (merged.theme !== 'dark') throw new Error('Enterprise theme unexpectedly overwrote Classic theme.');
 if (merged.dailyPlan.date !== classic.dailyPlan.date) throw new Error('Classic-only workspace fields were not preserved.');
-if (merged.enterpriseWorkspace.theme !== 'fluent-light' || merged.enterpriseWorkspace.density !== 'compact') throw new Error('Enterprise-specific display preferences were not saved.');
+if (merged.enterpriseWorkspace.theme !== 'apple-light' || merged.enterpriseWorkspace.density !== 'compact') throw new Error('Enterprise-specific display preferences were not saved.');
 console.log('Enterprise-to-Classic workspace mapping checks passed.');
 
 // ---- 2.4.0: merging, so a save never wipes changes made elsewhere ----
@@ -74,3 +74,12 @@ assert.ok(out.some(l => l.minutes === 15) && out.some(l => l.minutes === 50));
 const lateEvening = new Date(2026, 9, 24, 0, 30); // 00:30 local on 24 Oct
 assert.strictEqual(context.localDateKey(lateEvening), '2026-10-24', 'local date key is not the local calendar day');
 console.log('Enterprise bridge + merge tests passed.');
+
+// ---- 2.5.0: themes saved under the old Fluent names open as the Apple ones ----
+const legacy = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-light', themeVersion: 2 } }, {});
+assert.strictEqual(legacy.theme, 'apple-light', 'old Fluent light theme was not renamed');
+const legacyDark = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark', themeVersion: 2 } }, {});
+assert.strictEqual(legacyDark.theme, 'apple-dark', 'old Fluent dark theme was not renamed');
+const untouched = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark' } }, {});
+assert.strictEqual(untouched.theme, 'cyber-aubergine', 'old default theme should move to Overgame once');
+console.log('Theme renaming checks passed.');

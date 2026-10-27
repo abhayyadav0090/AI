@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════
    NexOS UI layer
-   Appearance (Google / Microsoft design, light / dark), toasts with Undo,
+   Appearance (Google / Apple design, light / dark), toasts with Undo,
    the New menu, the task list view, sync status and dialog focus handling.
 ═══════════════════════════════════════════════════════ */
 (function () {
   const root = document.documentElement;
   const PREF_KEY = 'nexos_ui_v1';
   const VIEW_KEY = 'nexos_taskview_v1';
-  const BAR_COLORS = { 'google-light': '#F8FAFD', 'google-dark': '#131314', 'microsoft-light': '#0F6CBD', 'microsoft-dark': '#0C3B5E' };
+  const BAR_COLORS = { 'google-light': '#F8FAFD', 'google-dark': '#131314', 'apple-light': '#F2F2F7', 'apple-dark': '#000000' };
   const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
   // ───────── appearance (stored per device) ─────────
@@ -15,7 +15,7 @@
     let p = {};
     try { p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (_) {}
     return {
-      design: p.design === 'microsoft' ? 'microsoft' : 'google',
+      design: (p.design === 'apple' || p.design === 'microsoft') ? 'apple' : 'google', // 'microsoft' was the old name of this slot
       theme: ['light', 'dark', 'system'].includes(p.theme) ? p.theme : 'system',
       saved: !!(p.design || p.theme),
     };
@@ -53,9 +53,9 @@
     if (login && login.style.display !== 'none' && typeof showLogin === 'function') showLogin(); // restyle the Google button
   }
   function setDesign(design) {
-    savePrefs({ design: design === 'microsoft' ? 'microsoft' : 'google' });
+    savePrefs({ design: design === 'apple' ? 'apple' : 'google' });
     refresh();
-    toast(design === 'microsoft' ? 'Microsoft design applied' : 'Google design applied');
+    toast(design === 'apple' ? 'Apple design applied' : 'Google design applied');
   }
   function setTheme(theme) { savePrefs({ theme }); refresh(); }
   if (mq && mq.addEventListener) mq.addEventListener('change', () => { if (readPrefs().theme === 'system') refresh(); });

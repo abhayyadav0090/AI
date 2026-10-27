@@ -19,49 +19,49 @@
 
 <style>
 /* ==========================================================================
-   NEXUS OS ENTERPRISE — DESIGN SYSTEM (FLUENT 2 + MATERIAL YOU)
+   NEXUS OS ENTERPRISE — DESIGN SYSTEM (APPLE GLASS + MATERIAL YOU)
    ========================================================================== */
-:root, [data-theme="fluent-dark"] {
+:root, [data-theme="apple-dark"] {
   color-scheme: dark;
-  --theme-name: "Fluent Dark";
-  --bg-app: #080c14;
-  --bg-surface: #101726;
-  --bg-surface-elevated: #162035;
-  --bg-card: rgba(22, 32, 53, 0.72);
-  --bg-card-hover: rgba(30, 44, 73, 0.88);
-  --bg-card-active: rgba(40, 58, 96, 0.95);
-  --bg-glass: rgba(16, 23, 38, 0.82);
-  --bg-sidebar: rgba(11, 17, 29, 0.94);
-  --bg-topbar: rgba(8, 12, 20, 0.88);
+  --theme-name: "Apple Glass";
+  --bg-app: #07070b;
+  --bg-surface: #1c1c1e;
+  --bg-surface-elevated: #2c2c2e;
+  --bg-card: rgba(44, 44, 46, 0.56);
+  --bg-card-hover: rgba(58, 58, 60, 0.70);
+  --bg-card-active: rgba(72, 72, 74, 0.82);
+  --bg-glass: rgba(28, 28, 30, 0.62);
+  --bg-sidebar: rgba(28, 28, 30, 0.58);
+  --bg-topbar: rgba(28, 28, 30, 0.58);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.16);
-  --border-focus: #0078D4;
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-medium: rgba(255, 255, 255, 0.20);
+  --border-focus: #0A84FF;
 
-  --accent-primary: #0078D4;
-  --accent-primary-hover: #1084d8;
-  --accent-secondary: #00B7C3;
-  --accent-gradient: linear-gradient(135deg, #0078D4, #00B7C3);
-  --accent-sparkle: linear-gradient(135deg, #818cf8, #c084fc, #38bdf8);
+  --accent-primary: #0A84FF;
+  --accent-primary-hover: #409CFF;
+  --accent-secondary: #BF5AF2;
+  --accent-gradient: linear-gradient(135deg, #0A84FF, #5E5CE6);
+  --accent-sparkle: linear-gradient(135deg, #64D2FF, #BF5AF2, #FF375F);
 
-  --status-todo: #64748b;
-  --status-progress: #38bdf8;
-  --status-review: #fbbf24;
-  --status-done: #34d399;
+  --status-todo: #98989f;
+  --status-progress: #64D2FF;
+  --status-review: #FFD60A;
+  --status-done: #30D158;
 
-  --priority-low: #10b981;
-  --priority-medium: #f59e0b;
-  --priority-high: #f43f5e;
+  --priority-low: #30D158;
+  --priority-medium: #FF9F0A;
+  --priority-high: #FF453A;
 
-  --text-main: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-main: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-muted: #6e6e73;
   --text-on-accent: #ffffff;
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 28px rgba(0, 120, 212, 0.4);
+  --shadow-glow: 0 0 28px rgba(10, 132, 255, 0.40);
 
   --radius-xs: 6px;
   --radius-sm: 10px;
@@ -117,47 +117,47 @@
   --shadow-glow: 0 0 24px rgba(138, 180, 248, 0.35);
 }
 
-[data-theme="fluent-light"] {
+[data-theme="apple-light"] {
   color-scheme: light;
-  --theme-name: "Fluent Light";
-  --bg-app: #f1f5f9;
+  --theme-name: "Apple Light";
+  --bg-app: #f2f2f7;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-card-hover: rgba(241, 245, 249, 0.95);
-  --bg-card-active: #e2e8f0;
-  --bg-glass: rgba(255, 255, 255, 0.88);
-  --bg-sidebar: rgba(255, 255, 255, 0.94);
-  --bg-topbar: rgba(241, 245, 249, 0.92);
+  --bg-surface-elevated: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.64);
+  --bg-card-hover: rgba(255, 255, 255, 0.84);
+  --bg-card-active: rgba(255, 255, 255, 0.96);
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-sidebar: rgba(255, 255, 255, 0.60);
+  --bg-topbar: rgba(255, 255, 255, 0.62);
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-medium: rgba(0, 0, 0, 0.16);
-  --border-focus: #0078D4;
+  --border-subtle: rgba(60, 60, 67, 0.12);
+  --border-medium: rgba(60, 60, 67, 0.24);
+  --border-focus: #007AFF;
 
-  --accent-primary: #0078D4;
-  --accent-primary-hover: #0060aa;
-  --accent-secondary: #008272;
-  --accent-gradient: linear-gradient(135deg, #0078D4, #00B7C3);
-  --accent-sparkle: linear-gradient(135deg, #4f46e5, #7c3aed, #0284c7);
+  --accent-primary: #007AFF;
+  --accent-primary-hover: #0062CC;
+  --accent-secondary: #AF52DE;
+  --accent-gradient: linear-gradient(135deg, #007AFF, #5856D6);
+  --accent-sparkle: linear-gradient(135deg, #5AC8FA, #AF52DE, #FF2D55);
 
-  --status-todo: #64748b;
-  --status-progress: #0284c7;
-  --status-review: #d97706;
-  --status-done: #059669;
+  --status-todo: #8e8e93;
+  --status-progress: #007AFF;
+  --status-review: #FF9500;
+  --status-done: #34C759;
 
-  --priority-low: #059669;
-  --priority-medium: #d97706;
-  --priority-high: #e11d48;
+  --priority-low: #248A3D;
+  --priority-medium: #B25000;
+  --priority-high: #D70015;
 
-  --text-main: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-main: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted: #8e8e93;
   --text-on-accent: #ffffff;
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 24px rgba(0, 120, 212, 0.25);
+  --shadow-glow: 0 0 24px rgba(0, 122, 255, 0.25);
 }
 
 [data-theme="material-light"] {
@@ -1623,12 +1623,35 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 @media (max-width: 992px) { .topbar-right .nexos-experience-switch { display: none !important; } .sidebar-experience-switch { display: inline-flex !important; } body.drawer-open { overflow: hidden; } }
 @media (max-width: 768px) { .topbar-plan { display: none !important; } .topbar { padding-left: 12px; padding-right: 12px; } .prefs-popover { top: 54px; right: 12px; } }
 @media (pointer: coarse) { .nav-kbd, .omni-kbd { display: none !important; } }
+
+/* ==========================================================================
+   APPLE GLASS / APPLE LIGHT: larger radii, SF-style type and real frosted glass on the main panels
+   ========================================================================== */
+[data-theme^="apple"] {
+  --radius-sm: 12px; --radius-md: 18px; --radius-lg: 26px;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme^="apple"] .kpi-card, [data-theme^="apple"] .dash-card, [data-theme^="apple"] .user-card, [data-theme^="apple"] .chat-input-box,
+[data-theme^="apple"] .prefs-popover, [data-theme^="apple"] .quick-actions-bar {
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--shadow-md);
+}
+[data-theme="apple-light"] .kpi-card, [data-theme="apple-light"] .dash-card, [data-theme="apple-light"] .user-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--shadow-md); }
+[data-theme^="apple"] .btn-primary, [data-theme^="apple"] .btn-secondary, [data-theme^="apple"] .quick-action-chip, [data-theme^="apple"] .omni-search-trigger { border-radius: var(--radius-full); }
+[data-theme^="apple"] .view-title, [data-theme^="apple"] h1 { letter-spacing: -0.03em; }
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme^="apple"] .kpi-card, [data-theme^="apple"] .dash-card, [data-theme^="apple"] .user-card, [data-theme^="apple"] .chat-input-box, [data-theme^="apple"] .prefs-popover { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  [data-theme="apple-dark"] { --bg-card: rgba(44, 44, 46, 0.96); --bg-sidebar: #1c1c1e; --bg-topbar: #1c1c1e; }
+  [data-theme="apple-light"] { --bg-card: rgba(255, 255, 255, 0.97); --bg-sidebar: #ffffff; --bg-topbar: #ffffff; }
+}
 </style>
 <script>
   (function () {
     try {
       var t = localStorage.getItem('nexos_enterprise_theme');
-      if (['fluent-dark', 'material-dark', 'fluent-light', 'material-light', 'cyber-aubergine'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
+      t = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' })[t] || t; /* old theme names */
+      if (['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   })();
 </script>
@@ -1756,9 +1779,9 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     <div class="prefs-popover" id="prefs-popover" role="dialog" aria-label="Display, sound and alerts" hidden>
       <div class="prefs-row"><label for="theme-selector">Theme</label>
         <select class="theme-dropdown" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch theme">
-          <option value="fluent-dark">🔵 Fluent</option>
+          <option value="apple-dark">◐ Apple Glass</option>
             <option value="material-dark">🔴 Material</option>
-            <option value="fluent-light">☀️ Light</option>
+            <option value="apple-light">☀️ Apple Light</option>
             <option value="material-light">⚪ M3</option>
             <option value="cyber-aubergine">🟣 Overgame</option>
         </select></div>
@@ -2553,7 +2576,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initClock();
   applyNexusTheme(state.theme);
   applyDensity(state.density || 'comfortable');
-  initFluentMouseSpotlight();
+  initMouseSpotlight();
   renderAllViews();
   renderCalendarTimeline();
   await loadEnterpriseChatHistory();
@@ -2588,8 +2611,8 @@ function initClock() {
   setInterval(update, 1000);
 }
 
-// Fluent Reveal Mouse Spotlight
-function initFluentMouseSpotlight() {
+// Mouse spotlight on cards
+function initMouseSpotlight() {
   document.addEventListener('mousemove', e => {
     document.querySelectorAll('.kpi-card, .dash-card, .task-card, .habit-row-card').forEach(card => {
       const rect = card.getBoundingClientRect();
@@ -2673,6 +2696,7 @@ function closeSidebarDrawer() {
 
 // Themes & Density
 function applyNexusTheme(theme) {
+  theme = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' })[theme] || theme;
   state.theme = theme;
   try { localStorage.setItem('nexos_enterprise_theme', theme); } catch (_) {}
   document.documentElement.setAttribute('data-theme', theme);
@@ -3969,8 +3993,8 @@ function handleCommandPaletteSearch(q) {
   items.push({ icon: '⚡', label: 'Invoke Action Mode', category: 'AI', action: () => openActionPlanModal() });
   items.push({ icon: '+', label: 'Create New Task', category: 'Action', action: () => openNewTaskModal() });
   items.push({ icon: '+', label: 'Create New Note', category: 'Action', action: () => quickCreateNote() });
-  items.push({ icon: '☀️', label: 'Switch Theme to Fluent Light', category: 'Settings', action: () => applyNexusTheme('fluent-light') });
-  items.push({ icon: '🔵', label: 'Switch Theme to Fluent Dark', category: 'Settings', action: () => applyNexusTheme('fluent-dark') });
+  items.push({ icon: '☀️', label: 'Switch Theme to Apple Light', category: 'Settings', action: () => applyNexusTheme('apple-light') });
+  items.push({ icon: '◐', label: 'Switch Theme to Apple Glass', category: 'Settings', action: () => applyNexusTheme('apple-dark') });
 
   // Tasks search
   state.tasks.forEach(t => {
@@ -4051,7 +4075,7 @@ function escapeHtml(str) {
 function loadSampleWorkspaceData(showNotice = true) {
   state.tasks = [
     { id: uid(), title: 'Architect high-throughput AI streaming proxy', desc: 'Design SSE streaming with backpressure and circuit breakers', stage: 'inprogress', priority: 'high', due: today(), subtasks: [{ title: 'Benchmark chunk latency', done: true }, { title: 'Implement rate limit guards', done: false }], tags: ['backend', 'ai'] },
-    { id: uid(), title: 'Implement Fluent 2 reveal hover spotlight', desc: 'Compute mouse coordinates and apply dynamic radial glow borders', stage: 'done', priority: 'high', due: today(), subtasks: [{ title: 'CSS variable tokens', done: true }, { title: 'Mousemove listener', done: true }], tags: ['frontend', 'design'] },
+    { id: uid(), title: 'Add a soft hover spotlight to cards', desc: 'Compute mouse coordinates and apply dynamic radial glow borders', stage: 'done', priority: 'high', due: today(), subtasks: [{ title: 'CSS variable tokens', done: true }, { title: 'Mousemove listener', done: true }], tags: ['frontend', 'design'] },
     { id: uid(), title: 'Procedural audio rain & wave synthesizer', desc: 'Verify Web Audio buffer noise and LFO wave sweeps', stage: 'todo', priority: 'medium', due: today(), subtasks: [{ title: 'Test 432Hz binaural tuning', done: false }], tags: ['audio'] },
     { id: uid(), title: 'Executive quarterly roadmap retrospective', desc: 'Synthesize velocity metrics and habit completion rates', stage: 'review', priority: 'medium', due: '', subtasks: [], tags: ['strategy'] },
     { id: uid(), title: 'Automate container image builds', desc: 'Setup multi-stage Dockerfile and prune dangling layers', stage: 'todo', priority: 'low', due: '', subtasks: [], tags: ['devops'] }
@@ -4065,7 +4089,7 @@ function loadSampleWorkspaceData(showNotice = true) {
   ];
 
   state.notes = [
-    { id: uid(), title: 'Nexus OS Architecture & Design Principles', content: '# Core Philosophy\n- Fluid micro-interactions inspired by Fluent 2 and Material You\n- Offline-first durability with seamless local caching\n- Direct DOM speed with zero heavy bundler overhead\n\n> [!NOTE]\n> All Web Audio soundscapes are synthesized client-side with 0 external network requests.\n\n## Immediate Milestones\n- [x] Subtask inline checklists\n- [ ] Voice dictation integration\n- [ ] Calendar day schedule', tags: ['architecture', 'design'], created: Date.now() },
+    { id: uid(), title: 'Nexus OS Architecture & Design Principles', content: '# Core Philosophy\n- Fluid micro-interactions inspired by glass and Material You interfaces\n- Offline-first durability with seamless local caching\n- Direct DOM speed with zero heavy bundler overhead\n\n> [!NOTE]\n> All Web Audio soundscapes are synthesized client-side with 0 external network requests.\n\n## Immediate Milestones\n- [x] Subtask inline checklists\n- [ ] Voice dictation integration\n- [ ] Calendar day schedule', tags: ['architecture', 'design'], created: Date.now() },
     { id: uid(), title: 'Sprint Backlog & API Contracts', content: '## Immediate Actions\n- Test Gemini 2.0 Flash integration\n- Verify chart dark/light reactivity', tags: ['sprint'], created: Date.now() }
   ];
 
@@ -4219,10 +4243,12 @@ function classicRootToEnterprise(root, localPrefs = {}) {
     },
     currentNoteId: saved.currentNoteId || pref.currentNoteId || null,
     theme: (() => {
-      const known = ['fluent-dark', 'material-dark', 'fluent-light', 'material-light', 'cyber-aubergine'];
-      if (!known.includes(pref.theme)) return 'cyber-aubergine';                        // nothing chosen yet: Overgame
+      const known = ['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine'];
+      const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' };   // the blue Fluent themes became Apple Glass / Apple Light
+      const saved = renamed[pref.theme] || pref.theme;
+      if (!known.includes(saved)) return 'cyber-aubergine';                              // nothing chosen yet: Overgame
       if (pref.themeVersion !== 2 && pref.theme === 'fluent-dark') return 'cyber-aubergine'; // still on the old default: move to Overgame once
-      return pref.theme;
+      return saved;
     })(),
     density: ['comfortable', 'compact', 'spacious'].includes(pref.density) ? pref.density : 'comfortable',
     uiSoundEnabled: pref.uiSoundEnabled !== false,
