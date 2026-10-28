@@ -271,7 +271,7 @@ body {
   font-size: var(--font-body-size, 14.5px);
   background-color: var(--bg-app);
   color: var(--text-main);
-  min-height: 100vh;
+  min-height: 100vh; min-height: 100dvh;
   overflow-x: hidden;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -307,12 +307,12 @@ body {
 /* Layout Shell */
 #nexus-app {
   /* No z-index here: it made the whole app one layer, so the page backdrop and the bottom bar painted on top of the phone drawer. */
-  position: relative; display: flex; min-height: 100vh;
+  position: relative; display: flex; min-height: 100vh; min-height: 100dvh;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 250px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+  width: 250px; flex-shrink: 0; height: 100vh; height: 100dvh; position: sticky; top: 0;
   display: flex; flex-direction: column; justify-content: space-between;
   background: var(--bg-sidebar); backdrop-filter: blur(24px);
   border-right: 1px solid var(--border-subtle); padding: 18px 14px;
@@ -399,7 +399,7 @@ body {
 
 /* Main Content Area */
 .main-wrapper {
-  flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 100vh;
+  flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 100vh; min-height: 100dvh;
 }
 
 /* Topbar */
@@ -942,14 +942,14 @@ body.zen-mode .view-banner {
   display: none !important;
 }
 body.zen-mode .view-content-wrapper {
-  max-width: 100vw; height: 100vh; display: flex; align-items: center;
+  max-width: 100vw; height: 100vh; height: 100dvh; display: flex; align-items: center;
   justify-content: center; padding: 0;
 }
 body.zen-mode .focus-layout {
-  grid-template-columns: 1fr; width: 100vw; height: 100vh;
+  grid-template-columns: 1fr; width: 100vw; height: 100vh; height: 100dvh;
 }
 body.zen-mode .focus-main-panel {
-  border: none; background: transparent; height: 100vh; justify-content: center;
+  border: none; background: transparent; height: 100vh; height: 100dvh; justify-content: center;
 }
 .zen-exit-btn {
   display: none; position: fixed; top: 20px; right: 20px; z-index: 100;
@@ -1009,7 +1009,7 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
    ========================================================================== */
 .notes-studio-layout {
   display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 20px;
-  height: calc(100vh - 160px); min-height: 550px;
+  height: calc(100vh - 160px); height: calc(100dvh - 160px); min-height: 550px;
 }
 .notes-sidebar-pane {
   background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -1138,7 +1138,7 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
    ========================================================================== */
 .ai-view-layout {
   display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px;
-  height: calc(100vh - 160px); min-height: 560px;
+  height: calc(100vh - 160px); height: calc(100dvh - 160px); min-height: 560px;
 }
 .ai-chat-main-container {
   background: var(--bg-surface); border: 1px solid var(--border-subtle);
@@ -1217,7 +1217,7 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
 
 /* Omnipresent Floating Copilot Side-Drawer */
 .floating-copilot-drawer {
-  position: fixed; top: 0; right: -420px; width: min(400px, 92vw); height: 100vh;
+  position: fixed; top: 0; right: -420px; width: min(400px, 92vw); height: 100vh; height: 100dvh;
   background: var(--bg-surface); backdrop-filter: blur(28px);
   border-left: 1px solid var(--border-medium); z-index: 1500;
   box-shadow: var(--shadow-lg); transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1241,7 +1241,7 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
 .modal-overlay-backdrop.open { display: flex; animation: modalIn 0.2s ease-out; }
 @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 .modal-dialog-card {
-  width: min(580px, 100%); max-height: calc(100vh - 40px); overflow-y: auto;
+  width: min(580px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto;
   background: var(--bg-surface); border: 1px solid var(--border-medium);
   border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-lg);
 }
@@ -1620,7 +1620,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 @media (max-width: 1280px) { .enterprise-connection-badge, .copilot-sparkle-badge { display: none !important; } }
 @media (max-width: 1100px) { .hide-mobile-search-text, .omni-kbd { display: none !important; } .omni-search-trigger { padding: 6px 10px; } }
 @media (min-width: 993px) { .sidebar-experience-switch { display: none !important; } }
-@media (max-width: 992px) { .topbar-right .nexos-experience-switch { display: none !important; } .sidebar-experience-switch { display: inline-flex !important; } body.drawer-open { overflow: hidden; } }
+@media (max-width: 992px) { .sidebar-experience-switch { display: inline-flex !important; } body.drawer-open { overflow: hidden; } }
 @media (max-width: 768px) { .topbar-plan { display: none !important; } .topbar { padding-left: 12px; padding-right: 12px; } .prefs-popover { top: 54px; right: 12px; } }
 @media (pointer: coarse) { .nav-kbd, .omni-kbd { display: none !important; } }
 
@@ -1645,6 +1645,30 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
   [data-theme="apple-dark"] { --bg-card: rgba(44, 44, 46, 0.96); --bg-sidebar: #1c1c1e; --bg-topbar: #1c1c1e; }
   [data-theme="apple-light"] { --bg-card: rgba(255, 255, 255, 0.97); --bg-sidebar: #ffffff; --bg-topbar: #ffffff; }
 }
+
+/* ==========================================================================
+   PHONE FIXES (2.5.1)
+   ========================================================================== */
+/* The menu button now centres its icon instead of leaving it against the left edge */
+.mobile-menu-toggle { align-items: center; justify-content: center; padding: 0; line-height: 1; flex: none; font-size: 20px; }
+.topbar-left { gap: 10px; }
+/* The Classic | Enterprise switch stays in the top bar on phones and tablets */
+@media (max-width: 992px) {
+  .topbar-right { gap: 6px !important; }
+  .topbar-right .nexos-experience-switch { display: inline-flex !important; padding: 2px; }
+  .topbar-right .nexos-experience-switch a, .topbar-right .nexos-experience-switch span { padding: 5px 9px; font-size: 11px; }
+  /* The drawer is pinned top and bottom of what is visible, and scrolls if the screen is short (Chrome's address bar takes space) */
+  .sidebar { top: 0; bottom: 0; height: auto; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .floating-copilot-drawer { top: 0; bottom: 0; height: auto; max-height: 100dvh; }
+}
+.prefs-popover .nexos-experience-switch { display: inline-flex !important; }
+/* In preview mode the Sign in link already leads to Classic, so the switch gives way on small phones */
+@media (max-width: 480px) { .topbar-right:has(#enterprise-signin-btn:not([hidden])) .nexos-experience-switch { display: none !important; } }
+@media (max-width: 340px) { #topbar-view-title { display: none; } .topbar-right .nexos-experience-switch a, .topbar-right .nexos-experience-switch span { padding: 5px 7px; font-size: 10px; } }
+/* Seven bottom-bar items must all fit, with their names, on a 320 px screen */
+.mob-nav-item { min-width: 0; padding: 0 1px; }
+.mob-nav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 380px) { .mob-nav-icon { font-size: 17px; } .mob-nav-label { font-size: 9.5px; letter-spacing: -0.02em; } }
 </style>
 <script>
   (function () {
@@ -1777,6 +1801,11 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     </header>
 
     <div class="prefs-popover" id="prefs-popover" role="dialog" aria-label="Display, sound and alerts" hidden>
+      <div class="prefs-row"><span>Experience</span>
+        <div class="nexos-experience-switch" role="group" aria-label="Choose experience">
+          <a href="/classic" title="Switch to Classic NexOS">Classic</a>
+          <span class="active" aria-current="page">Enterprise</span>
+        </div></div>
       <div class="prefs-row"><label for="theme-selector">Theme</label>
         <select class="theme-dropdown" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch theme">
           <option value="apple-dark">◐ Apple Glass</option>
@@ -2522,6 +2551,10 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     <span class="mob-nav-icon">▦</span>
     <span class="mob-nav-label">Tasks</span>
   </button>
+  <button class="mob-nav-item" data-view="habits" onclick="switchNexusView('habits')">
+    <span class="mob-nav-icon">◈</span>
+    <span class="mob-nav-label">Habits</span>
+  </button>
   <button class="mob-nav-item" data-view="focus" onclick="switchNexusView('focus')">
     <span class="mob-nav-icon">◎</span>
     <span class="mob-nav-label">Focus</span>
@@ -2629,7 +2662,7 @@ const NEXUS_VIEWS = {
   dashboard: 'Dashboard', kanban: 'Kanban Sprint Board', calendar: 'Timeblocking Studio', focus: 'Deep Focus Studio',
   habits: 'Habit Mastery', notes: 'Smart Docs & Notes', analytics: 'Executive Analytics', ai: 'NexAI Assistant'
 };
-const MOBILE_PRIMARY_VIEWS = ['dashboard', 'kanban', 'focus', 'notes'];
+const MOBILE_PRIMARY_VIEWS = ['dashboard', 'kanban', 'habits', 'focus', 'notes'];
 let currentViewTitle = 'Dashboard';
 function switchNexusView(name) {
   if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
