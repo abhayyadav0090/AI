@@ -1669,6 +1669,22 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 .mob-nav-item { min-width: 0; padding: 0 1px; }
 .mob-nav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 380px) { .mob-nav-icon { font-size: 17px; } .mob-nav-label { font-size: 9.5px; letter-spacing: -0.02em; } }
+
+/* ==========================================================================
+   HABITS ON PHONES + UNDO (2.5.2)
+   The row used to force a 240 px name column plus seven buttons plus the delete button into one line,
+   so on a phone the buttons overlapped and the delete button sat on top of today's check.
+   ========================================================================== */
+.habit-row-card > .task-action-icon-btn { min-width: 32px; min-height: 32px; }
+@media (max-width: 768px) {
+  .habit-row-card { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px 8px; padding: 14px; }
+  .habit-info-cell { grid-column: 1 / 7; }
+  .habit-row-card > .task-action-icon-btn { grid-column: 7; grid-row: 1; justify-self: end; align-self: center; width: 40px; height: 40px; padding: 0; font-size: 16px; border: 1px solid var(--border-medium); border-radius: 50%; }
+  .habit-day-check-btn { width: 100%; max-width: 46px; height: 40px; justify-self: center; }
+  .habit-day-check-btn:hover { transform: none; }
+}
+.toast-bubble { display: flex; align-items: center; gap: 8px; }
+.toast-bubble .toast-undo { margin-left: 10px; padding: 5px 14px; border: 1px solid var(--accent-primary); border-radius: var(--radius-full); background: transparent; color: var(--accent-primary); font: inherit; font-weight: 600; cursor: pointer; }
 </style>
 <script>
   (function () {
@@ -3039,12 +3055,19 @@ function toggleInlineSubtask(taskId, subIdx) {
 }
 
 function deleteTask(id) {
-  state.tasks = state.tasks.filter(t => t.id !== id);
+  const index = state.tasks.findIndex(t => t.id === id);
+  if (index < 0) return;
+  const task = state.tasks[index];
+  state.tasks.splice(index, 1);
   saveWorkspaceState();
   renderKanban();
   renderDashboard();
   renderCalendarTimeline();
-  showToast('Task deleted');
+  showToast('Task deleted', { action: 'Undo', onAction: () => {
+    if (state.tasks.some(t => t.id === task.id)) return;
+    state.tasks.splice(Math.min(index, state.tasks.length), 0, task);
+    saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline();
+  } });
 }
 
 function filterKanbanPriority(pri, btn) {
@@ -3493,7 +3516,7 @@ function renderHabits() {
               </button>
             `;
           }).join('')}
-          <button class="task-action-icon-btn" onclick="deleteHabit('${h.id}')" title="Delete">✕</button>
+          <button class="task-action-icon-btn" onclick="deleteHabit('${h.id}')" title="Delete habit" aria-label="Delete habit ${escapeHtml(h.name)}">✕</button>
         </div>
       `;
     }).join('');
@@ -3548,11 +3571,21 @@ function toggleHabitCheck(id, dateStr) {
 }
 
 function deleteHabit(id) {
-  state.habits = state.habits.filter(h => h.id !== id);
+  const index = state.habits.findIndex(h => h.id === id);
+  if (index < 0) return;
+  const habit = state.habits[index];
+  const days = Object.values(habit.checks || {}).filter(Boolean).length;
+  const detail = days ? ` Its ${days} check-in${days === 1 ? '' : 's'} will be removed too.` : '';
+  if (!window.confirm(`Delete the habit "${habit.name}"?${detail}`)) return;
+  state.habits.splice(index, 1);
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
-  showToast('Habit removed');
+  showToast(`Habit "${habit.name}" deleted`, { action: 'Undo', onAction: () => {
+    if (state.habits.some(h => h.id === habit.id)) return;
+    state.habits.splice(Math.min(index, state.habits.length), 0, habit);
+    saveWorkspaceState(); renderHabits(); renderDashboard();
+  } });
 }
 
 function openNewHabitModal() {
@@ -4090,14 +4123,25 @@ function closeModal(id) { document.getElementById(id)?.classList.remove('open');
 function handleBackdropClick(e, id) { if (e.target.id === id) closeModal(id); }
 
 // Toast Helper
-function showToast(msg) {
+function showToast(msg, opts = {}) {
   const shelf = document.getElementById('toast-shelf');
   if (!shelf) return;
   const t = document.createElement('div');
   t.className = 'toast-bubble';
-  t.innerHTML = `<span>✦</span><span>${escapeHtml(msg)}</span>`;
+  t.setAttribute('role', 'status');
+  const star = document.createElement('span'); star.textContent = '✦';
+  const text = document.createElement('span'); text.textContent = msg;
+  t.append(star, text);
+  let timer = null;
+  const close = () => { clearTimeout(timer); t.style.opacity = '0'; setTimeout(() => t.remove(), 250); };
+  if (opts.action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toast-undo'; b.textContent = opts.action;
+    b.addEventListener('click', () => { try { if (opts.onAction) opts.onAction(); } finally { close(); } });
+    t.appendChild(b);
+  }
   shelf.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 250); }, 3000);
+  timer = setTimeout(close, opts.duration || (opts.action ? 9000 : 3000));
 }
 
 function escapeHtml(str) {
