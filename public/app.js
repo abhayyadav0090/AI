@@ -69,9 +69,29 @@ let wipingLocalData = false; // true while the profile panel is deleting data, s
 
 // Load the signed-in user's data from MongoDB, with a browser cache as a fallback.
 // The cache is only a safety net; MongoDB remains the source of truth when available.
+// ---- Recently deleted: items removed by the user are kept in the account for 30 days ----
+const TRASH_DAYS = 30, TRASH_MAX = 30;
+function sanitizeTrash(list) {
+  const now = Date.now(), cutoff = now - TRASH_DAYS * 86400000, seen = new Set(), out = [];
+  (Array.isArray(list) ? list : []).forEach(e => {
+    if (!e || typeof e !== 'object' || !['task', 'habit', 'note'].includes(e.kind) || !e.item || typeof e.item !== 'object' || Array.isArray(e.item)) return;
+    const id = String(e.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64), at = Number(e.deletedAt);
+    if (!id || seen.has(id) || !(at > cutoff) || at > now + 86400000) return;
+    try { if (JSON.stringify(e.item).length > 60000) return; } catch (_) { return; }
+    seen.add(id); out.push({ id, kind: e.kind, item: e.item, deletedAt: at });
+  });
+  return out.sort((a, b) => b.deletedAt - a.deletedAt).slice(0, TRASH_MAX);
+}
+function addToTrash(kind, item) {
+  const entry = { id: 'tr_' + uid(), kind, item: JSON.parse(JSON.stringify(item)), deletedAt: Date.now() };
+  state.trash = sanitizeTrash([entry, ...(state.trash || [])]);
+  return entry.id;
+}
+function removeFromTrash(id) { state.trash = (state.trash || []).filter(e => e.id !== id); }
+
 function normalizeState(saved, replace = false) {
   const defaults = {
-    tasks: [], habits: [], notes: [], pomodoroLog: [],
+    tasks: [], habits: [], notes: [], pomodoroLog: [], trash: [],
     pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
     dailyPlan: null, dueNotificationsSeen: {}, theme: 'system', design: 'google', currentNoteId: null,
     seeded: false, hideGuide: false, usedAI: false
@@ -142,6 +162,7 @@ function normalizeState(saved, replace = false) {
         })
     };
   } else next.dailyPlan = null;
+  next.trash = sanitizeTrash(next.trash);
   return next;
 }
 
@@ -909,10 +930,12 @@ function deleteTask(id) {
   const index = state.tasks.findIndex(t => t.id === id);
   if (index < 0) return;
   const [removed] = state.tasks.splice(index, 1);
+  const trashId = addToTrash('task', removed);
   const planItems = state.dailyPlan?.items ? state.dailyPlan.items.filter(item => item.type === 'task' && item.id === id) : [];
   if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'task' && item.id === id));
   saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); checkDueNotifications();
   notify('Task deleted', { action: 'Undo', onAction: () => {
+    removeFromTrash(trashId);
     state.tasks.splice(Math.min(index, state.tasks.length), 0, removed);
     if (state.dailyPlan?.items && planItems.length) state.dailyPlan.items.push(...planItems);
     saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
@@ -1231,10 +1254,12 @@ function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
   const [removed] = state.habits.splice(index, 1);
+  const trashId = addToTrash('habit', removed);
   const planItems = state.dailyPlan?.items ? state.dailyPlan.items.filter(item => item.type === 'habit' && item.id === id) : [];
   if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'habit' && item.id === id));
   saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
   notify('Habit deleted', { action: 'Undo', onAction: () => {
+    removeFromTrash(trashId);
     state.habits.splice(Math.min(index, state.habits.length), 0, removed);
     if (state.dailyPlan?.items && planItems.length) state.dailyPlan.items.push(...planItems);
     saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
@@ -1391,6 +1416,7 @@ function deleteCurrentNote() {
   const index = state.notes.findIndex(n => n.id === state.currentNoteId);
   if (index < 0) return;
   const [removed] = state.notes.splice(index, 1);
+  const trashId = addToTrash('note', removed);
   state.currentNoteId = state.notes[0]?.id || null;
   editorNoteId = null;
   saveState(); renderNotes(); updateContextPanel();
@@ -1402,6 +1428,7 @@ function deleteCurrentNote() {
     if (contentEl) contentEl.value = '';
   }
   notify('Note deleted', { action: 'Undo', onAction: () => {
+    removeFromTrash(trashId);
     state.notes.splice(Math.min(index, state.notes.length), 0, removed);
     state.currentNoteId = removed.id;
     editorNoteId = null;
@@ -2120,6 +2147,7 @@ function renderProfile() {
   show('profile-name-section', !guest);
   show('profile-delete-section', !guest);
   show('profile-reminders-section', !guest);
+  show('profile-trash-row', !guest);
   if (window.NexUI) NexUI.syncAppearanceControls();
   show('profile-guest-section', guest);
   const nameInput = document.getElementById('profile-name-input');

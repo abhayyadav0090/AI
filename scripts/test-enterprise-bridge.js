@@ -83,3 +83,17 @@ assert.strictEqual(legacyDark.theme, 'apple-dark', 'old Fluent dark theme was no
 const untouched = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark' } }, {});
 assert.strictEqual(untouched.theme, 'cyber-aubergine', 'old default theme should move to Overgame once');
 console.log('Theme renaming checks passed.');
+
+// ---- 2.5.3: Recently deleted keeps 30 days, 30 entries, and drops bad data ----
+const nowMs = Date.now(), J2 = v => JSON.parse(JSON.stringify(v));
+const kept = J2(context.pruneTrash([
+  null, 7, { id: 'x', kind: 'bomb', item: {}, deletedAt: nowMs },
+  { id: 'old', kind: 'task', item: { id: 't' }, deletedAt: nowMs - 31 * 864e5 },
+  { id: 'ok', kind: 'habit', item: { id: 'h', name: 'H' }, deletedAt: nowMs - 1000 },
+  { id: 'ok', kind: 'habit', item: { id: 'h2', name: 'H2' }, deletedAt: nowMs },
+  { id: 'big', kind: 'note', item: { id: 'n', content: 'x'.repeat(70000) }, deletedAt: nowMs },
+]));
+assert.strictEqual(kept.length, 1, 'only the one valid, recent, unique entry should stay');
+assert.strictEqual(kept[0].id, 'ok');
+assert.strictEqual(J2(context.pruneTrash(Array.from({ length: 50 }, (_, i) => ({ id: 'e' + i, kind: 'note', item: { id: 'n' + i }, deletedAt: nowMs - i })))).length, 30, 'at most 30 entries are kept');
+console.log('Recently deleted rules passed.');

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Recover a habit · NexOS</title>
+<title>Recently deleted · NexOS</title>
 <style>
   :root { color-scheme: dark light; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
   body { margin: 0; padding: 24px 18px 48px; background: #121216; color: #f2f2f5; line-height: 1.5; }
@@ -24,70 +24,78 @@
 </head>
 <body>
 <main>
-  <h1>Recover a deleted habit</h1>
-  <p>NexOS keeps copies of your data in this browser. This page looks through those copies for habits that are no longer in your account and lets you put them back. It only adds habits: it never changes or deletes anything else.</p>
-  <p class="note"><strong>Tip:</strong> use the same phone or browser where you deleted the habit, and do not open Classic first, because Classic refreshes its saved copy.</p>
+  <h1>Recently deleted</h1>
+  <p>Things you delete in NexOS are kept for 30 days. Restoring one puts it back exactly as it was. After restoring, reload NexOS to see it.</p>
   <div id="status" class="note">Looking…</div>
+  <div id="trash"></div>
+  <h1 id="copies-title" style="display:none;margin-top:28px">Found in this browser</h1>
+  <p id="copies-help" style="display:none">Older copies of your data that this browser still has. These are habits that are no longer in your account. Use the same phone or browser where you deleted them, and do not open Classic first, because Classic refreshes its copy.</p>
   <div id="list"></div>
   <p><a class="btn" href="/">Back to NexOS</a></p>
 </main>
 <script>
 (async function () {
-  const status = document.getElementById('status'), list = document.getElementById('list');
+  const status = document.getElementById('status'), trashBox = document.getElementById('trash'), list = document.getElementById('list');
   const say = (text, cls) => { status.textContent = text; status.className = 'note ' + (cls || ''); };
-  // 1. habits found in this browser's saved copies
+  const KEY = { task: 'tasks', habit: 'habits', note: 'notes' }, LABEL = { task: 'Task', habit: 'Habit', note: 'Note' };
+  const api = async (method, state) => {
+    const res = await fetch('/api/state', { method, credentials: 'same-origin', cache: 'no-store', headers: state ? { 'Content-Type': 'application/json' } : undefined, body: state ? JSON.stringify({ state }) : undefined });
+    if (!res.ok) { const e = new Error('status ' + res.status); e.status = res.status; throw e; }
+    return method === 'GET' ? ((await res.json()).state || {}) : null;
+  };
+  const addBack = async (kind, item) => {
+    const state = await api('GET'), key = KEY[kind];
+    state[key] = Array.isArray(state[key]) ? state[key] : [];
+    if (!state[key].some(x => String(x.id) === String(item.id))) state[key].push(item);
+    await api('PUT', state);
+  };
+  const ago = at => { const m = Math.max(1, Math.round((Date.now() - at) / 60000)); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+  const card = (title, sub, label, onClick, done) => {
+    const c = document.createElement('div'); c.className = 'card';
+    const info = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small');
+    b.textContent = title; sm.textContent = sub; info.append(b, sm);
+    const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label;
+    btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Restoring…'; try { await onClick(); btn.textContent = 'Restored ✓'; say('Restored. Reload NexOS to see it.', 'good'); } catch (e) { btn.disabled = false; btn.textContent = label; say('Could not restore it. Please try again.', 'bad'); } });
+    c.append(info, btn); return c;
+  };
+  // the account
+  let account;
+  try { account = await api('GET'); }
+  catch (e) { say(e.status === 401 ? 'Please sign in first (open Classic and sign in with Google), then come back to this page.' : 'Could not reach your account right now. Check your connection and reload this page.', 'bad'); }
+  if (account) {
+    const now = Date.now(), trash = (Array.isArray(account.trash) ? account.trash : []).filter(e => e && KEY[e.kind] && e.item && Number(e.deletedAt) > now - 30 * 864e5).sort((a, b) => b.deletedAt - a.deletedAt);
+    if (trash.length) {
+      say(`${trash.length} item${trash.length === 1 ? '' : 's'} deleted in the last 30 days.`, 'good');
+      for (const e of trash) {
+        const it = e.item, title = it.title || it.name || 'Untitled';
+        const days = it.checks && typeof it.checks === 'object' ? Object.values(it.checks).filter(Boolean).length : 0;
+        const exists = (account[KEY[e.kind]] || []).some(x => String(x.id) === String(it.id));
+        trashBox.appendChild(card(title, `${LABEL[e.kind]}${days ? ' · ' + days + ' days ticked' : ''} · deleted ${ago(e.deletedAt)}${exists ? ' · already back' : ''}`, exists ? 'Restore again' : 'Restore', () => addBack(e.kind, it)));
+      }
+    } else say('Nothing has been deleted in the last 30 days.', '');
+  }
+  // older copies kept by this browser (habits that are gone from the account)
   const found = new Map();
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    let data; try { data = JSON.parse(localStorage.getItem(key)); } catch (_) { continue; }
+    let data; try { data = JSON.parse(localStorage.getItem(localStorage.key(i))); } catch (_) { continue; }
     const lists = [];
     if (data && Array.isArray(data.habits)) lists.push(data.habits);
     if (data && data.state && Array.isArray(data.state.habits)) lists.push(data.state.habits);
     for (const arr of lists) for (const h of arr) {
-      if (!h || typeof h !== 'object' || typeof h.name !== 'string' || !h.id || !/^[A-Za-z0-9_-]{1,64}$/.test(String(h.id))) continue;
+      if (!h || typeof h !== 'object' || typeof h.name !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(String(h.id || ''))) continue;
       const ticked = h.checks && typeof h.checks === 'object' ? Object.keys(h.checks).filter(k => h.checks[k]).sort() : [];
-      const prev = found.get(String(h.id));
-      if (!prev || ticked.length > prev.ticked.length) found.set(String(h.id), { habit: h, ticked });
+      const prev = found.get(String(h.id)); if (!prev || ticked.length > prev.ticked.length) found.set(String(h.id), { habit: h, ticked });
     }
   }
-  // 2. what the account has now
-  let account;
-  try {
-    const res = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
-    if (res.status === 401) { say('Please sign in first (open Classic and sign in with Google), then come back to this page.', 'bad'); return; }
-    if (!res.ok) throw new Error('status ' + res.status);
-    account = (await res.json()).state || {};
-  } catch (e) { say('Could not reach your account right now. Check your connection and reload this page.', 'bad'); return; }
+  if (!account) return;
   const have = new Set((account.habits || []).map(h => String(h.id)));
-  const missing = [...found.values()].filter(f => !have.has(String(f.habit.id)));
-  if (!missing.length) { say('No deleted habits were found in this browser. If you deleted it on another device, open this page there. A backup file from Export in Settings also keeps your habits.', ''); return; }
-  say(`Found ${missing.length} habit${missing.length === 1 ? '' : 's'} that ${missing.length === 1 ? 'is' : 'are'} not in your account. Choose Restore to bring ${missing.length === 1 ? 'it' : 'one'} back.`, 'good');
-  missing.sort((a, b) => b.ticked.length - a.ticked.length);
-  for (const entry of missing) {
-    const card = document.createElement('div'); card.className = 'card';
-    const info = document.createElement('div');
-    const name = document.createElement('b'); name.textContent = entry.habit.name;
-    const small = document.createElement('small');
-    small.textContent = entry.ticked.length ? `${entry.ticked.length} day${entry.ticked.length === 1 ? '' : 's'} ticked, last on ${entry.ticked[entry.ticked.length - 1]}` : 'No days ticked';
-    info.append(name, small);
-    const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Restore';
-    btn.addEventListener('click', async () => {
-      btn.disabled = true; btn.textContent = 'Restoring…';
-      try {
-        const res = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
-        if (!res.ok) throw new Error('read');
-        const state = (await res.json()).state || {};
-        state.habits = Array.isArray(state.habits) ? state.habits : [];
-        if (!state.habits.some(h => String(h.id) === String(entry.habit.id))) {
-          const h = entry.habit;
-          state.habits.push({ id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 });
-        }
-        const put = await fetch('/api/state', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state }) });
-        if (!put.ok) throw new Error('write');
-        btn.textContent = 'Restored ✓'; say(`"${entry.habit.name}" is back in your account. Open NexOS and reload to see it.`, 'good');
-      } catch (e) { btn.disabled = false; btn.textContent = 'Restore'; say('Could not restore it. Please try again.', 'bad'); }
-    });
-    card.append(info, btn); list.appendChild(card);
+  const inTrash = new Set((account.trash || []).filter(e => e && e.kind === 'habit' && e.item).map(e => String(e.item.id)));
+  const missing = [...found.values()].filter(f => !have.has(String(f.habit.id)) && !inTrash.has(String(f.habit.id))).sort((a, b) => b.ticked.length - a.ticked.length);
+  if (!missing.length) return;
+  document.getElementById('copies-title').style.display = ''; document.getElementById('copies-help').style.display = '';
+  for (const f of missing) {
+    const h = f.habit, last = f.ticked.length ? f.ticked[f.ticked.length - 1] : null;
+    list.appendChild(card(h.name, f.ticked.length ? `${f.ticked.length} day${f.ticked.length === 1 ? '' : 's'} ticked, last on ${last}` : 'No days ticked', 'Restore', () => addBack('habit', { id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 })));
   }
 })();
 </script>

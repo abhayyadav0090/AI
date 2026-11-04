@@ -1850,6 +1850,8 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
         </div></div>
       <div class="prefs-row"><span>Interface sounds</span>
         <button class="ui-sound-toggle-btn" id="ui-sound-btn" onclick="toggleUISound()" title="Toggle interface sounds" aria-label="Toggle interface sounds">🔊</button></div>
+      <div class="prefs-row"><span>Deleted by mistake?</span>
+        <a class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none" href="/recover.html">Recently deleted…</a></div>
       <div class="prefs-row"><span>Task reminders</span>
         <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="closePrefsPopover(); openEnterpriseAlerts()">🔔 Alerts…</button></div>
     </div>
@@ -3058,6 +3060,7 @@ function deleteTask(id) {
   const index = state.tasks.findIndex(t => t.id === id);
   if (index < 0) return;
   const task = state.tasks[index];
+  const trashId = trashEntry('task', mapEnterpriseTaskToClassic(task));
   state.tasks.splice(index, 1);
   saveWorkspaceState();
   renderKanban();
@@ -3065,6 +3068,7 @@ function deleteTask(id) {
   renderCalendarTimeline();
   showToast('Task deleted', { action: 'Undo', onAction: () => {
     if (state.tasks.some(t => t.id === task.id)) return;
+    untrash(trashId);
     state.tasks.splice(Math.min(index, state.tasks.length), 0, task);
     saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline();
   } });
@@ -3570,6 +3574,15 @@ function toggleHabitCheck(id, dateStr) {
   }
 }
 
+function trashEntry(kind, item) {
+  const entry = { id: 'tr_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36), kind, item: JSON.parse(JSON.stringify(item)), deletedAt: Date.now() };
+  enterpriseSession.pendingTrash = [...(enterpriseSession.pendingTrash || []), entry];
+  return entry.id;
+}
+function untrash(id) {
+  enterpriseSession.pendingTrash = (enterpriseSession.pendingTrash || []).filter(e => e.id !== id);
+  (enterpriseSession.dropTrash = enterpriseSession.dropTrash || new Set()).add(id); // also removes it if it already reached the account
+}
 function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
@@ -3577,12 +3590,14 @@ function deleteHabit(id) {
   const days = Object.values(habit.checks || {}).filter(Boolean).length;
   const detail = days ? ` Its ${days} check-in${days === 1 ? '' : 's'} will be removed too.` : '';
   if (!window.confirm(`Delete the habit "${habit.name}"?${detail}`)) return;
+  const trashId = trashEntry('habit', { id: habit.id, name: habit.name, color: habit.color || '#4285F4', checks: { ...(habit.checks || {}) }, streak: Number(habit.streak) || 0 });
   state.habits.splice(index, 1);
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
   showToast(`Habit "${habit.name}" deleted`, { action: 'Undo', onAction: () => {
     if (state.habits.some(h => h.id === habit.id)) return;
+    untrash(trashId);
     state.habits.splice(Math.min(index, state.habits.length), 0, habit);
     saveWorkspaceState(); renderHabits(); renderDashboard();
   } });
@@ -4407,6 +4422,18 @@ function mergeLogs(remote, local, base) {
   });
   return [...(Array.isArray(remote) ? remote : []), ...added];
 }
+// ---- Recently deleted (same 30-day rules as Classic) ----
+function pruneTrash(list) {
+  const now = Date.now(), cutoff = now - 30 * 86400000, seen = new Set(), out = [];
+  (Array.isArray(list) ? list : []).forEach(e => {
+    if (!e || typeof e !== 'object' || !['task', 'habit', 'note'].includes(e.kind) || !e.item || typeof e.item !== 'object' || Array.isArray(e.item)) return;
+    const id = String(e.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64), at = Number(e.deletedAt);
+    if (!id || seen.has(id) || !(at > cutoff) || at > now + 86400000) return;
+    try { if (JSON.stringify(e.item).length > 60000) return; } catch (_) { return; }
+    seen.add(id); out.push({ id, kind: e.kind, item: e.item, deletedAt: at });
+  });
+  return out.sort((a, b) => b.deletedAt - a.deletedAt).slice(0, 30);
+}
 function enterpriseLocalKey() { return enterpriseSession.cacheKey || ENTERPRISE_LOCAL_STATE; }
 function setEnterpriseCacheKey() {
   if (enterpriseSession.mode === 'account') enterpriseSession.cacheKey = enterpriseAccountCacheKey(enterpriseSession.user);
@@ -4555,6 +4582,9 @@ function buildMergedRoot(remoteRoot) {
   const todayLog = next.pomodoroLog.filter(l => l.date === nowDate);
   next.pomodoroStats = { ...(next.pomodoroStats || {}), totalToday: todayLog.reduce((sum, l) => sum + (Number(l.minutes) || 0), 0), sessionsToday: todayLog.length, lastDate: todayLog.length ? nowDate : ((next.pomodoroStats && next.pomodoroStats.lastDate) || '') };
   if (!next.notes.some(n => n.id === next.currentNoteId)) next.currentNoteId = next.notes[0]?.id || null;
+  // Recently deleted: what this screen deleted, plus what the account already holds (minus anything undone here)
+  const dropped = enterpriseSession.dropTrash || new Set();
+  next.trash = pruneTrash([...(enterpriseSession.pendingTrash || []), ...(Array.isArray(remoteRoot && remoteRoot.trash) ? remoteRoot.trash : [])].filter(e => e && !dropped.has(e.id)));
   return next;
 }
 // Bring records that arrived from elsewhere into this screen. Runs in the same tick as the merge, so nothing typed in between is lost.
@@ -4579,6 +4609,7 @@ async function persistEnterpriseWorkspace() {
     const next = buildMergedRoot(remoteRoot);
     const changed = adoptMergedIntoState(next);
     localStorage.setItem(ENTERPRISE_GUEST_STATE, JSON.stringify(next));
+    enterpriseSession.pendingTrash = [];
     enterpriseSession.rootState = next;
     enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(next));
     if (changed) showRemoteChanges();
@@ -4594,6 +4625,7 @@ async function persistEnterpriseWorkspace() {
     if (getResponse.status === 401) throw new Error('Your session expired. Open Classic NexOS to sign in again; your changes are kept on this device.');
     if (!getResponse.ok) throw new Error(`Workspace read failed (${getResponse.status})`);
     const current = await getResponse.json();
+    const sentTrash = new Set((enterpriseSession.pendingTrash || []).map(e => e.id));
     const next = buildMergedRoot(current.state || enterpriseSession.rootState || {});
     const changed = adoptMergedIntoState(next);
     enterpriseSession.rootState = next;
@@ -4605,6 +4637,7 @@ async function persistEnterpriseWorkspace() {
     const result = await putResponse.json().catch(() => ({}));
     if (!putResponse.ok) throw new Error(result.error || `Workspace save failed (${putResponse.status})`);
     enterpriseSession.lastError = '';
+    enterpriseSession.pendingTrash = (enterpriseSession.pendingTrash || []).filter(e => !sentTrash.has(e.id)); // delivered
     try { localStorage.removeItem('nexos_pending_sync_v2_user_' + enterpriseHash(enterpriseSession.user?.email || enterpriseSession.user?._id || enterpriseSession.user?.id)); } catch (_) {}
     updateEnterpriseConnectionBadge();
     if (changed) showRemoteChanges();
