@@ -987,3 +987,35 @@ body.light-theme .modal-overlay { background: var(--overlay); }
     overflow-wrap: anywhere;
   }
 }
+
+
+/* ---------- Quick-start ---------- */
+.qs-choices { display: grid; gap: 10px; }
+.qs-choice {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; width: 100%;
+  padding: 12px 14px; border-radius: 12px; cursor: pointer; font: inherit;
+  color: var(--text-primary); background: transparent;
+  border: 1px solid var(--glass-border, var(--outline, rgba(128,128,128,.35)));
+}
+.qs-choice:hover { background: var(--bg-card-hover, rgba(128,128,128,.12)); }
+.qs-choice:focus-visible { outline: 2px solid var(--accent-line, currentColor); outline-offset: 2px; }
+.qs-choice.selected { border-color: var(--accent-violet, var(--primary, currentColor)); background: var(--accent-soft, rgba(128,128,128,.14)); }
+.qs-title { font-weight: 600; }
+.qs-sub { font-size: 13px; color: var(--text-muted, inherit); opacity: .9; }
+
+/* 2.5.7: first-day steps under the Productivity score */
+.score-milestones { list-style: none; margin: 10px auto 0; padding: 0; max-width: 240px; font-size: 12.5px; color: var(--text-secondary); }
+.score-milestones[hidden] { display: none; }
+.score-milestones li { padding: 3px 0; }
+.score-milestones li.done { color: var(--text-primary); }
+.score-milestones .score-milestones-head { font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 4px; }
+
+/* 2.5.8: focus on a task */
+.pomo-task-slot { margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--text-secondary); }
+.pomo-task-slot:empty { display: none; }
+.pomo-task-slot strong { color: var(--text-primary); }
+.pomo-task-prompt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.pomo-task-btn { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: var(--text-primary); cursor: pointer; }
+.pomo-task-clear { font: inherit; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 0 4px; }
+.dash-task-focus { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px; line-height: 1; }
+.dash-task-focus:hover, .dash-task-focus:focus-visible { color: var(--text-primary); }

@@ -61,6 +61,7 @@ let state = {
   seeded: false,    // starter data has been offered once (so deleted samples never come back)
   hideGuide: false, // "Getting started" card dismissed
   usedAI: false,
+  profile: null,    // quick-start choice: { goal, at }; shared with Enterprise
 };
 
 let currentUser = null;
@@ -89,12 +90,26 @@ function addToTrash(kind, item) {
 }
 function removeFromTrash(id) { state.trash = (state.trash || []).filter(e => e.id !== id); }
 
+// ---- Quick-start: what the user will use NexOS for (shared by Classic and Enterprise) ----
+const GOALS = {
+  study:    { label: 'Study and exams',          sub: 'Longer focus blocks, revision habits, Focus first on Home', timer: { focus: 50, short: 10, long: 20 }, home: ['pomodoro', 'tasks', 'notes', 'habits'] },
+  projects: { label: 'Projects and sprints',     sub: 'Task board first, 25-minute sprints',                      timer: { focus: 25, short: 5,  long: 15 }, home: ['tasks', 'pomodoro', 'notes', 'habits'] },
+  habits:   { label: 'Daily routine and habits', sub: 'Habits first, short focus sessions',                       timer: { focus: 15, short: 3,  long: 10 }, home: ['habits', 'pomodoro', 'tasks', 'notes'] },
+  explore:  { label: 'Just exploring',           sub: 'The standard layout with a little of everything',          timer: { focus: 25, short: 5,  long: 15 }, home: ['tasks', 'pomodoro', 'habits', 'notes'] },
+};
+function sanitizeProfile(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  const goal = Object.prototype.hasOwnProperty.call(GOALS, p.goal) ? p.goal : '';
+  const at = Number(p.at);
+  return { goal, at: Number.isFinite(at) && at > 0 ? at : Date.now() };
+}
+
 function normalizeState(saved, replace = false) {
   const defaults = {
     tasks: [], habits: [], notes: [], pomodoroLog: [], trash: [],
     pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
     dailyPlan: null, dueNotificationsSeen: {}, theme: 'system', design: 'google', currentNoteId: null,
-    seeded: false, hideGuide: false, usedAI: false
+    seeded: false, hideGuide: false, usedAI: false, profile: null
   };
   const incoming = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
   const next = { ...defaults, ...(replace ? {} : state), ...incoming };
@@ -134,7 +149,7 @@ function normalizeState(saved, replace = false) {
       pinned: !!n.pinned, created: Number.isFinite(Number(n.created)) ? Number(n.created) : Date.now() };
   });
   next.pomodoroLog = (Array.isArray(next.pomodoroLog) ? next.pomodoroLog : []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || '')) && Number.isFinite(Number(l.minutes)) && Number(l.minutes) >= 0)
-    .map(l => ({ date: String(l.date), minutes: Number(l.minutes) }));
+    .map(l => ({ date: String(l.date), minutes: Number(l.minutes), ...(l.taskId ? { taskId: String(l.taskId).slice(0, 80) } : {}) }));
   next.pomodoroStats = { ...defaults.pomodoroStats, ...(next.pomodoroStats && typeof next.pomodoroStats === 'object' ? next.pomodoroStats : {}) };
   next.dueNotificationsSeen = next.dueNotificationsSeen && typeof next.dueNotificationsSeen === 'object' && !Array.isArray(next.dueNotificationsSeen) ? next.dueNotificationsSeen : {};
   next.theme = ['light', 'dark', 'system'].includes(next.theme) ? next.theme : 'system';
@@ -142,6 +157,7 @@ function normalizeState(saved, replace = false) {
   next.seeded = !!next.seeded;
   next.hideGuide = !!next.hideGuide;
   next.usedAI = !!next.usedAI;
+  next.profile = sanitizeProfile(next.profile);
   next.currentNoteId = next.notes.some(n => n.id === next.currentNoteId) ? next.currentNoteId : (next.notes[0]?.id || null);
   if (next.dailyPlan && typeof next.dailyPlan === 'object') {
     const allIds = { task: new Set(next.tasks.map(t => t.id)), habit: new Set(next.habits.map(h => h.id)) };
@@ -484,13 +500,17 @@ async function startApp(user) {
   if (window.NexUI) NexUI.setSync(user.guest ? 'local' : 'saving');
   await loadState();
   if (window.NexUI && !user.guest) NexUI.setSync(stateLoadedOk ? 'saved' : 'offline');
-  // Starter data is offered only once per account. If the user deletes it, it stays deleted.
+  // Starter data is offered only once per account. A brand-new workspace first gets the quick-start
+  // question; the workspace stays unseeded until it is answered or skipped, so closing the tab does not lose it.
+  let askQuickStart = false;
   if (!state.seeded && stateLoadedOk) {
-    if (!state.tasks.length && !state.habits.length && !state.notes.length) seedStarter();
-    state.seeded = true;
-    saveState();
+    if (!state.tasks.length && !state.habits.length && !state.notes.length) {
+      if (state.profile) { seedStarter(state.profile.goal || 'explore'); state.seeded = true; saveState(); } // answered in Enterprise first
+      else askQuickStart = true;
+    } else { state.seeded = true; saveState(); }
   }
   applyTheme();
+  applyProfileTimer();
   startClock();
   setGreeting();
   renderDashboard();
@@ -510,24 +530,144 @@ async function startApp(user) {
   checkDueNotifications();
   if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
   initChat(); // loads saved chats in the background
+  if (askQuickStart) openQuickStart('new');
 }
 
 // Small starter set that explains the app. Every item is flagged `sample: true`
 // so "Clear sample data" can remove them without touching the user's own items.
-function seedStarter() {
+function seedStarter(goal) {
   const now = Date.now();
-  state.tasks = [
-    { id: uid(), sample: true, title: 'Add your first task', col: 'todo', priority: 'medium', desc: 'Type a title at the top of this page and press Add.', due: '', created: now },
-    { id: uid(), sample: true, title: 'Start a 25-minute focus session', col: 'todo', priority: 'high', desc: 'Open Focus Timer and press play.', due: '', created: now },
-    { id: uid(), sample: true, title: 'Drag this card to Done', col: 'inprogress', priority: 'low', desc: 'Drag cards between columns to track progress.', due: '', created: now },
-  ];
-  state.habits = [
-    { id: uid(), sample: true, name: 'Drink water', color: '#4285F4', checks: {}, streak: 0 },
-    { id: uid(), sample: true, name: 'Read for 10 minutes', color: '#34A853', checks: {}, streak: 0 },
-  ];
+  const g = GOALS[goal] || GOALS.explore;
+  const mins = g.timer.focus;
+  // Fixed ids: if two tabs both seed, merging gives the same items instead of duplicates.
+  let ti = 0, hi = 0;
+  const T = (title, col, priority, desc) => ({ id: 'qs-t' + (++ti), sample: true, title, col, priority, desc, due: '', created: now });
+  const H = (name, color) => ({ id: 'qs-h' + (++hi), sample: true, name, color, checks: {}, streak: 0 });
+  const sets = {
+    study: {
+      tasks: [
+        T('Write down your exams and their dates', 'todo', 'high', 'Open a task and add a due date so it shows on Home.'),
+        T('Plan this week\'s revision', 'todo', 'medium', 'One topic per day. Add each topic as its own task.'),
+        T('Do one ' + mins + '-minute focus session', 'todo', 'high', 'Open Focus Timer and press play. It is set to ' + mins + '/' + g.timer.short + ' for studying.'),
+        T('Drag this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.'),
+      ],
+      habits: [H('Study for 2 hours', '#4285F4'), H('Revise notes for 15 minutes', '#34A853'), H('Sleep before 11 pm', '#FBBC04')],
+    },
+    projects: {
+      tasks: [
+        T('Write what "done" means for your project', 'todo', 'high', 'One or two sentences is enough.'),
+        T('Break it into 3 small tasks', 'todo', 'medium', 'Type a title at the top of this page and press Add.'),
+        T('Do one ' + mins + '-minute sprint', 'todo', 'high', 'Open Focus Timer and press play.'),
+        T('Drag this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.'),
+      ],
+      habits: [H('Review your board for 5 minutes', '#4285F4'), H('Ship or commit something small', '#34A853')],
+    },
+    habits: {
+      tasks: [
+        T('Pick 3 habits you want to keep', 'todo', 'high', 'Open Habits and add them. Start small.'),
+        T('Tick today\'s habits before bed', 'todo', 'medium', 'A streak grows for every day you tick a habit.'),
+        T('Try a ' + mins + '-minute focus session', 'todo', 'low', 'Open Focus Timer and press play.'),
+      ],
+      habits: [H('Drink water', '#4285F4'), H('Walk for 15 minutes', '#34A853'), H('Read for 10 minutes', '#FBBC04'), H('Sleep on time', '#A142F4')],
+    },
+    explore: {
+      tasks: [
+        T('Add your first task', 'todo', 'medium', 'Type a title at the top of this page and press Add.'),
+        T('Start a ' + mins + '-minute focus session', 'todo', 'high', 'Open Focus Timer and press play.'),
+        T('Drag this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.'),
+      ],
+      habits: [H('Drink water', '#4285F4'), H('Read for 10 minutes', '#34A853')],
+    },
+  };
+  const set = sets[goal] || sets.explore;
+  state.tasks = set.tasks;
+  state.habits = set.habits;
   state.notes = [
-    { id: uid(), sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in 25-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.', tags: ['welcome'], pinned: true, created: now },
+    { id: 'qs-n1', sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and drag cards across columns.\n- Focus Timer: work in ' + mins + '-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary. Your chats are saved.\n\nThe sample tasks, habits and notes can be removed with "Clear sample data" on the Dashboard.', tags: ['welcome'], pinned: true, created: now },
   ];
+}
+
+// ---- Quick-start screen: applies the goal to the focus timer defaults and the order of Home sections ----
+let quickStartMode = 'new'; // 'new' (first run, also adds starter items) or 'rerun' (from Settings, changes layout only)
+let quickStartPick = '';
+function applyHomeOrder() {
+  const order = (GOALS[state.profile && state.profile.goal] || GOALS.explore).home;
+  order.forEach((key, i) => { const el = document.querySelector('.dashboard-widgets .widget-' + key); if (el) el.style.order = String(i); });
+}
+function applyProfileTimer() {
+  const g = GOALS[state.profile && state.profile.goal];
+  if (!g || pomState.running) return;
+  const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  put('focus-duration', g.timer.focus); put('short-duration', g.timer.short); put('long-duration', g.timer.long);
+  updateDurations();
+}
+function goalSummary(goal) {
+  const g = GOALS[goal];
+  return g ? g.label + ' (focus ' + g.timer.focus + '/' + g.timer.short + ' min)' : 'Standard layout (not chosen)';
+}
+function renderQuickStart() {
+  const list = document.getElementById('qs-choices');
+  if (!list) return;
+  list.innerHTML = Object.entries(GOALS).map(([key, g]) => `
+    <button type="button" class="qs-choice ${quickStartPick === key ? 'selected' : ''}" role="radio" aria-checked="${quickStartPick === key}" onclick="pickQuickStart('${key}')">
+      <span class="qs-title">${g.label}</span>
+      <span class="qs-sub">${g.sub}</span>
+    </button>`).join('');
+  const rerun = quickStartMode === 'rerun';
+  const sub = document.getElementById('qs-subtitle');
+  if (sub) sub.textContent = rerun
+    ? 'This changes your focus timer and the order of Home. Your tasks, habits and notes are not touched.'
+    : 'One tap sets up starter items, your focus timer and Home. You can change it later in Settings.';
+  const go = document.getElementById('qs-go');
+  if (go) { go.textContent = rerun ? 'Apply' : 'Set up my workspace'; go.disabled = !quickStartPick; }
+  const skip = document.getElementById('qs-skip');
+  if (skip) skip.textContent = rerun ? 'Cancel' : 'Skip';
+}
+function openQuickStart(mode) {
+  const modal = document.getElementById('quickstart-modal');
+  if (!modal) { if (mode === 'new') { seedStarter('explore'); state.seeded = true; saveState(); renderAllAfterQuickStart(); } return false; }
+  quickStartMode = mode === 'rerun' ? 'rerun' : 'new';
+  quickStartPick = (state.profile && state.profile.goal) || '';
+  document.getElementById('profile-modal')?.classList.remove('is-open');
+  renderQuickStart();
+  modal.classList.add('is-open');
+  setTimeout(() => modal.querySelector('.qs-choice')?.focus(), 50);
+  return true;
+}
+function pickQuickStart(key) { if (GOALS[key]) { quickStartPick = key; renderQuickStart(); } }
+function closeQuickStart() { document.getElementById('quickstart-modal')?.classList.remove('is-open'); }
+function renderAllAfterQuickStart() {
+  renderDashboard(); renderKanban(); renderHabits(); renderNotes(); renderAnalytics();
+  renderPomTimer(); renderPomoStats(); updateContextPanel();
+}
+async function finishQuickStart(skip) {
+  const rerun = quickStartMode === 'rerun';
+  if (skip && rerun) { closeQuickStart(); return; }
+  const goal = skip ? '' : quickStartPick;
+  if (!skip && !goal) return;
+  if (!rerun && !isGuest()) {
+    // Answered on another screen or tab in the meantime? Use that, so the starter items are never written twice.
+    try {
+      const res = await fetch('/api/state', { credentials: 'same-origin' });
+      const saved = res.ok ? (await res.json()).state : null;
+      if (saved && (saved.seeded || saved.profile)) {
+        state = normalizeState(saved, true);
+        cacheState();
+        closeQuickStart();
+        applyProfileTimer();
+        renderAllAfterQuickStart();
+        notify('This workspace was already set up on another screen.');
+        return;
+      }
+    } catch (_) { /* offline: carry on with the local answer */ }
+  }
+  state.profile = { goal, at: Date.now() };
+  if (!rerun) { seedStarter(goal || 'explore'); state.seeded = true; }
+  closeQuickStart();
+  saveState();
+  applyProfileTimer();
+  renderAllAfterQuickStart();
+  notify(skip ? 'Skipped. You can set this up any time in Settings.' : rerun ? 'Updated for ' + GOALS[goal].label.toLowerCase() + '.' : 'Your workspace is ready.');
 }
 
 // Items from the first version of NexOS had no `sample` flag, so match them by their old titles.
@@ -757,18 +897,21 @@ function completeTask(id) {
 }
 
 function renderDashboard() {
+  applyHomeOrder();
   updateStats();
   renderGuestBanner();
   renderGuide();
   const taskList = document.getElementById('dash-tasks-list');
   const priorityTasks = openTasksSorted().slice(0, 5);
+  const fm = nexFocusMinutesMap(state);
   taskList.innerHTML = priorityTasks.length ? priorityTasks.map(t => `
       <div class="dash-task-item priority-${t.priority}">
         <button type="button" class="task-check" onclick="completeTask('${t.id}')" aria-label="Mark ${escHtml(t.title)} as done"></button>
         <button type="button" class="dash-task-main" onclick="openTaskModal('${t.id}')">
           <span class="dash-task-title">${escHtml(t.title)}</span>
-          <span class="dash-task-meta"><span>${STAGE_LABELS[t.col] || t.col}</span>${dueChip(t)}</span>
+          <span class="dash-task-meta"><span>${STAGE_LABELS[t.col] || t.col}</span>${dueChip(t)}${fm[t.id] ? `<span>\u25F7 ${fm[t.id]}m</span>` : ''}</span>
         </button>
+        <button type="button" class="dash-task-focus" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escHtml(t.title)}">\u25B6</button>
       </div>`).join('')
     : '<div class="empty-state">You are all caught up. Add a task to get started.</div>';
 
@@ -791,6 +934,7 @@ function renderDashboard() {
         <span class="dash-note-preview">${escHtml(n.content.slice(0, 90)) || 'Empty note'}</span>
       </button>`).join('')
     : '<div class="empty-state">No notes yet.</div>';
+  renderFocusTask();
 }
 
 function askFromHome(event) {
@@ -851,6 +995,7 @@ function addTask() {
 
 function renderKanban() {
   const cols = ['todo', 'inprogress', 'review', 'done'];
+  const fm = nexFocusMinutesMap(state);
   cols.forEach(col => {
     const container = document.getElementById('col-' + col);
     const count = document.getElementById('count-' + col);
@@ -866,7 +1011,9 @@ function renderKanban() {
           <div class="task-card-meta">
             <span class="priority-chip priority-${t.priority}">${t.priority}</span>
             ${t.due ? `<span class="task-due">${fmtDate(t.due)}</span>` : ''}
+            ${fm[t.id] ? `<span class="task-due">\u25F7 ${fm[t.id]}m focused</span>` : ''}
             <div class="task-card-actions">
+              ${t.col !== 'done' ? `<button class="task-action-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escHtml(t.title)}">\u25B6</button>` : ''}
               <button class="task-move-btn" onclick="moveTaskStep('${t.id}',-1)" title="Move to previous stage" ${['todo'].includes(t.col) ? 'disabled' : ''}>←</button>
               <button class="task-move-btn" onclick="moveTaskStep('${t.id}',1)" title="Move to next stage" ${['done'].includes(t.col) ? 'disabled' : ''}>→</button>
               <button class="task-action-btn" onclick="openTaskModal('${t.id}')" title="Edit">✎</button>
@@ -930,6 +1077,7 @@ function deleteTask(id) {
   const index = state.tasks.findIndex(t => t.id === id);
   if (index < 0) return;
   const [removed] = state.tasks.splice(index, 1);
+  if (focusTaskId === id) { focusTaskId = ''; focusPromptId = ''; }
   const trashId = addToTrash('task', removed);
   const planItems = state.dailyPlan?.items ? state.dailyPlan.items.filter(item => item.type === 'task' && item.id === id) : [];
   if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'task' && item.id === id));
@@ -1063,6 +1211,61 @@ function pomTick() {
 }
 document.addEventListener('visibilitychange', () => { if (pomState.running) pomTick(); });
 
+// ---- Focus-task actions (Classic) ----
+// The task a focus session is for lives in this tab only (never synced). Each finished session is logged with that task's id,
+// so a task's focus time is the sum of its log entries and merges safely across tabs.
+let focusTaskId = '';
+let focusPromptId = '';
+function renderFocusTask() {
+  const task = focusTaskId ? state.tasks.find(t => t.id === focusTaskId) : null;
+  let html = '';
+  if (task && task.col !== 'done') {
+    if (focusPromptId === task.id) {
+      html = '<div class="pomo-task-prompt">Session finished on <strong>' + escHtml(task.title) + '</strong>. Done with it? ' +
+        '<button type="button" class="pomo-task-btn" onclick="focusFinishTask()">Mark done</button> ' +
+        '<button type="button" class="pomo-task-btn" onclick="focusKeepGoing()">Keep going</button></div>';
+    } else {
+      const m = nexFocusMinutesMap(state)[task.id] || 0;
+      html = '<div class="pomo-task-label">Focusing on <strong>' + escHtml(task.title) + '</strong>' + (m ? ' \u00B7 ' + m + ' min so far' : '') +
+        ' <button type="button" class="pomo-task-clear" onclick="clearFocusTask()" aria-label="Stop focusing on this task" title="Stop focusing on this task">\u00D7</button></div>';
+    }
+  }
+  document.querySelectorAll('.pomo-task-slot').forEach(el => { el.innerHTML = html; });
+}
+function focusRefresh() { saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); }
+function focusOnTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  if (task.col === 'done') { notify('That task is already done.'); return; }
+  const midSession = pomState.remaining < (pomDurations[pomState.mode] || 25) * 60;
+  if (pomState.running || midSession) {
+    if (pomState.mode === 'focus' && focusTaskId === id) { if (!pomState.running) togglePomodoro(); switchView('pomodoro'); return; }
+    notify('A timer is already in progress. Reset it first, then start focus on this task.');
+    return;
+  }
+  if (task.col === 'todo') setTaskCol(task, 'inprogress');
+  focusTaskId = id; focusPromptId = '';
+  setMode('focus');
+  focusRefresh(); renderFocusTask();
+  togglePomodoro();
+  switchView('pomodoro');
+}
+function focusLogSession(mins) {
+  const bound = focusTaskId ? state.tasks.find(t => t.id === focusTaskId) : null;
+  state.pomodoroLog.push(nexSessionEntry(today(), mins, bound ? bound.id : '', state.tasks));
+  if (bound && bound.col !== 'done') focusPromptId = bound.id;
+  renderFocusTask();
+}
+function focusFinishTask() {
+  const task = state.tasks.find(t => t.id === focusTaskId);
+  focusTaskId = ''; focusPromptId = '';
+  if (task) setTaskCol(task, 'done');
+  focusRefresh(); renderFocusTask();
+}
+function focusKeepGoing() { focusPromptId = ''; renderFocusTask(); }
+function clearFocusTask() { focusTaskId = ''; focusPromptId = ''; renderFocusTask(); }
+// ---- end Focus-task actions ----
+
 function pomSessionComplete() {
   const btn = document.getElementById('pomo-play-btn');
   const miniBtn = document.getElementById('mini-play-btn');
@@ -1070,7 +1273,7 @@ function pomSessionComplete() {
   if (miniBtn) miniBtn.textContent = '▶';
   if (pomState.mode === 'focus') {
     const mins = pomDurations.focus;
-    state.pomodoroLog.push({ date: today(), minutes: mins });
+    focusLogSession(mins);
     state.pomodoroStats.sessionsToday = (state.pomodoroStats.sessionsToday || 0) + 1;
     state.pomodoroStats.totalToday = (state.pomodoroStats.totalToday || 0) + mins;
     pomState.sessionCount++;
@@ -1594,18 +1797,18 @@ function renderHabitBars() {
   }).join('');
 }
 
+function renderDay1Milestones() {
+  const box = document.getElementById('score-milestones');
+  if (!box) return;
+  const m = nexDay1Milestones(state);
+  if (m.done >= m.total) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = '<li class="score-milestones-head">' + m.done + ' of ' + m.total + ' first-day steps done</li>' +
+    m.items.map(i => '<li class="' + (i.done ? 'done' : '') + '"><span aria-hidden="true">' + (i.done ? '\u2713' : '\u25CB') + '</span> ' + escHtml(i.label) + '</li>').join('');
+}
+
 function renderProductivityScore() {
-  const totalTasks = state.tasks.length;
-  const doneTasks = state.tasks.filter(t => t.col === 'done').length;
-  const todayLogs = state.pomodoroLog.filter(l => l.date === today());
-  const focusMins = todayLogs.reduce((s, l) => s + l.minutes, 0);
-  const doneHabits = state.habits.filter(h => h.checks[today()]).length;
-  const totalHabits = state.habits.length;
-  let score = 0;
-  if (totalTasks > 0) score += (doneTasks / totalTasks) * 40;
-  score += Math.min(focusMins / 120 * 30, 30);
-  if (totalHabits > 0) score += (doneHabits / totalHabits) * 30;
-  score = Math.round(score);
+  const score = nexProductivityScore(state, today());
   const circum = 364;
   const ring = document.getElementById('score-fg-ring');
   if (ring) ring.style.strokeDashoffset = circum * (1 - score / 100);
@@ -1615,6 +1818,7 @@ function renderProductivityScore() {
   if (desc) {
     desc.textContent = score >= 80 ? '🔥 Outstanding productivity!' : score >= 60 ? '⚡ Great momentum!' : score >= 40 ? '📈 Keep building.' : score > 0 ? '🌱 Just getting started.' : 'Complete tasks and habits to build your score.';
   }
+  renderDay1Milestones();
 }
 
 function renderVelocityChart(days) {
@@ -1897,9 +2101,75 @@ function updateContextPanel() {
   setCtx('ctx-notes', `${state.notes.length} notes`);
 }
 
+// ---- Day-1 helpers (kept identical in Classic app.js and Enterprise index-redesign.html) ----
+function nexTaskStage(t) { return t ? (t.col || t.stage || '') : ''; }
+function nexDay1Milestones(st) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const items = [
+    { key: 'habit', label: 'Check off a habit', done: habits.some(h => h && h.checks && Object.values(h.checks).some(Boolean)) },
+    { key: 'task', label: 'Finish a task', done: tasks.some(t => nexTaskStage(t) === 'done') },
+    { key: 'focus', label: 'Complete a focus session', done: log.some(l => l && Number(l.minutes) > 0) }
+  ];
+  return { items, done: items.filter(i => i.done).length, total: items.length };
+}
+function nexProductivityScore(st, todayKey) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const doneTasks = tasks.filter(t => nexTaskStage(t) === 'done').length;
+  const focusMins = log.filter(l => l && l.date === todayKey).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+  const doneHabits = habits.filter(h => h && h.checks && h.checks[todayKey]).length;
+  let score = 0;
+  if (tasks.length > 0) score += (doneTasks / tasks.length) * 40;
+  score += Math.min(focusMins / 120 * 30, 30);
+  if (habits.length > 0) score += (doneHabits / habits.length) * 30;
+  return Math.round(score);
+}
+function nexLocalInsight(st, todayKey, focusMin) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const fm = Number(focusMin) > 0 ? Math.round(Number(focusMin)) : 25;
+  const rank = { high: 0, medium: 1, low: 2 };
+  const open = tasks.filter(t => t && nexTaskStage(t) !== 'done').sort((a, b) => (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1));
+  const name = t => '\u201C' + String((t && t.title) || 'Untitled').slice(0, 60) + '\u201D';
+  const overdue = open.filter(t => t.due && t.due < todayKey);
+  const focusToday = log.filter(l => l && l.date === todayKey).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+  const habitsLeft = habits.filter(h => h && !(h.checks && h.checks[todayKey]));
+  if (!tasks.length && !habits.length) return 'Add one task or habit and NexOS can suggest what to do first.';
+  if (overdue.length) return overdue.length + (overdue.length === 1 ? ' task is' : ' tasks are') + ' overdue. Start with ' + name(overdue[0]) + ' and clear it before anything new.';
+  if (open.length && focusToday === 0) return 'Start with ' + name(open[0]) + '. One ' + fm + '-minute focus block is enough to build momentum.';
+  if (habitsLeft.length) return habitsLeft.length + ' of ' + habits.length + (habits.length === 1 ? ' habit is' : ' habits are') + ' still open today. Checking one off now keeps your streak moving.';
+  if (open.length) return 'You have focused ' + focusToday + ' min today. Next up: ' + name(open[0]) + '.';
+  return 'Everything is done for now. Add a task or take a proper break.';
+}
+// ---- end Day-1 helpers ----
+// ---- Focus-task helpers (kept identical in Classic app.js and Enterprise index-redesign.html) ----
+function nexFocusMinutesMap(st) {
+  const out = Object.create(null);
+  (Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : []).forEach(l => {
+    if (l && l.taskId && Number(l.minutes) > 0) out[l.taskId] = (out[l.taskId] || 0) + Number(l.minutes);
+  });
+  return out;
+}
+function nexSessionEntry(dateKey, minutes, taskId, tasks) {
+  const entry = { date: dateKey, minutes: minutes };
+  if (taskId && (Array.isArray(tasks) ? tasks : []).some(t => t && t.id === taskId)) entry.taskId = String(taskId);
+  return entry;
+}
+// ---- end Focus-task helpers ----
+
 async function getDailyInsight() {
   const btn = document.querySelector('#ai-insight-bar .btn-sm');
   const text = document.getElementById('ai-insight-text');
+  if (isGuest()) {
+    // Guests cannot call NexAI, so give a simple insight worked out on this device.
+    if (text) text.textContent = nexLocalInsight(state, today(), pomDurations.focus) + ' Sign in with Google for NexAI insights.';
+    if (btn) btn.textContent = 'Refresh';
+    return;
+  }
   if (btn) btn.textContent = '…';
   if (text) text.textContent = 'Generating insight…';
   try {
@@ -2094,6 +2364,7 @@ async function importData(event) {
     cacheState();
     saveState();
     applyTheme();
+    applyProfileTimer();
     renderDashboard();
     renderKanban();
     renderHabits();
@@ -2150,6 +2421,8 @@ function renderProfile() {
   show('profile-trash-row', !guest);
   if (window.NexUI) NexUI.syncAppearanceControls();
   show('profile-guest-section', guest);
+  const goalText = document.getElementById('profile-goal-text');
+  if (goalText) goalText.textContent = goalSummary(state.profile && state.profile.goal);
   const nameInput = document.getElementById('profile-name-input');
   if (nameInput) nameInput.value = currentUser.name || '';
   const delInput = document.getElementById('profile-delete-input');
@@ -2435,7 +2708,7 @@ function buildQuickLocalPlan(silent = false) {
   const items = [];
   tasks.forEach(t => items.push({
     type: 'task', id: t.id,
-    duration: Math.min(180, Math.max(10, Number(t.estimateMinutes) || ({ high: 45, medium: 30, low: 20 }[t.priority] || 30)))
+    duration: Math.min(180, Math.max(10, Number(t.estimateMinutes) || Number(pomDurations.focus) || 25))
   }));
   state.habits.forEach(h => items.push({
     type: 'habit', id: h.id,
@@ -2444,7 +2717,6 @@ function buildQuickLocalPlan(silent = false) {
 
   // Keep the schedule within today's 08:00–22:00 window. Never wrap times into tomorrow.
   let cursor = Math.max(8 * 60, Math.ceil(clockMinutes() / 15) * 15);
-  let tasksSincePause = 0;
   items.forEach(item => {
     if (cursor >= 22 * 60 || cursor + item.duration > 22 * 60) {
       item.start = '';
@@ -2454,12 +2726,7 @@ function buildQuickLocalPlan(silent = false) {
     item.start = timeLabel(cursor);
     item.unscheduled = false;
     cursor += item.duration;
-    if (item.type === 'task') {
-      tasksSincePause++;
-      if (tasksSincePause % 2 === 0) cursor += 5;
-    } else {
-      cursor += 5;
-    }
+    cursor += Math.max(5, Number(pomDurations.short) || 5); // break length follows the focus timer settings
   });
 
   const unscheduledCount = items.filter(item => item.unscheduled).length;
@@ -2506,6 +2773,7 @@ function renderPlanItems() {
     if (plan?.aiSummary) status.textContent = plan.aiSummary;
     else if (plan?.mode === 'ai') status.textContent = 'AI schedule created from your open tasks and habits.';
     else status.textContent = 'Your focused schedule is ordered by priority and due date. Mark items done here to update NexOS.';
+    if (isGuest() && plan?.mode !== 'ai' && items.length) status.textContent += ' Made on this device. Sign in with Google for NexAI scheduling.';
   }
   list.querySelectorAll('[data-plan-index]').forEach(button => {
     button.addEventListener('click', () => {
@@ -2748,7 +3016,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === '?' && !isTypingTarget(e.target) && window.NexUI) { e.preventDefault(); NexUI.openShortcuts(); }
-  if (e.key === 'Escape') { closeTaskModal(); closeSearchModal(); closePlanModal(); closeProfile(); closeSidebar(); if (window.NexUI) NexUI.closeAll(); }
+  if (e.key === 'Escape') { if (quickStartMode === 'rerun') closeQuickStart(); closeTaskModal(); closeSearchModal(); closePlanModal(); closeProfile(); closeSidebar(); if (window.NexUI) NexUI.closeAll(); }
 });
 
 // Mini gradient def for ring

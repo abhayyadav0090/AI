@@ -1114,8 +1114,21 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
 .score-circle-bg { fill: none; stroke: var(--border-subtle); stroke-width: 10; }
 .score-circle-fg {
   fill: none; stroke: var(--accent-primary); stroke-width: 10; stroke-linecap: round;
-  stroke-dasharray: 408; stroke-dashoffset: 80; transition: stroke-dashoffset 1.5s ease;
+  stroke-dasharray: 408; stroke-dashoffset: 408; transition: stroke-dashoffset 1.5s ease;
 }
+.pomo-task-slot { margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--text-secondary); }
+.pomo-task-slot:empty { display: none; }
+.pomo-task-slot strong { color: var(--text-main); }
+.pomo-task-prompt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.pomo-task-btn { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: var(--text-main); cursor: pointer; }
+.pomo-task-clear { font: inherit; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 0 4px; }
+.dash-task-focus-btn { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px; line-height: 1; }
+.dash-task-focus-btn:hover, .dash-task-focus-btn:focus-visible { color: var(--text-main); }
+.score-milestones { list-style: none; margin: 10px auto 0; padding: 0; max-width: 240px; font-size: 12.5px; color: var(--text-secondary); }
+.score-milestones[hidden] { display: none; }
+.score-milestones li { padding: 3px 0; }
+.score-milestones li.done { color: var(--text-main); }
+.score-milestones .score-milestones-head { font-weight: 600; color: var(--text-main); text-align: center; margin-bottom: 4px; }
 .score-center-value {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   font-family: var(--font-display); font-size: 34px; font-weight: 800;
@@ -1850,6 +1863,14 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
         </div></div>
       <div class="prefs-row"><span>Interface sounds</span>
         <button class="ui-sound-toggle-btn" id="ui-sound-btn" onclick="toggleUISound()" title="Toggle interface sounds" aria-label="Toggle interface sounds">🔊</button></div>
+      <div class="prefs-row"><label for="setup-goal-select">Your setup</label>
+        <select class="audio-select" id="setup-goal-select" onchange="enterpriseChangeGoal(this.value)" title="Changes the focus timer and the order of the dashboard. Your data is not touched.">
+          <option value="" disabled>Not chosen</option>
+          <option value="study">Study and exams</option>
+          <option value="projects">Projects and sprints</option>
+          <option value="habits">Daily routine and habits</option>
+          <option value="explore">Just exploring</option>
+        </select></div>
       <div class="prefs-row"><span>Deleted by mistake?</span>
         <a class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none" href="/recover.html">Recently deleted…</a></div>
       <div class="prefs-row"><span>Task reminders</span>
@@ -1870,6 +1891,18 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <button class="btn-secondary" onclick="openActionPlanModal()">⚡ Action Mode</button>
             <button class="btn-primary" onclick="toggleFloatingCopilotDrawer()">✦ NexAI panel</button>
           </div>
+        </div>
+
+        <!-- Quick-start (shown only for a new, empty workspace that has no goal yet) -->
+        <div class="dash-card" id="qs-card" hidden style="padding:16px 18px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:600">What will you use NexOS for?</div>
+              <div style="font-size:13px;color:var(--text-muted)">One tap adds starter items and sets your focus timer. You can change it later in Classic Settings.</div>
+            </div>
+            <button type="button" class="btn-secondary" onclick="enterpriseQuickStart('')">Skip</button>
+          </div>
+          <div id="qs-card-choices" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
         </div>
 
         <!-- KPI Cards -->
@@ -1909,7 +1942,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
         <!-- Dashboard Widgets -->
         <div class="dashboard-grid">
           <!-- Priorities -->
-          <div class="dash-card">
+          <div class="dash-card" data-widget="tasks">
             <div class="dash-card-header">
               <h3 class="dash-card-title"><span>🎯</span> Today's Priorities</h3>
               <button class="dash-card-action" onclick="switchNexusView('kanban')">Open Kanban →</button>
@@ -1918,7 +1951,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           </div>
 
           <!-- Focus Mini Dial -->
-          <div class="dash-card">
+          <div class="dash-card" data-widget="pomodoro">
             <div class="dash-card-header">
               <h3 class="dash-card-title"><span>◎</span> Deep Focus Session</h3>
               <button class="dash-card-action" onclick="switchNexusView('focus')">Open Focus Studio →</button>
@@ -1935,10 +1968,11 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
                 <button class="btn-primary" id="dash-pomo-btn" onclick="togglePomodoro()">Start Focus</button>
               </div>
             </div>
+            <div class="pomo-task-slot" aria-live="polite"></div>
           </div>
 
           <!-- Habit Streaks -->
-          <div class="dash-card">
+          <div class="dash-card" data-widget="habits">
             <div class="dash-card-header">
               <h3 class="dash-card-title"><span>◈</span> Habit Matrix</h3>
               <button class="dash-card-action" onclick="switchNexusView('habits')">View All →</button>
@@ -1947,7 +1981,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           </div>
 
           <!-- Recent Notes -->
-          <div class="dash-card">
+          <div class="dash-card" data-widget="notes">
             <div class="dash-card-header">
               <h3 class="dash-card-title"><span>◧</span> Recent Knowledge Notes</h3>
               <button class="dash-card-action" onclick="switchNexusView('notes')">View All →</button>
@@ -2113,6 +2147,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
               </div>
             </div>
 
+            <div class="pomo-task-slot" aria-live="polite"></div>
             <div class="pomo-controls-row">
               <button class="pomo-ctrl-btn" onclick="resetPomodoro()" title="Reset">↺</button>
               <button class="pomo-ctrl-btn pomo-play-hero" id="pomo-hero-btn" onclick="togglePomodoro()">▶</button>
@@ -2291,11 +2326,12 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
                   <circle cx="75" cy="75" r="65" class="score-circle-bg"/>
                   <circle cx="75" cy="75" r="65" class="score-circle-fg" id="score-radial-progress"/>
                 </svg>
-                <div class="score-center-value" id="analytics-score-num">88</div>
+                <div class="score-center-value" id="analytics-score-num">0</div>
               </div>
               <p style="font-size:13px;color:var(--text-secondary);text-align:center;margin-top:10px">
                 Calculated dynamically from completed tasks, focus hours, and daily habit check-ins.
               </p>
+              <ul class="score-milestones" id="analytics-score-milestones" hidden></ul>
             </div>
           </div>
 
@@ -2624,6 +2660,7 @@ let speechRecognizer = null;
 // Initialize
 window.addEventListener('DOMContentLoaded', async () => {
   await loadWorkspaceState();
+  syncGoalTimerInputs();
   initClock();
   applyNexusTheme(state.theme);
   applyDensity(state.density || 'comfortable');
@@ -2840,6 +2877,8 @@ function renderAllViews() {
 
 // ---------------- DASHBOARD ----------------
 function renderDashboard() {
+  renderQuickStartCard();
+  applyEnterpriseHomeOrder();
   // Priorities
   const list = document.getElementById('dash-priorities-list');
   if (list) {
@@ -2847,11 +2886,14 @@ function renderDashboard() {
     if (!tasks.length) {
       list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No active tasks. Add one in Kanban!</div>';
     } else {
+      const fm = nexFocusMinutesMap(state);
       list.innerHTML = tasks.map(t => `
         <div class="dash-task-item ${t.stage === 'done' ? 'done' : ''}">
           <div class="task-check-circle" onclick="toggleTaskDone('${t.id}')">✓</div>
           <span class="dash-task-name">${escapeHtml(t.title)}</span>
+          ${fm[t.id] ? `<span style="font-size:11px;color:var(--text-muted)">\u25F7 ${fm[t.id]}m</span>` : ''}
           <span class="priority-badge ${t.priority}">${t.priority}</span>
+          <button type="button" class="dash-task-focus-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>
         </div>
       `).join('');
     }
@@ -2898,6 +2940,7 @@ function renderDashboard() {
   }
 
   refreshDailyInsight();
+  renderFocusTask();
 }
 
 function refreshDailyInsight() {
@@ -2922,6 +2965,7 @@ let kanbanSearchFilter = '';
 
 function renderKanban() {
   const stages = ['todo', 'inprogress', 'review', 'done'];
+  const fm = nexFocusMinutesMap(state);
   stages.forEach(stage => {
     const col = document.getElementById('col-cards-' + stage);
     const countEl = document.getElementById('count-' + stage);
@@ -2949,12 +2993,14 @@ function renderKanban() {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
             <span class="priority-badge ${t.priority}">${t.priority}</span>
             <div class="task-card-actions" onclick="event.stopPropagation()">
+              ${t.stage !== 'done' ? `<button class="task-action-icon-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>` : ''}
               <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', -1)" title="Move Back">←</button>
               <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', 1)" title="Move Forward">→</button>
               <button class="task-action-icon-btn" onclick="deleteTask('${t.id}')" title="Delete">✕</button>
             </div>
           </div>
           <div class="task-card-title">${escapeHtml(t.title)}</div>
+          ${fm[t.id] ? `<div class="task-card-desc">\u25F7 ${fm[t.id]}m focused</div>` : ''}
           ${t.desc ? `<div class="task-card-desc">${escapeHtml(t.desc.slice(0, 90))}</div>` : ''}
           ${tags.length ? `<div>${tags.map(tag => `<span class="task-tag-badge">#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
           ${subtasks.length ? `
@@ -3062,6 +3108,7 @@ function deleteTask(id) {
   const task = state.tasks[index];
   const trashId = trashEntry('task', mapEnterpriseTaskToClassic(task));
   state.tasks.splice(index, 1);
+  if (focusTaskId === id) { focusTaskId = ''; focusPromptId = ''; }
   saveWorkspaceState();
   renderKanban();
   renderDashboard();
@@ -3262,6 +3309,62 @@ function setPomodoroMode(mode) {
   renderPomTimerUI();
 }
 
+// ---- Focus-task actions (Enterprise) ----
+// The task a focus session is for lives in this screen only (never synced). Each finished session is logged with that task's id,
+// so a task's focus time is the sum of its log entries and merges safely across screens.
+let focusTaskId = '';
+let focusPromptId = '';
+function renderFocusTask() {
+  const task = focusTaskId ? state.tasks.find(t => t.id === focusTaskId) : null;
+  let html = '';
+  if (task && task.stage !== 'done') {
+    if (focusPromptId === task.id) {
+      html = '<div class="pomo-task-prompt">Session finished on <strong>' + escapeHtml(task.title) + '</strong>. Done with it? ' +
+        '<button type="button" class="pomo-task-btn" onclick="focusFinishTask()">Mark done</button> ' +
+        '<button type="button" class="pomo-task-btn" onclick="focusKeepGoing()">Keep going</button></div>';
+    } else {
+      const m = nexFocusMinutesMap(state)[task.id] || 0;
+      html = '<div class="pomo-task-label">Focusing on <strong>' + escapeHtml(task.title) + '</strong>' + (m ? ' \u00B7 ' + m + ' min so far' : '') +
+        ' <button type="button" class="pomo-task-clear" onclick="clearFocusTask()" aria-label="Stop focusing on this task" title="Stop focusing on this task">\u00D7</button></div>';
+    }
+  }
+  document.querySelectorAll('.pomo-task-slot').forEach(el => { el.innerHTML = html; });
+}
+function focusRefresh() { saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline(); }
+function focusOnTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  if (task.stage === 'done') { showToast('That task is already done.'); return; }
+  const midSession = state.pomoTimeRemaining < state.pomoTotalTime;
+  if (state.pomoRunning || midSession) {
+    if (state.pomoMode === 'focus' && focusTaskId === id) { if (!state.pomoRunning) startPomodoro(); switchNexusView('focus'); return; }
+    showToast('A timer is already in progress. Reset it first, then start focus on this task.');
+    return;
+  }
+  if (task.stage === 'todo') task.stage = 'inprogress';
+  focusTaskId = id; focusPromptId = '';
+  setPomodoroMode('focus');
+  focusRefresh(); renderFocusTask();
+  startPomodoro();
+  switchNexusView('focus');
+}
+function focusLogSession(mins) {
+  const bound = focusTaskId ? state.tasks.find(t => t.id === focusTaskId) : null;
+  state.pomodoroLog.push(nexSessionEntry(today(), mins, bound ? bound.id : '', state.tasks));
+  if (bound && bound.stage !== 'done') focusPromptId = bound.id;
+  renderFocusTask();
+}
+function focusFinishTask() {
+  const task = state.tasks.find(t => t.id === focusTaskId);
+  focusTaskId = ''; focusPromptId = '';
+  if (task) task.stage = 'done';
+  focusRefresh(); renderFocusTask();
+  if (task) playHarmonicChime();
+}
+function focusKeepGoing() { focusPromptId = ''; renderFocusTask(); }
+function clearFocusTask() { focusTaskId = ''; focusPromptId = ''; renderFocusTask(); }
+// ---- end Focus-task actions ----
+
 function togglePomodoro() {
   if (state.pomoRunning) pausePomodoro();
   else startPomodoro();
@@ -3330,7 +3433,7 @@ function completePomodoroInterval() {
     state.pomodoroStats.totalMins = (state.pomodoroStats.totalMins || 0) + mins;
     state.pomodoroStats.sessions = (state.pomodoroStats.sessions || 0) + 1;
     state.pomodoroStats.streak = (state.pomodoroStats.streak || 0) + 1;
-    state.pomodoroLog.push({ date: today(), minutes: mins });
+    focusLogSession(mins);
     saveWorkspaceState();
     showToast(`Focus session completed! +${mins}m deep work logged.`);
     if (window.confetti) confetti();
@@ -3810,24 +3913,106 @@ let focusChartInstance = null;
 let taskDonutInstance = null;
 let velocityChartInstance = null;
 
+// ---- Day-1 helpers (kept identical in Classic app.js and Enterprise index-redesign.html) ----
+function nexTaskStage(t) { return t ? (t.col || t.stage || '') : ''; }
+function nexDay1Milestones(st) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const items = [
+    { key: 'habit', label: 'Check off a habit', done: habits.some(h => h && h.checks && Object.values(h.checks).some(Boolean)) },
+    { key: 'task', label: 'Finish a task', done: tasks.some(t => nexTaskStage(t) === 'done') },
+    { key: 'focus', label: 'Complete a focus session', done: log.some(l => l && Number(l.minutes) > 0) }
+  ];
+  return { items, done: items.filter(i => i.done).length, total: items.length };
+}
+function nexProductivityScore(st, todayKey) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const doneTasks = tasks.filter(t => nexTaskStage(t) === 'done').length;
+  const focusMins = log.filter(l => l && l.date === todayKey).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+  const doneHabits = habits.filter(h => h && h.checks && h.checks[todayKey]).length;
+  let score = 0;
+  if (tasks.length > 0) score += (doneTasks / tasks.length) * 40;
+  score += Math.min(focusMins / 120 * 30, 30);
+  if (habits.length > 0) score += (doneHabits / habits.length) * 30;
+  return Math.round(score);
+}
+function nexLocalInsight(st, todayKey, focusMin) {
+  const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
+  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
+  const fm = Number(focusMin) > 0 ? Math.round(Number(focusMin)) : 25;
+  const rank = { high: 0, medium: 1, low: 2 };
+  const open = tasks.filter(t => t && nexTaskStage(t) !== 'done').sort((a, b) => (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1));
+  const name = t => '\u201C' + String((t && t.title) || 'Untitled').slice(0, 60) + '\u201D';
+  const overdue = open.filter(t => t.due && t.due < todayKey);
+  const focusToday = log.filter(l => l && l.date === todayKey).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+  const habitsLeft = habits.filter(h => h && !(h.checks && h.checks[todayKey]));
+  if (!tasks.length && !habits.length) return 'Add one task or habit and NexOS can suggest what to do first.';
+  if (overdue.length) return overdue.length + (overdue.length === 1 ? ' task is' : ' tasks are') + ' overdue. Start with ' + name(overdue[0]) + ' and clear it before anything new.';
+  if (open.length && focusToday === 0) return 'Start with ' + name(open[0]) + '. One ' + fm + '-minute focus block is enough to build momentum.';
+  if (habitsLeft.length) return habitsLeft.length + ' of ' + habits.length + (habits.length === 1 ? ' habit is' : ' habits are') + ' still open today. Checking one off now keeps your streak moving.';
+  if (open.length) return 'You have focused ' + focusToday + ' min today. Next up: ' + name(open[0]) + '.';
+  return 'Everything is done for now. Add a task or take a proper break.';
+}
+// ---- end Day-1 helpers ----
+// ---- Focus-task helpers (kept identical in Classic app.js and Enterprise index-redesign.html) ----
+function nexFocusMinutesMap(st) {
+  const out = Object.create(null);
+  (Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : []).forEach(l => {
+    if (l && l.taskId && Number(l.minutes) > 0) out[l.taskId] = (out[l.taskId] || 0) + Number(l.minutes);
+  });
+  return out;
+}
+function nexSessionEntry(dateKey, minutes, taskId, tasks) {
+  const entry = { date: dateKey, minutes: minutes };
+  if (taskId && (Array.isArray(tasks) ? tasks : []).some(t => t && t.id === taskId)) entry.taskId = String(taskId);
+  return entry;
+}
+// ---- end Focus-task helpers ----
+
+function renderEnterpriseScore() {
+  const score = nexProductivityScore(state, today());
+  const num = document.getElementById('analytics-score-num');
+  if (num) num.textContent = score;
+  const ring = document.getElementById('score-radial-progress');
+  if (ring) ring.style.strokeDashoffset = String(408 * (1 - score / 100));
+  const box = document.getElementById('analytics-score-milestones');
+  if (!box) return;
+  const m = nexDay1Milestones(state);
+  if (m.done >= m.total) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = '<li class="score-milestones-head">' + m.done + ' of ' + m.total + ' first-day steps done</li>' +
+    m.items.map(i => '<li class="' + (i.done ? 'done' : '') + '"><span aria-hidden="true">' + (i.done ? '\u2713' : '\u25CB') + '</span> ' + escapeHtml(i.label) + '</li>').join('');
+}
+
 function renderAnalyticsCharts() {
+  renderEnterpriseScore();
   if (!window.Chart) return;
 
   const isDark = document.documentElement.getAttribute('data-theme').includes('dark');
   const textColor = isDark ? '#94a3b8' : '#475569';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
 
-  // Focus Bar Chart
+  // Focus Bar Chart: real minutes for the last 7 days from the focus log (no sample numbers)
+  const focusDays = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    focusDays.push({ label: d.toLocaleDateString('en-US', { weekday: 'short' }), minutes: (state.pomodoroLog || []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0) });
+  }
   const ctx1 = document.getElementById('analyticsFocusChart')?.getContext('2d');
   if (ctx1) {
     if (focusChartInstance) focusChartInstance.destroy();
     focusChartInstance = new Chart(ctx1, {
       type: 'bar',
       data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        labels: focusDays.map(d => d.label),
         datasets: [{
           label: 'Minutes',
-          data: [50, 75, 45, 90, 60, 25, (state.pomodoroStats.totalMins || 0)],
+          data: focusDays.map(d => d.minutes),
           backgroundColor: '#0078D4',
           borderRadius: 6
         }]
@@ -3855,10 +4040,10 @@ function renderAnalyticsCharts() {
     taskDonutInstance = new Chart(ctx2, {
       type: 'doughnut',
       data: {
-        labels: ['To Do', 'In Progress', 'Review', 'Done'],
+        labels: (todo + prog + rev + done) ? ['To Do', 'In Progress', 'Review', 'Done'] : ['No tasks yet'],
         datasets: [{
-          data: [todo || 1, prog || 1, rev || 1, done || 1],
-          backgroundColor: ['#64748b', '#0078D4', '#f59e0b', '#10b981'],
+          data: (todo + prog + rev + done) ? [todo, prog, rev, done] : [1],
+          backgroundColor: (todo + prog + rev + done) ? ['#64748b', '#0078D4', '#f59e0b', '#10b981'] : ['#94a3b8'],
           borderWidth: 0
         }]
       },
@@ -3879,7 +4064,7 @@ function renderAnalyticsCharts() {
         labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Current Week'],
         datasets: [{
           label: 'Tasks Completed',
-          data: [4, 7, 5, 11, state.tasks.filter(t => t.stage === 'done').length],
+          data: [null, null, null, null, state.tasks.filter(t => t.stage === 'done').length], // no completion history is stored yet, so earlier weeks are left empty instead of invented
           borderColor: '#00B7C3',
           backgroundColor: 'rgba(0, 183, 195, 0.15)',
           tension: 0.35, fill: true
@@ -4314,6 +4499,13 @@ function normalizeEnterpriseNotes(notes) {
     pinned: Boolean(n.pinned), created: Number.isFinite(Number(n.created)) ? Number(n.created) : Date.now()
   }));
 }
+// Quick-start goals (same keys and timer defaults as Classic). `profile` lives in the shared root state.
+const ENTERPRISE_GOALS = {
+  study:    { label: 'Study and exams',          focus: 50, short: 10, home: ['pomodoro', 'tasks', 'notes', 'habits'] },
+  projects: { label: 'Projects and sprints',     focus: 25, short: 5,  home: ['tasks', 'pomodoro', 'notes', 'habits'] },
+  habits:   { label: 'Daily routine and habits', focus: 15, short: 3,  home: ['habits', 'pomodoro', 'tasks', 'notes'] },
+  explore:  { label: 'Just exploring',           focus: 25, short: 5,  home: ['tasks', 'pomodoro', 'habits', 'notes'] }
+};
 function classicRootToEnterprise(root, localPrefs = {}) {
   const saved = root && typeof root === 'object' ? root : {};
   const prefs = saved.enterpriseWorkspace && typeof saved.enterpriseWorkspace === 'object' ? saved.enterpriseWorkspace : {};
@@ -4321,13 +4513,19 @@ function classicRootToEnterprise(root, localPrefs = {}) {
   const log = Array.isArray(saved.pomodoroLog) ? saved.pomodoroLog.filter(x => x && /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || '')) && Number.isFinite(Number(x.minutes))) : [];
   const computedMinutes = log.reduce((n, item) => n + Math.max(0, Number(item.minutes) || 0), 0);
   const stats = pref.pomodoroStats || {};
+  // A goal chosen in the quick-start sets the focus timer once; after that the user's own timer settings win.
+  const goalKey = saved.profile && typeof saved.profile === 'object' ? saved.profile.goal : '';
+  const goalDef = Object.prototype.hasOwnProperty.call(ENTERPRISE_GOALS, goalKey) ? ENTERPRISE_GOALS[goalKey] : null;
+  const useGoalTimer = !!goalDef && pref.pomoGoalApplied !== goalKey;
   return {
     ...state,
     ...pref,
+    ...(useGoalTimer ? { pomoMode: 'focus' } : {}),
+    pomoGoalApplied: useGoalTimer ? goalKey : (pref.pomoGoalApplied || ''),
     tasks: Array.isArray(saved.tasks) ? saved.tasks.map(mapClassicTaskToEnterprise) : [],
     habits: Array.isArray(saved.habits) ? saved.habits.filter(h => h && typeof h === 'object').map(h => ({ ...h, checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Math.max(0, Number(h.streak) || 0) })) : [],
     notes: normalizeEnterpriseNotes(saved.notes),
-    pomodoroLog: log.map(l => ({ date: String(l.date), minutes: Math.max(0, Number(l.minutes) || 0) })),
+    pomodoroLog: log.map(l => ({ date: String(l.date), minutes: Math.max(0, Number(l.minutes) || 0), ...(l.taskId ? { taskId: String(l.taskId).slice(0, 80) } : {}) })),
     pomodoroStats: {
       totalMins: Math.max(0, Number.isFinite(Number(stats.totalMins)) ? Number(stats.totalMins) : computedMinutes),
       sessions: Math.max(0, Number.isFinite(Number(stats.sessions)) ? Number(stats.sessions) : log.length),
@@ -4344,8 +4542,8 @@ function classicRootToEnterprise(root, localPrefs = {}) {
     })(),
     density: ['comfortable', 'compact', 'spacious'].includes(pref.density) ? pref.density : 'comfortable',
     uiSoundEnabled: pref.uiSoundEnabled !== false,
-    pomoTimeRemaining: Math.max(0, Number(pref.pomoTimeRemaining) || 25 * 60),
-    pomoTotalTime: Math.max(60, Number(pref.pomoTotalTime) || 25 * 60),
+    pomoTimeRemaining: useGoalTimer ? goalDef.focus * 60 : Math.max(0, Number(pref.pomoTimeRemaining) || 25 * 60),
+    pomoTotalTime: useGoalTimer ? goalDef.focus * 60 : Math.max(60, Number(pref.pomoTotalTime) || 25 * 60),
     pomoRunning: false,
     activeChatId: typeof pref.activeChatId === 'string' ? pref.activeChatId : null,
     ambientTrack: ['none', 'rain', 'waves', 'cafe', 'forest', 'binaural'].includes(pref.ambientTrack) ? pref.ambientTrack : 'none'
@@ -4359,7 +4557,7 @@ function enterpriseToClassicRoot(existingRoot) {
   root.tasks = state.tasks.map(t => mapEnterpriseTaskToClassic({ ...(prevTasks.get(String(t.id)) || {}), ...t }));
   root.habits = state.habits.map(h => ({ ...(prevHabits.get(String(h.id)) || {}), ...h, checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Math.max(0, Number(h.streak) || 0) }));
   root.notes = normalizeEnterpriseNotes(state.notes).map(n => ({ ...(prevNotes.get(String(n.id)) || {}), ...n }));
-  root.pomodoroLog = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || ''))).map(l => ({ date: String(l.date), minutes: Math.max(0, Number(l.minutes) || 0) }));
+  root.pomodoroLog = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || ''))).map(l => ({ date: String(l.date), minutes: Math.max(0, Number(l.minutes) || 0), ...(l.taskId ? { taskId: String(l.taskId).slice(0, 80) } : {}) }));
   const nowDate = localDateKey();
   const todayLog = root.pomodoroLog.filter(l => l.date === nowDate);
   root.pomodoroStats = {
@@ -4376,7 +4574,7 @@ function enterpriseToClassicRoot(existingRoot) {
     uiSoundEnabled: state.uiSoundEnabled !== false,
     pomodoroStats: { ...state.pomodoroStats },
     pomoTimeRemaining: state.pomoTimeRemaining, pomoTotalTime: state.pomoTotalTime,
-    pomoMode: state.pomoMode, ambientTrack: state.ambientTrack,
+    pomoMode: state.pomoMode, ambientTrack: state.ambientTrack, pomoGoalApplied: state.pomoGoalApplied || '',
     activeChatId: state.activeChatId || null
   };
   return root;
@@ -4412,7 +4610,7 @@ function mergeById(remote, local, base) {
   return out; // deleted here (in base, not in local) are not carried over
 }
 function mergeLogs(remote, local, base) {
-  const key = l => `${l.date}|${l.minutes}`;
+  const key = l => `${l.date}|${l.minutes}|${l.taskId || ''}`;
   const counts = new Map();
   (Array.isArray(base) ? base : []).forEach(l => counts.set(key(l), (counts.get(key(l)) || 0) + 1));
   const seen = new Map(), added = [];
@@ -4478,7 +4676,7 @@ function enterpriseSetStateFromLocal(raw) {
 }
 function enterprisePrefsFromLocal(raw) {
   if (!raw || typeof raw !== 'object') return {};
-  const keys = ['theme','density','enterpriseThemeDefaultMigrated','uiSoundEnabled','pomodoroStats','pomoTimeRemaining','pomoTotalTime','pomoMode','ambientTrack','activeChatId'];
+  const keys = ['theme','density','enterpriseThemeDefaultMigrated','uiSoundEnabled','pomodoroStats','pomoTimeRemaining','pomoTotalTime','pomoMode','ambientTrack','activeChatId','pomoGoalApplied'];
   const out = {};
   for (const key of keys) if (raw[key] !== undefined) out[key] = raw[key];
   return out;
@@ -4568,6 +4766,15 @@ function scheduleEnterpriseCloudSave(delay = 700) {
     showToast('Workspace is saved locally, but cloud sync failed. Please try again.');
   }); }, delay);
 }
+// A starter set seeded on this screen after another screen already answered the question: take the account's version
+// of every starter item (its edits, or its deletion), so a stale tab cannot undo them.
+function dropStaleStarterItems(next, remote) {
+  const isStarter = x => /^qs-/.test(String(x && x.id));
+  for (const key of ['tasks', 'habits', 'notes']) {
+    const theirs = new Map((Array.isArray(remote[key]) ? remote[key] : []).map(x => [String(x.id), x]));
+    next[key] = (next[key] || []).filter(x => !isStarter(x) || theirs.has(String(x.id))).map(x => isStarter(x) ? theirs.get(String(x.id)) : x);
+  }
+}
 function buildMergedRoot(remoteRoot) {
   const next = enterpriseToClassicRoot(remoteRoot);                     // top-level settings, Enterprise prefs
   const baseRoot = enterpriseSession.rootState || {};
@@ -4582,6 +4789,9 @@ function buildMergedRoot(remoteRoot) {
   const todayLog = next.pomodoroLog.filter(l => l.date === nowDate);
   next.pomodoroStats = { ...(next.pomodoroStats || {}), totalToday: todayLog.reduce((sum, l) => sum + (Number(l.minutes) || 0), 0), sessionsToday: todayLog.length, lastDate: todayLog.length ? nowDate : ((next.pomodoroStats && next.pomodoroStats.lastDate) || '') };
   if (!next.notes.some(n => n.id === next.currentNoteId)) next.currentNoteId = next.notes[0]?.id || null;
+  if (enterpriseSession.pendingProfile && enterpriseSession.pendingProfile.seededItems && remoteRoot && remoteRoot.seeded) dropStaleStarterItems(next, remote);
+  // Quick-start answer given on this screen (never overrides one already saved from Classic or another device)
+  if (enterpriseSession.pendingProfile && (enterpriseSession.pendingProfile.force || !(remoteRoot && remoteRoot.profile))) { next.profile = enterpriseSession.pendingProfile.profile; next.seeded = true; }
   // Recently deleted: what this screen deleted, plus what the account already holds (minus anything undone here)
   const dropped = enterpriseSession.dropTrash || new Set();
   next.trash = pruneTrash([...(enterpriseSession.pendingTrash || []), ...(Array.isArray(remoteRoot && remoteRoot.trash) ? remoteRoot.trash : [])].filter(e => e && !dropped.has(e.id)));
@@ -4610,6 +4820,7 @@ async function persistEnterpriseWorkspace() {
     const changed = adoptMergedIntoState(next);
     localStorage.setItem(ENTERPRISE_GUEST_STATE, JSON.stringify(next));
     enterpriseSession.pendingTrash = [];
+    enterpriseSession.pendingProfile = null;
     enterpriseSession.rootState = next;
     enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(next));
     if (changed) showRemoteChanges();
@@ -4638,6 +4849,7 @@ async function persistEnterpriseWorkspace() {
     if (!putResponse.ok) throw new Error(result.error || `Workspace save failed (${putResponse.status})`);
     enterpriseSession.lastError = '';
     enterpriseSession.pendingTrash = (enterpriseSession.pendingTrash || []).filter(e => !sentTrash.has(e.id)); // delivered
+    enterpriseSession.pendingProfile = null;
     try { localStorage.removeItem('nexos_pending_sync_v2_user_' + enterpriseHash(enterpriseSession.user?.email || enterpriseSession.user?._id || enterpriseSession.user?.id)); } catch (_) {}
     updateEnterpriseConnectionBadge();
     if (changed) showRemoteChanges();
@@ -4646,6 +4858,88 @@ async function persistEnterpriseWorkspace() {
     enterpriseSession.rootState = previousRoot; enterpriseSession.baseCanon = previousBase; // nothing was written: keep the old baseline
     throw err;
   } finally { enterpriseSession.saving = false; }
+}
+// ---- Quick-start (Enterprise): same question as Classic, answered here for brand-new empty workspaces ----
+function enterpriseProfile() {
+  const p = enterpriseSession.rootState && enterpriseSession.rootState.profile;
+  return p && typeof p === 'object' ? p : null;
+}
+function renderQuickStartCard() {
+  const card = document.getElementById('qs-card');
+  if (!card) return;
+  const canAsk = (enterpriseSession.mode === 'account' || enterpriseSession.mode === 'guest') && enterpriseSession.ready
+    && !enterpriseProfile() && !state.tasks.length && !state.habits.length && !state.notes.length;
+  card.hidden = !canAsk;
+  const box = document.getElementById('qs-card-choices');
+  if (canAsk && box && !box.childElementCount) {
+    box.innerHTML = Object.keys(ENTERPRISE_GOALS).map(k => `<button type="button" class="btn-primary" onclick="enterpriseQuickStart('${k}')">${escapeHtml(ENTERPRISE_GOALS[k].label)}</button>`).join('');
+  }
+}
+function applyEnterpriseHomeOrder() {
+  const p = enterpriseProfile();
+  const g = ENTERPRISE_GOALS[p && p.goal] || ENTERPRISE_GOALS.explore;
+  g.home.forEach((key, i) => { const el = document.querySelector('.dashboard-grid [data-widget="' + key + '"]'); if (el) el.style.order = String(i); });
+  const sel = document.getElementById('setup-goal-select');
+  if (sel) sel.value = ENTERPRISE_GOALS[p && p.goal] ? p.goal : '';
+}
+// Change the goal later from Enterprise Settings: timer + dashboard order only, tasks/habits/notes are never touched.
+function enterpriseChangeGoal(goal) {
+  const g = ENTERPRISE_GOALS[goal];
+  if (!g) return;
+  const profile = { goal, at: Date.now() };
+  state.pomoGoalApplied = goal;
+  if (!state.pomoRunning) {
+    state.pomoMode = 'focus'; state.pomoTotalTime = g.focus * 60; state.pomoTimeRemaining = state.pomoTotalTime;
+  }
+  syncGoalTimerInputs();
+  enterpriseSession.rootState = { ...(enterpriseSession.rootState || {}), profile };
+  enterpriseSession.pendingProfile = { profile, force: true };
+  saveWorkspaceState();
+  renderAllViews();
+  showToast('Updated for ' + g.label.toLowerCase() + '.');
+}
+function enterpriseStarterItems(goal) {
+  const now = Date.now(), g = ENTERPRISE_GOALS[goal] || ENTERPRISE_GOALS.explore, mins = g.focus;
+  let ti = 0, hi = 0; // fixed ids: two tabs seeding the same workspace merge into the same items
+  const T = (title, stage, priority, desc) => ({ id: 'qs-t' + (++ti), sample: true, title, stage, priority, desc, due: '', created: now, tags: [], subtasks: [] });
+  const H = (name, color) => ({ id: 'qs-h' + (++hi), sample: true, name, color, checks: {}, streak: 0 });
+  const sets = {
+    study: { tasks: [T('Write down your exams and their dates', 'todo', 'high', 'Open a task and add a due date.'), T('Plan this week\'s revision', 'todo', 'medium', 'One topic per day. Add each topic as its own task.'), T('Do one ' + mins + '-minute focus session', 'todo', 'high', 'Open Focus and press play. It is set to ' + mins + '/' + g.short + ' for studying.'), T('Move this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.')],
+             habits: [H('Study for 2 hours', '#4285F4'), H('Revise notes for 15 minutes', '#34A853'), H('Sleep before 11 pm', '#FBBC04')] },
+    projects: { tasks: [T('Write what "done" means for your project', 'todo', 'high', 'One or two sentences is enough.'), T('Break it into 3 small tasks', 'todo', 'medium', 'Add each one on the board.'), T('Do one ' + mins + '-minute sprint', 'todo', 'high', 'Open Focus and press play.'), T('Move this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.')],
+                habits: [H('Review your board for 5 minutes', '#4285F4'), H('Ship or commit something small', '#34A853')] },
+    habits: { tasks: [T('Pick 3 habits you want to keep', 'todo', 'high', 'Open Habits and add them. Start small.'), T('Tick today\'s habits before bed', 'todo', 'medium', 'A streak grows for every day you tick a habit.'), T('Try a ' + mins + '-minute focus session', 'todo', 'low', 'Open Focus and press play.')],
+              habits: [H('Drink water', '#4285F4'), H('Walk for 15 minutes', '#34A853'), H('Read for 10 minutes', '#FBBC04'), H('Sleep on time', '#A142F4')] },
+    explore: { tasks: [T('Add your first task', 'todo', 'medium', 'Use the board to add a task.'), T('Start a ' + mins + '-minute focus session', 'todo', 'high', 'Open Focus and press play.'), T('Move this card to Done', 'inprogress', 'low', 'Drag cards between columns to track progress.')],
+               habits: [H('Drink water', '#4285F4'), H('Read for 10 minutes', '#34A853')] }
+  };
+  const set = sets[goal] || sets.explore;
+  return { tasks: set.tasks, habits: set.habits, notes: [{ id: 'qs-n1', sample: true, title: 'Welcome to NexOS', content: 'A quick tour:\n\n- Kanban: plan tasks and move cards across stages.\n- Focus: work in ' + mins + '-minute sessions.\n- Habits: tick habits every day to build streaks.\n- Notes: like this one. Edit or delete it any time.\n- NexAI: ask for a plan, priorities or a summary.\n\nSample items can be removed with "Clear sample data" in Classic.', tags: ['welcome'], pinned: true, created: now }] };
+}
+function syncGoalTimerInputs() {
+  const g = ENTERPRISE_GOALS[state.pomoGoalApplied];
+  if (!g) return;
+  const f = document.getElementById('cfg-focus-min'), sh = document.getElementById('cfg-short-min');
+  if (f) f.value = g.focus;
+  if (sh) sh.value = g.short;
+}
+function enterpriseQuickStart(goal) {
+  const g = ENTERPRISE_GOALS[goal] ? goal : '';
+  if (enterpriseProfile() || state.tasks.length || state.habits.length || state.notes.length) { renderQuickStartCard(); return; }
+  const items = enterpriseStarterItems(g || 'explore');
+  state.tasks = items.tasks; state.habits = items.habits; state.notes = items.notes; state.currentNoteId = items.notes[0].id;
+  if (g) {
+    state.pomoGoalApplied = g; state.pomoMode = 'focus';
+    state.pomoTotalTime = ENTERPRISE_GOALS[g].focus * 60; state.pomoTimeRemaining = state.pomoTotalTime;
+    syncGoalTimerInputs();
+    try { pausePomodoro(); } catch (_) {}
+  }
+  const profile = { goal: g, at: Date.now() };
+  enterpriseSession.rootState = { ...(enterpriseSession.rootState || {}), profile, seeded: true };
+  enterpriseSession.pendingProfile = { profile, seededItems: true };
+  saveWorkspaceState();
+  renderAllViews();
+  showToast(g ? 'Workspace set up for ' + ENTERPRISE_GOALS[g].label.toLowerCase() + '.' : 'Skipped. Starter items added.');
 }
 function saveWorkspaceState() {
   try { localStorage.setItem(enterpriseLocalKey(), JSON.stringify(state)); } catch (e) { console.warn('Enterprise local save failed:', e); }

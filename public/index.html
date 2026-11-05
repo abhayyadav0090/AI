@@ -27,8 +27,8 @@
   })();
 </script>
 <style>
-  #task-modal, #search-modal, #plan-modal, #profile-modal, #shortcuts-modal { display: none !important; }
-  #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open, #shortcuts-modal.is-open { display: flex !important; }
+  #task-modal, #search-modal, #plan-modal, #profile-modal, #shortcuts-modal, #quickstart-modal { display: none !important; }
+  #task-modal.is-open, #search-modal.is-open, #plan-modal.is-open, #profile-modal.is-open, #shortcuts-modal.is-open, #quickstart-modal.is-open { display: flex !important; }
 </style>
 </head>
 <body>
@@ -230,6 +230,7 @@
                 <span class="mini-session-label" id="mini-session-label">Focus</span>
               </div>
             </div>
+            <div class="pomo-task-slot" aria-live="polite"></div>
           </div>
 
           <div class="widget widget-habits">
@@ -350,6 +351,7 @@
                 <div class="pomo-mode-label" id="pomo-mode-label">Focus Session</div>
               </div>
             </div>
+            <div class="pomo-task-slot" aria-live="polite"></div>
             <div class="pomo-controls">
               <button class="pomo-btn pomo-reset" onclick="resetPomodoro()" title="Reset">↺</button>
               <button class="pomo-btn pomo-play" id="pomo-play-btn" onclick="togglePomodoro()">▶</button>
@@ -513,6 +515,7 @@
               <div class="score-value" id="score-value">—</div>
             </div>
             <p class="score-desc" id="score-desc">Complete tasks, focus sessions, and habits to build your score.</p>
+            <ul class="score-milestones" id="score-milestones" hidden></ul>
           </div>
 
           <div class="analytics-card wide">
@@ -661,6 +664,23 @@
   </div>
 </div>
 
+<!-- QUICK-START -->
+<div class="modal-overlay" id="quickstart-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="qs-title">
+    <div class="modal-header">
+      <h3 id="qs-title">What will you use NexOS for?</h3>
+    </div>
+    <div class="modal-body">
+      <p class="view-subtitle" id="qs-subtitle" style="margin-bottom:12px"></p>
+      <div class="qs-choices" id="qs-choices" role="radiogroup" aria-label="What will you use NexOS for?"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button type="button" class="btn-outline" id="qs-skip" onclick="finishQuickStart(true)">Skip</button>
+      <button type="button" class="btn-primary" id="qs-go" onclick="finishQuickStart(false)" disabled>Set up my workspace</button>
+    </div>
+  </div>
+</div>
+
 <!-- PROFILE + SETTINGS MODAL -->
 <div class="modal-overlay" id="profile-modal" style="display:none" onclick="closeProfile(event)">
   <div class="modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
@@ -725,6 +745,14 @@
           <button type="button" id="save-reminder-time" class="btn-outline" onclick="saveTaskReminderTime()">Save reminders</button>
         </div>
         <button type="button" class="btn-sm" onclick="enableNotifications()"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>Allow browser notifications</button>
+      </div>
+
+      <div class="profile-section">
+        <h4>Your setup</h4>
+        <div class="profile-row">
+          <span class="profile-help" id="profile-goal-text"></span>
+          <button type="button" class="btn-sm" onclick="openQuickStart('rerun')">Change…</button>
+        </div>
       </div>
 
       <div class="profile-section">
