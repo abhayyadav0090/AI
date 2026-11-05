@@ -97,3 +97,23 @@ assert.strictEqual(kept.length, 1, 'only the one valid, recent, unique entry sho
 assert.strictEqual(kept[0].id, 'ok');
 assert.strictEqual(J2(context.pruneTrash(Array.from({ length: 50 }, (_, i) => ({ id: 'e' + i, kind: 'note', item: { id: 'n' + i }, deletedAt: nowMs - i })))).length, 30, 'at most 30 entries are kept');
 console.log('Recently deleted rules passed.');
+
+// ---- Quick-start goal: sets the focus timer once, then the user's own timer wins; profile survives a save ----
+{
+  const J3 = v => JSON.parse(JSON.stringify(v));
+  const study = J3(context.classicRootToEnterprise({ profile: { goal: 'study', at: 1 } }, {}));
+  assert.strictEqual(study.pomoTotalTime, 50 * 60, 'study goal should default the focus timer to 50 minutes');
+  assert.strictEqual(study.pomoGoalApplied, 'study');
+  const later = J3(context.classicRootToEnterprise({ profile: { goal: 'study', at: 1 } }, { pomoGoalApplied: 'study', pomoTotalTime: 30 * 60, pomoTimeRemaining: 30 * 60 }));
+  assert.strictEqual(later.pomoTotalTime, 30 * 60, 'a timer the user changed after the goal was applied must be kept');
+  const none = J3(context.classicRootToEnterprise({}, {}));
+  assert.strictEqual(none.pomoTotalTime, 25 * 60, 'no goal keeps the 25-minute default');
+  const odd = J3(context.classicRootToEnterprise({ profile: { goal: '__proto__' } }, {}));
+  assert.strictEqual(odd.pomoTotalTime, 25 * 60, 'an unknown goal is ignored');
+  context.state = context.classicRootToEnterprise({ profile: { goal: 'habits', at: 1 }, seeded: true }, {});
+  const saved = context.enterpriseToClassicRoot({ profile: { goal: 'habits', at: 1 }, seeded: true });
+  assert.strictEqual(saved.profile.goal, 'habits', 'profile must survive an Enterprise save');
+  assert.strictEqual(saved.seeded, true);
+  assert.strictEqual(saved.enterpriseWorkspace.pomoGoalApplied, 'habits');
+  console.log('Quick-start goal rules (Enterprise) passed.');
+}
