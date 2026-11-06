@@ -23,6 +23,23 @@ Returns server health status.
 
 ---
 
+## `GET /api/bootstrap`
+
+Returns the authenticated user's public identity and current workspace state in one request. This is used by the Classic and Enterprise startup flows to avoid serial `/api/me` and `/api/state` requests.
+
+**Response 200:**
+```json
+{
+  "user": { "_id": "...", "name": "...", "email": "...", "picture": "..." },
+  "state": null
+}
+```
+`state` is the saved workspace object or `null` for a new account. Requires the existing httpOnly login cookie. The endpoint does not modify or migrate workspace data.
+
+## `GET /api/state` and `PUT /api/state`
+
+Read or replace the authenticated user's workspace object. `GET` returns `{ "state": object | null }`; `PUT` accepts `{ "state": object }` and returns `{ "ok": true }`. Existing clients can continue using these endpoints; `GET /api/bootstrap` is an additional startup optimisation.
+
 ## `POST /api/chat`
 
 Sends one message to NexAI (Gemini). The server saves your message and the reply, so chats survive refreshes. Requires login. Nothing is saved if the AI call fails.
@@ -133,3 +150,9 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 - `GET/PUT /api/push/preferences` now include `timeZone` (an IANA name such as `Asia/Kolkata`). Reminders are evaluated in that zone; the default is `Asia/Kolkata`.
 - `POST /api/auth/logout` and `GET /api/push/config` no longer wait for the database.
 - `DELETE /api/me` also signs out every device (cookies issued before deletion are rejected).
+
+
+## Changes in 3.0.0
+- Added `GET /api/bootstrap` to return user identity and saved workspace in one authenticated startup request.
+- Workspace reads now return lean MongoDB results and select only the stored data field.
+- Versioned static assets can be cached immutably; application HTML is briefly cached with stale-while-revalidate.

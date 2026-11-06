@@ -107,8 +107,19 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true,
   maxAge: 0,
   setHeaders: (res, file) => {
-    // Code and pages revalidate on every load (cheap 304s); images and icons can be cached.
-    res.setHeader('Cache-Control', /\.(png|svg|ico|webp|woff2?)$/i.test(file) ? 'public, max-age=604800' : 'no-cache');
+    // Versioned assets can be reused without a network revalidation. HTML stays briefly
+    // fresh so a new release is picked up quickly; unversioned code always revalidates.
+    const requestUrl = res.req && (res.req.originalUrl || res.req.url) || '';
+    const versioned = /[?&]v=3\.0\.0(?:&|$)/.test(requestUrl);
+    if (versioned && /\.(?:js|css|png|svg|ico|webp|woff2?)$/i.test(file)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\.html?$/i.test(file)) {
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    } else if (/\.(png|svg|ico|webp|woff2?)$/i.test(file)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
   },
 }));
 
@@ -123,7 +134,7 @@ function connectDB() {
   return dbPromise;
 }
 
-const DB_ROUTES = ['/auth', '/me', '/state', '/push', '/chat', '/chats', '/complete'];
+const DB_ROUTES = ['/auth', '/me', '/bootstrap', '/state', '/push', '/chat', '/chats', '/complete'];
 app.use('/api', async (req, res, next) => {
   const p = req.path;
   if (p === '/auth/logout' || p === '/push/config') return next();
@@ -208,11 +219,14 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Not logged in' });
   }
   try {
-    const user = await User.findById(id).select('sessionsValidAfter').lean();
+    // Keep the small public identity fields from this same lookup so the initial
+    // bootstrap does not need a second User query just to display the account.
+    const user = await User.findById(id).select('sessionsValidAfter name email picture').lean();
     if (!user || (user.sessionsValidAfter && issuedAt < user.sessionsValidAfter.getTime())) {
       res.clearCookie('token');
       return res.status(401).json({ error: 'Not logged in' });
     }
+    req.authUser = user;
   } catch (err) {
     console.error('Auth check failed:', err.message);
     return res.status(503).json({ error: 'Database unavailable' });
@@ -257,9 +271,18 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/me', requireAuth, wrap(async (req, res) => {
-  const user = await User.findById(req.userId).select('name email picture');
-  if (!user) return res.status(401).json({ error: 'User not found' });
-  res.json(user);
+  const { _id, name, email, picture } = req.authUser;
+  res.json({ _id, name, email, picture });
+}));
+
+// Initial signed-in page load: return identity and workspace in one HTTP round trip.
+// Classic and Enterprise keep /api/me and /api/state for backwards compatibility.
+app.get('/api/bootstrap', requireAuth, wrap(async (req, res) => {
+  // This response is user-specific and must never be cached by a shared intermediary.
+  res.setHeader('Cache-Control', 'private, no-store');
+  const { _id, name, email, picture } = req.authUser;
+  const workspace = await UserState.findOne({ userId: req.userId }).select('data').lean();
+  res.json({ user: { _id, name, email, picture }, state: workspace ? workspace.data : null });
 }));
 
 // Profile: change the display name
@@ -296,7 +319,7 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
 }));
 
 app.get('/api/state', requireAuth, wrap(async (req, res) => {
-  const doc = await UserState.findOne({ userId: req.userId });
+  const doc = await UserState.findOne({ userId: req.userId }).select('data').lean();
   res.json({ state: doc ? doc.data : null });
 }));
 
@@ -739,13 +762,16 @@ app.use('/api', (req, res) => {
 
 // Two experiences share one account and one set of data: Classic (the default) and Enterprise.
 app.get(['/classic', '/classic/'], (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 app.get(['/enterprise', '/enterprise/', '/redesign', '/redesign/'], (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.sendFile(path.join(__dirname, 'public', 'index-redesign.html'));
 });
 
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

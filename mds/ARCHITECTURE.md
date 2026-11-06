@@ -134,3 +134,16 @@ Event Handler (in app.js)
 - [ ] Multi-user mode with JWT auth
 - [ ] PostgreSQL backend for data persistence
 - [ ] Mobile app via Capacitor
+
+
+## NexOS 3.0.0 performance decisions
+
+- **Single startup bootstrap:** signed-in Classic and Enterprise pages use `GET /api/bootstrap` to fetch the public account identity and workspace snapshot in one HTTP request. The existing `/api/me` and `/api/state` endpoints remain available for compatibility and later sync operations.
+- **Lean read-only queries:** authentication and workspace reads use Mongoose `lean()` results; workspace reads select only `data`.
+- **On-demand charts:** Chart.js is fetched the first time Analytics is opened rather than during initial page loading. Enterprise celebration confetti is fetched only after the first completed task.
+- **No unused pointer work:** the former Enterprise mouse spotlight performed a document-wide card scan and layout reads on every mouse event, while its generated CSS variables were unused; that work has been removed.
+- **Scoped dialog observers:** mutation observers watch dialog roots rather than every class/style change across the full document.
+- **Static asset caching:** versioned CSS/JS assets use immutable caching, while HTML uses a short cache lifetime so deployments are picked up promptly.
+- **Reduced background updates:** Enterprise's visible clock refreshes every 15 seconds (the display shows minutes) and independent non-critical startup requests run concurrently.
+
+These changes target identified avoidable work. Runtime improvements should still be measured in the deployed browser using DevTools Performance and Network panels, since this source-only environment cannot reproduce each user's device, browser extensions, network, or Render latency.

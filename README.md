@@ -8,6 +8,8 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, a focus timer, a habit tracker, notes and analytics with NexAI, an assistant powered by Google Gemini that can see your tasks and habits.
 
+**Current source release: 3.0.0.** This release focuses on faster startup and everyday interactions: one-request account/workspace bootstrap, on-demand analytics charts, scoped dialog observers, reduced pointer-event work and versioned static asset caching.
+
 **Live demo:** https://ai-aqit.onrender.com
 The demo runs on a free server, so the first load can take up to a minute.
 

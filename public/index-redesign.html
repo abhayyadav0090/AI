@@ -13,9 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-<script src="/push-client.js" defer></script>
+<script src="/push-client.js?v=3.0.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1699,6 +1697,18 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 }
 .toast-bubble { display: flex; align-items: center; gap: 8px; }
 .toast-bubble .toast-undo { margin-left: 10px; padding: 5px 14px; border: 1px solid var(--accent-primary); border-radius: var(--radius-full); background: transparent; color: var(--accent-primary); font: inherit; font-weight: 600; cursor: pointer; }
+/* Keep glass styling on capable desktop screens; reduce full-screen blur work on phones. */
+@media (max-width: 768px) {
+  .sidebar, .topbar, .ambient-canvas, .ambient-blob-1, .ambient-blob-2,
+  .floating-copilot-drawer, .mob-bottom-nav {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .ambient-canvas { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob-1, .ambient-blob-2, .ai-sparkle-icon { animation: none !important; }
+}
 </style>
 <script>
   (function () {
@@ -1709,7 +1719,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json?v=3.0.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -2665,11 +2675,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   initClock();
   applyNexusTheme(state.theme);
   applyDensity(state.density || 'comfortable');
-  initMouseSpotlight();
   renderAllViews();
   renderCalendarTimeline();
-  await loadEnterpriseChatHistory();
-  await loadEnterpriseReminderPreferences();
+  // These are independent, non-critical startup requests. Run them together rather
+  // than making the reminder preferences wait for chat history (or vice versa).
+  await Promise.allSettled([loadEnterpriseChatHistory(), loadEnterpriseReminderPreferences()]);
   updateEnterpriseConnectionBadge();
 });
 
@@ -2683,34 +2693,31 @@ function uid() {
 
 // Clock & Greetings
 function initClock() {
+  let lastGreeting = '';
+  let lastDate = '';
   const update = () => {
     const now = new Date();
     const clockEl = document.getElementById('live-clock-display');
     if (clockEl) clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     const hrs = now.getHours();
     const greet = hrs < 12 ? 'morning' : hrs < 17 ? 'afternoon' : 'evening';
-    const greetEl = document.getElementById('dash-greeting-time');
-    if (greetEl) greetEl.textContent = greet;
+    if (greet !== lastGreeting) {
+      const greetEl = document.getElementById('dash-greeting-time');
+      if (greetEl) greetEl.textContent = greet;
+      lastGreeting = greet;
+    }
 
-    const dateEl = document.getElementById('dash-date-string');
-    if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const dateKey = localDateKey(now);
+    if (dateKey !== lastDate) {
+      const dateEl = document.getElementById('dash-date-string');
+      if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      lastDate = dateKey;
+    }
   };
   update();
-  setInterval(update, 1000);
-}
-
-// Mouse spotlight on cards
-function initMouseSpotlight() {
-  document.addEventListener('mousemove', e => {
-    document.querySelectorAll('.kpi-card, .dash-card, .task-card, .habit-row-card').forEach(card => {
-      const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      card.style.setProperty('--mouse-x', `${x}px`);
-      card.style.setProperty('--mouse-y', `${y}px`);
-    });
-  });
+  // The clock only displays minutes; updating every second was needless repeated work.
+  setInterval(update, 15000);
 }
 
 // Navigation
@@ -2740,6 +2747,7 @@ function switchNexusView(name) {
   if (titleEl) titleEl.textContent = currentViewTitle;
   document.title = `${currentViewTitle} · NexOS Enterprise`;
   if (name === 'analytics') renderAnalyticsCharts();
+  else enterpriseAnalyticsRenderToken++;
   if (name === 'calendar') renderCalendarTimeline();
   closeSidebarDrawer();
   closePrefsPopover();
@@ -3077,6 +3085,27 @@ function moveTaskStage(id, delta) {
   }
 }
 
+let enterpriseConfettiLoadPromise = null;
+function playCompletionConfetti(options = { particleCount: 40, spread: 60, origin: { y: 0.8 } }) {
+  if (window.confetti) {
+    window.confetti(options);
+    return;
+  }
+  if (!enterpriseConfettiLoadPromise) {
+    enterpriseConfettiLoadPromise = new Promise(resolve => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js';
+      script.async = true;
+      script.onload = () => resolve(!!window.confetti);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+  enterpriseConfettiLoadPromise.then(loaded => {
+    if (loaded && window.confetti) window.confetti(options);
+  });
+}
+
 function toggleTaskDone(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
@@ -3087,7 +3116,7 @@ function toggleTaskDone(id) {
   renderCalendarTimeline();
   if (task.stage === 'done') {
     playHarmonicChime();
-    if (window.confetti) confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
+    playCompletionConfetti();
   } else {
     playTactileClick();
   }
@@ -3437,7 +3466,7 @@ function completePomodoroInterval() {
     focusLogSession(mins);
     saveWorkspaceState();
     showToast(`Focus session completed! +${mins}m deep work logged.`);
-    if (window.confetti) confetti();
+    playCompletionConfetti();
     setPomodoroMode('short');
   } else {
     showToast('Break finished! Ready for next focus session.');
@@ -3672,7 +3701,7 @@ function toggleHabitCheck(id, dateStr) {
   if (habit.checks[dateStr]) {
     playHarmonicChime();
     showToast(`Checked off "${habit.name}"!`);
-    if (window.confetti && dateStr === today()) confetti({ particleCount: 30, spread: 50 });
+    if (dateStr === today()) playCompletionConfetti({ particleCount: 30, spread: 50 });
   } else {
     playTactileClick();
   }
@@ -3989,9 +4018,29 @@ function renderEnterpriseScore() {
     m.items.map(i => '<li class="' + (i.done ? 'done' : '') + '"><span aria-hidden="true">' + (i.done ? '\u2713' : '\u25CB') + '</span> ' + escapeHtml(i.label) + '</li>').join('');
 }
 
-function renderAnalyticsCharts() {
+let enterpriseChartLoadPromise = null;
+let enterpriseAnalyticsRenderToken = 0;
+function ensureEnterpriseChartLibrary() {
+  if (window.Chart) return Promise.resolve(true);
+  if (enterpriseChartLoadPromise) return enterpriseChartLoadPromise;
+  enterpriseChartLoadPromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    script.async = true;
+    script.onload = () => resolve(!!window.Chart);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return enterpriseChartLoadPromise;
+}
+
+async function renderAnalyticsCharts() {
+  const renderToken = ++enterpriseAnalyticsRenderToken;
   renderEnterpriseScore();
-  if (!window.Chart) return;
+  if (!window.Chart) {
+    const loaded = await ensureEnterpriseChartLibrary();
+    if (!loaded || renderToken !== enterpriseAnalyticsRenderToken || !document.getElementById('pane-analytics')?.classList.contains('active')) return;
+  }
 
   const isDark = document.documentElement.getAttribute('data-theme').includes('dark');
   const textColor = isDark ? '#94a3b8' : '#475569';
@@ -4685,17 +4734,18 @@ function enterprisePrefsFromLocal(raw) {
 async function loadWorkspaceState() {
   const localEnterprise = readJSONStorage(ENTERPRISE_LOCAL_STATE);
   try {
-    const meResponse = await fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' });
-    if (meResponse.ok) {
+    // Identity and state arrive together. The old startup path made two serial network
+    // trips and repeated the authentication database lookup before the workspace appeared.
+    const bootstrapResponse = await fetch('/api/bootstrap', { credentials: 'same-origin', cache: 'no-store' });
+    if (bootstrapResponse.ok) {
+      const payload = await bootstrapResponse.json();
       enterpriseSession.mode = 'account';
-      enterpriseSession.user = await meResponse.json();
+      enterpriseSession.user = payload.user;
       setEnterpriseCacheKey();
       const localAccountRoot = readJSONStorage(`nexos_cache_v2_user_${enterpriseHash(enterpriseSession.user.email || enterpriseSession.user._id || enterpriseSession.user.id)}`);
       const localEnterpriseAccount = readJSONStorage(enterpriseSession.cacheKey);
       try {
-        const serverResponse = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
-        if (!serverResponse.ok) throw new Error(`Workspace read failed (${serverResponse.status})`);
-        const payload = await serverResponse.json();
+        if (!Object.prototype.hasOwnProperty.call(payload, 'state')) throw new Error('Workspace data was not included in the bootstrap response.');
         if (payload.state && typeof payload.state === 'object') {
           enterpriseSession.rootState = payload.state;
           state = classicRootToEnterprise(payload.state, enterprisePrefsFromLocal(localEnterpriseAccount));
@@ -5273,10 +5323,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const opened = new Map();
   const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const focusables = el => [...el.querySelectorAll('a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && visible(x));
-  new MutationObserver(list => {
-    for (const m of list) {
-      const el = m.target;
-      if (!el.classList || !el.classList.contains('modal-overlay-backdrop')) continue;
+  const overlayObserver = new MutationObserver(records => {
+    for (const record of records) {
+      const el = record.target;
       const isOpen = el.classList.contains('open');
       if (isOpen && !opened.has(el)) {
         opened.set(el, document.activeElement);
@@ -5286,7 +5335,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (prev && prev.isConnected && prev.focus && visible(prev)) prev.focus({ preventScroll: true });
       }
     }
-  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  // The dialog roots are static in this document; observe just those six elements.
+  document.querySelectorAll('.modal-overlay-backdrop').forEach(overlay => {
+    overlayObserver.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+  });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Tab') return;
     const overlay = [...opened.keys()].pop(); if (!overlay) return;

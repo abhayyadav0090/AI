@@ -197,9 +197,14 @@
       if (prev && prev.isConnected && prev.focus && visible(prev)) prev.focus();
     }
   }
-  new MutationObserver(list => {
-    for (const m of list) { const t = m.target; if (t.classList && t.classList.contains('modal-overlay')) syncOverlay(t); }
-  }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+  // Only modal roots can affect dialog focus. Watching every class/style mutation in
+  // the entire application created avoidable observer work during navigation and renders.
+  const overlayObserver = new MutationObserver(records => {
+    for (const record of records) syncOverlay(record.target);
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlayObserver.observe(overlay, { attributes: true, attributeFilter: ['class', 'style'] });
+  });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Tab') return;
     const overlay = [...opened.keys()].pop();

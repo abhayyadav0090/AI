@@ -1,5 +1,5 @@
 /* NexOS service worker: task-reminder push notifications plus an offline fallback for the app shell. */
-const CACHE = 'nexos-shell-v3';
+const CACHE = 'nexos-shell-v4';
 
 self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', (event) => event.waitUntil((async () => {

@@ -65,6 +65,7 @@ let state = {
 };
 
 let currentUser = null;
+let initialBootstrapPayload = null;
 let saveTimer = null;
 let wipingLocalData = false; // true while the profile panel is deleting data, so nothing gets saved back
 
@@ -210,7 +211,7 @@ function clearPendingSyncFlag() {
   try { localStorage.removeItem(PENDING_SYNC_KEY); } catch (_) {}
 }
 
-async function loadState() {
+async function loadState(bootstrapPayload = null) {
   if (isGuest()) {
     stateLoadedOk = true;
     try {
@@ -221,10 +222,17 @@ async function loadState() {
   }
   stateLoadedOk = false;
   try {
-    const res = await fetch('/api/state', { credentials: 'same-origin' });
-    if (!res.ok) throw new Error('status ' + res.status);
-    const { state: saved } = await res.json();
-    stateLoadedOk = true;
+    let saved;
+    if (bootstrapPayload && Object.prototype.hasOwnProperty.call(bootstrapPayload, 'state')) {
+      saved = bootstrapPayload.state;
+      stateLoadedOk = true;
+    } else {
+      const res = await fetch('/api/state', { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const payload = await res.json();
+      saved = payload.state;
+      stateLoadedOk = true;
+    }
 
     const cached = localStorage.getItem(CACHE_KEY);
     const hasPendingLocalChanges = localStorage.getItem(PENDING_SYNC_KEY) === '1';
@@ -366,9 +374,13 @@ document.addEventListener('visibilitychange', () => {
 async function checkLogin() {
   const LAST_USER = 'nexos_last_user_v1';
   try {
-    const res = await fetch('/api/me');
+    let res = await fetch('/api/bootstrap', { credentials: 'same-origin', cache: 'no-store' });
+    // Support an older backend during a rolling deployment or local development.
+    if (res.status === 404) res = await fetch('/api/me', { credentials: 'same-origin' });
     if (res.ok) {
-      const user = await res.json();
+      const payload = await res.json();
+      const user = payload.user || payload;
+      if (payload.user && Object.prototype.hasOwnProperty.call(payload, 'state')) initialBootstrapPayload = payload;
       try { localStorage.setItem(LAST_USER, JSON.stringify({ name: user.name, email: user.email, picture: user.picture })); } catch (_) {}
       return user;
     }
@@ -498,7 +510,9 @@ async function startApp(user) {
   document.getElementById('app').style.display = '';
   showUser(user);
   if (window.NexUI) NexUI.setSync(user.guest ? 'local' : 'saving');
-  await loadState();
+  const bootstrap = initialBootstrapPayload;
+  initialBootstrapPayload = null;
+  await loadState(bootstrap);
   if (window.NexUI && !user.guest) NexUI.setSync(stateLoadedOk ? 'saved' : 'offline');
   // Starter data is offered only once per account. A brand-new workspace first gets the quick-start
   // question; the workspace stays unseeded until it is answered or skipped, so closing the tab does not lose it.
@@ -1759,24 +1773,46 @@ function themeToken(name, fallback) {
   return value || fallback;
 }
 
-function renderAnalytics() {
-  if (!document.getElementById('view-analytics')?.classList.contains('active')) return; // drawn when the view opens
+let classicChartLoadPromise = null;
+let classicAnalyticsRenderToken = 0;
+function ensureClassicChartLibrary() {
+  if (window.Chart) return Promise.resolve(true);
+  if (classicChartLoadPromise) return classicChartLoadPromise;
+  classicChartLoadPromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    script.async = true;
+    script.onload = () => resolve(!!window.Chart);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return classicChartLoadPromise;
+}
+
+async function renderAnalytics() {
+  if (!document.getElementById('view-analytics')?.classList.contains('active')) return;
+  const renderToken = ++classicAnalyticsRenderToken;
   const rawDays = parseInt(document.getElementById('analytics-range')?.value || 7, 10);
   const days = [7, 14, 30].includes(rawDays) ? rawDays : 7;
-  if (typeof window.Chart !== 'undefined') {
+  if (!window.Chart) {
+    const loaded = await ensureClassicChartLibrary();
+    if (renderToken !== classicAnalyticsRenderToken || !document.getElementById('view-analytics')?.classList.contains('active')) return;
+    if (!loaded) {
+      ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (canvas && canvas.parentElement && !canvas.parentElement.querySelector('.chart-unavailable')) {
+          const msg = document.createElement('div'); msg.className = 'chart-unavailable empty-state';
+          msg.textContent = 'Charts could not load. Check your connection and refresh.';
+          canvas.parentElement.appendChild(msg);
+        }
+      });
+    }
+  }
+  if (window.Chart) {
     document.querySelectorAll('.chart-unavailable').forEach(el => el.remove());
     renderFocusChart(days);
     renderTaskDonut();
     renderVelocityChart(days);
-  } else {
-    ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
-      const canvas = document.getElementById(id);
-      if (canvas && canvas.parentElement && !canvas.parentElement.querySelector('.chart-unavailable')) {
-        const msg = document.createElement('div'); msg.className = 'chart-unavailable empty-state';
-        msg.textContent = 'Charts could not load. Check your connection and refresh.';
-        canvas.parentElement.appendChild(msg);
-      }
-    });
   }
   renderHabitBars();
   renderProductivityScore();
