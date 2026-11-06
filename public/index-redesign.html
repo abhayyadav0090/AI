@@ -1252,7 +1252,8 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
   align-items: center; justify-content: center; padding: 16px;
   background: rgba(0, 0, 0, 0.68); backdrop-filter: blur(10px);
 }
-.modal-overlay-backdrop.open { display: flex; animation: modalIn 0.2s ease-out; }
+.modal-overlay-backdrop.open { display: flex; animation: modalIn 0.2s ease-out; overscroll-behavior: contain; }
+.modal-dialog-card { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 .modal-dialog-card {
   width: min(580px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto;
@@ -2776,6 +2777,7 @@ const MOBILE_PRIMARY_VIEWS = ['dashboard', 'kanban', 'habits', 'focus', 'notes']
 let currentViewTitle = 'Dashboard';
 function switchNexusView(name) {
   if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
+  const previousPane = document.querySelector('.view-pane.active')?.id;
   playTactileClick();
   document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
   document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
@@ -2798,6 +2800,7 @@ function switchNexusView(name) {
   if (name === 'calendar') renderCalendarTimeline();
   closeSidebarDrawer();
   closePrefsPopover();
+  if (previousPane !== 'pane-' + name) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }
 }
 
 function isDrawerLayout() { return window.innerWidth <= 992; }
@@ -4415,8 +4418,21 @@ document.addEventListener('keydown', e => {
 });
 
 // Modal Helpers
-function openModal(id) { document.getElementById(id)?.classList.add('open'); }
-function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+// Lock the document behind Enterprise dialogs without preventing the dialog card from scrolling.
+let enterpriseModalScroll = { locked: false, y: 0, x: 0 };
+function syncEnterpriseModalScroll() {
+  const open = !!document.querySelector('.modal-overlay-backdrop.open');
+  const lock = enterpriseModalScroll;
+  if (open && !lock.locked) {
+    lock.y = window.scrollY || document.documentElement.scrollTop || 0; lock.x = window.scrollX || 0; lock.locked = true;
+    document.body.style.position = 'fixed'; document.body.style.top = `-${lock.y}px`; document.body.style.left = `-${lock.x}px`; document.body.style.width = '100%';
+  } else if (!open && lock.locked) {
+    lock.locked = false; document.body.style.position = ''; document.body.style.top = ''; document.body.style.left = ''; document.body.style.width = '';
+    window.scrollTo(lock.x, lock.y);
+  }
+}
+function openModal(id) { document.getElementById(id)?.classList.add('open'); syncEnterpriseModalScroll(); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); syncEnterpriseModalScroll(); }
 function handleBackdropClick(e, id) { if (e.target.id === id) closeModal(id); }
 
 // Toast Helper

@@ -2,11 +2,7 @@
 
 
 
-![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)
-![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-22d3ee?style=flat-square)
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white) ![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square) ![License](https://img.shields.io/badge/License-MIT-22d3ee?style=flat-square)
 
 
 
@@ -14,7 +10,7 @@ NexOS is a web workspace for planning your day and staying focused. It combines 
 
 
 
-**Current source release: 3.0.1.** This maintenance release focuses on faster mobile startup and smoother interactions, with cache-first workspace rendering, synchronised Enterprise dashboard values, in-place Recently Deleted navigation and a lighter mobile visual-effects profile.
+**Current source release: 3.0.2.** The 3.0 series focuses on performance, mobile responsiveness and reliable navigation while preserving existing NexOS features and workspace data.
 
 
 
@@ -546,44 +542,8 @@ They use the same sign-in and the same data. Shortcuts in Enterprise: `Alt+1` to
 
 
 
-## Performance and responsiveness (3.0.0)
+## NexOS 3.0 release series
 
-
-
-NexOS 3.0.0 focuses on making everyday interactions faster without removing existing features or changing the Classic and Enterprise experiences.
-
-
-
-Highlights:
-
-
-
-- Combined account and workspace loading through the startup bootstrap endpoint.
-
-- Analytics charts load on demand instead of adding unnecessary work to initial startup.
-
-- Confetti and other non-critical resources are loaded only when needed.
-
-- Reduced unnecessary pointer-event calculations in Enterprise.
-
-- Restricted dialog observers to relevant UI changes.
-
-- Improved static asset caching through versioned asset URLs.
-
-- Reduced unnecessary background updates and repeated work.
-
-
-
-The aim is to make startup, navigation and ordinary interactions feel more responsive while preserving the existing workspace, account and authentication behaviour.
-
-
-
-See the [NexOS 3.0.0 release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.0.md).
-
----
-
-## Speed and responsiveness (3.0.1)
-
-NexOS 3.0.1 improves mobile startup with account-scoped local-cache rendering, keeps Enterprise greetings and KPI summaries aligned with the displayed workspace, preserves theme and experience when opening Recently Deleted, and reduces expensive blur and animation work on phones. Existing workspace data and desktop styling are preserved.
-
-See the [NexOS 3.0.1 release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.1.md).
+- **3.0.0 — Performance foundation:** Added a unified authenticated bootstrap, leaner database reads, lazy-loaded analytics resources, scoped observers and versioned asset caching. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.0.md)
+- **3.0.1 — Speed & Responsiveness:** Added account-scoped cache-first startup, aligned Enterprise dashboard hydration, improved Recently Deleted navigation and reduced costly mobile visual effects. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.1.md)
+- **3.0.2 — Scroll Fix:** Isolated modal scrolling from the page background, reset new Classic and Enterprise views to the top, and preserved the page position when dialogs close. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.2.md)

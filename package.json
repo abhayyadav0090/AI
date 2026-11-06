@@ -1,6 +1,6 @@
 {
   "name": "nexos-ai-productivity-os",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "NexOS \u2014 AI-powered productivity workspace",
   "main": "server.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for vanilla JS frontend'",
     "lint": "eslint server.js",
-    "test": "node --check server.js && node --check public/app.js && node --check public/ui.js && node --check public/push-client.js && node --check public/sw.js && node scripts/check-enterprise-inline.js && node scripts/test-enterprise-bridge.js && node scripts/test-quickstart.js && node scripts/test-day1.js && node scripts/test-focus-task.js && node scripts/test-settings.js && node scripts/test-performance-v3.js",
+    "test": "node --check server.js && node --check public/app.js && node --check public/ui.js && node --check public/push-client.js && node --check public/sw.js && node scripts/check-enterprise-inline.js && node scripts/test-enterprise-bridge.js && node scripts/test-quickstart.js && node scripts/test-day1.js && node scripts/test-focus-task.js && node scripts/test-settings.js && node scripts/test-performance-v3.js && node scripts/test-scroll-fix.js",
     "generate:vapid": "node scripts/generate-vapid-keys.js"
   },
   "keywords": [

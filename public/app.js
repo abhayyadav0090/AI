@@ -983,8 +983,27 @@ function toggleTheme() {
   if (window.NexUI) NexUI.setTheme(next);
 }
 
+// Keep the page behind any Classic modal stationary while allowing the modal itself to scroll.
+(() => {
+  let locked = false, savedY = 0, savedX = 0;
+  const sync = () => {
+    const open = !!document.querySelector('.modal-overlay.is-open, .modal-overlay-backdrop.open, .nexos-recover-overlay');
+    if (open && !locked) {
+      savedY = window.scrollY || document.documentElement.scrollTop || 0; savedX = window.scrollX || 0; locked = true;
+      document.body.style.position = 'fixed'; document.body.style.top = `-${savedY}px`; document.body.style.left = `-${savedX}px`; document.body.style.width = '100%';
+    } else if (!open && locked) {
+      locked = false; document.body.style.position = ''; document.body.style.top = ''; document.body.style.left = ''; document.body.style.width = '';
+      window.scrollTo(savedX, savedY);
+    }
+  };
+  new MutationObserver(sync).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('DOMContentLoaded', sync);
+  sync();
+})();
+
 // ═══════════════════════════ VIEW SWITCHING ═══════════════════════════
 function switchView(name) {
+  const previousView = document.querySelector('.view.active')?.id;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const view = document.getElementById('view-' + name);
@@ -1001,6 +1020,8 @@ function switchView(name) {
   if (name === 'ai') updateContextPanel();
   // Close the mobile drawer after navigation.
   if (window.innerWidth < 900) closeSidebar();
+  // A different primary view starts at its own top; reselecting the active view preserves position.
+  if (previousView !== 'view-' + name) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }
 }
 
 function toggleSidebar() {
