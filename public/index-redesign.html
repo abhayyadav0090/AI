@@ -592,6 +592,7 @@ body {
   background: var(--bg-card); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md); padding: var(--card-padding, 20px); display: flex; flex-direction: column;
 }
+#qs-card[hidden] { display: none; } /* .dash-card sets display:flex, which would otherwise ignore the hidden attribute */
 .dash-card-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
 }

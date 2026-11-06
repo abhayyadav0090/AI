@@ -175,6 +175,13 @@
           </div>
         </div>
 
+        <div class="setup-card" id="home-setup-card" hidden>
+          <div class="setup-card-head">
+            <div><strong>Set up NexOS for your goal</strong><span>Sets your focus timer and the order of Home. Your data is not touched.</span></div>
+            <button type="button" class="btn-sm" onclick="homeSetupDismiss()">Not now</button>
+          </div>
+          <div class="setup-card-choices" id="home-setup-choices"></div>
+        </div>
         <div class="guest-banner" id="guest-banner" style="display:none"></div>
         <div class="guide-card" id="guide-card" style="display:none"></div>
 
@@ -697,98 +704,112 @@
         </div>
       </div>
 
-      <div class="profile-section" id="profile-name-section">
+      <div class="profile-section ps-flat" id="profile-name-section">
         <label>Display name
-          <input type="text" id="profile-name-input" class="modal-input" maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')saveDisplayName()">
+          <input type="text" id="profile-name-input" class="modal-input" maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')saveDisplayName()" oninput="syncNameSave()">
         </label>
         <div class="profile-row">
           <span class="profile-msg" id="profile-name-msg"></span>
-          <button class="btn-primary" id="profile-name-save" onclick="saveDisplayName()">Save name</button>
+          <button class="btn-sm" id="profile-name-save" onclick="saveDisplayName()" hidden>Save name</button>
         </div>
       </div>
 
-      <div class="profile-section" id="profile-appearance">
-        <h4>Appearance</h4>
-        <p class="profile-help">Pick the look you prefer. NexOS can follow Google’s Material design or Apple’s glass design.</p>
-        <div class="design-picker" role="group" aria-label="Design">
-          <button type="button" class="design-card" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">
-            <span class="design-preview dp-google"><i></i><i></i><i></i></span>
-            <span class="design-name">Google</span><span class="design-sub">Material 3, rounded and tonal</span>
-          </button>
-          <button type="button" class="design-card" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">
-            <span class="design-preview dp-apple"><i></i><i></i><i></i></span>
-            <span class="design-name">Apple</span><span class="design-sub">Liquid glass, soft and translucent</span>
-          </button>
-        </div>
-        <div class="seg seg-wide" role="group" aria-label="Theme">
-          <button type="button" class="seg-btn" data-theme-pick="light" onclick="NexUI.setTheme('light')"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
-          <button type="button" class="seg-btn" data-theme-pick="dark" onclick="NexUI.setTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
-          <button type="button" class="seg-btn" data-theme-pick="system" onclick="NexUI.setTheme('system')"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Match device</button>
-        </div>
-      </div>
-
-      <div class="profile-section" id="profile-experience">
-        <h4>Experience</h4>
-        <p class="profile-help">Classic is the simple version. Enterprise adds a calendar, a focus studio and more. Both use the same account and data.</p>
-        <div class="seg seg-wide" role="group" aria-label="Experience">
-          <span class="seg-btn active" aria-current="page">Classic</span>
-          <a class="seg-btn" href="/enterprise" style="text-decoration:none">Enterprise</a>
-        </div>
-      </div>
-
-      <div class="profile-section" id="profile-reminders-section">
-        <h4>Reminders</h4>
-        <p class="profile-help">Get a notification when tasks are due or overdue. Time zone: <strong id="reminder-zone">Asia/Kolkata</strong> (updates to this device when you save).</p>
-        <label class="switch-row"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Remind me about due tasks</span></label>
-        <div class="profile-row" id="task-reminder-time-wrap">
-          <label class="inline-label">Daily at <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"></label>
-          <button type="button" id="save-reminder-time" class="btn-outline" onclick="saveTaskReminderTime()">Save reminders</button>
-        </div>
-        <button type="button" class="btn-sm" onclick="enableNotifications()"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>Allow browser notifications</button>
-      </div>
-
-      <div class="profile-section">
-        <h4>Your setup</h4>
+      <div class="profile-section ps-flat ps-setup" id="profile-setup-section">
         <div class="profile-row">
-          <span class="profile-help" id="profile-goal-text"></span>
+          <div class="ps-setup-text"><span class="ps-title">Your setup</span><span class="ps-sum" id="profile-goal-text"></span></div>
           <button type="button" class="btn-sm" onclick="openQuickStart('rerun')">Change…</button>
         </div>
       </div>
 
-      <div class="profile-section">
-        <h4>Your data</h4>
-        <p class="profile-help" id="profile-data-help"></p>
-        <div class="profile-row">
-          <span class="profile-msg" id="profile-download-msg"></span>
-          <button class="btn-outline" id="profile-download-btn" onclick="downloadMyData()"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Download my data</button>
+      <details class="profile-section ps-fold" id="profile-appearance">
+        <summary><span class="ps-title">Appearance</span><span class="ps-sum" id="ps-sum-look"></span></summary>
+        <div class="ps-body">
+          <p class="profile-help desk-only">Pick the look you prefer. NexOS can follow Google’s Material design or Apple’s glass design.</p>
+          <div class="design-picker desk-only" role="group" aria-label="Design">
+            <button type="button" class="design-card" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">
+              <span class="design-preview dp-google"><i></i><i></i><i></i></span>
+              <span class="design-name">Google</span><span class="design-sub">Material 3, rounded and tonal</span>
+            </button>
+            <button type="button" class="design-card" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">
+              <span class="design-preview dp-apple"><i></i><i></i><i></i></span>
+              <span class="design-name">Apple</span><span class="design-sub">Liquid glass, soft and translucent</span>
+            </button>
+          </div>
+          <p class="profile-help mob-only">Google is rounded and tonal. Apple is soft and translucent.</p>
+          <div class="seg seg-wide mob-only" role="group" aria-label="Design">
+            <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Google</button>
+            <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Apple</button>
+          </div>
+          <div class="seg seg-wide" role="group" aria-label="Theme">
+            <button type="button" class="seg-btn" data-theme-pick="light" onclick="NexUI.setTheme('light')"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
+            <button type="button" class="seg-btn" data-theme-pick="dark" onclick="NexUI.setTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
+            <button type="button" class="seg-btn" data-theme-pick="system" onclick="NexUI.setTheme('system')"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Match device</button>
+          </div>
         </div>
-        <div class="profile-row" id="profile-trash-row">
-          <span class="profile-help">Deleted something by mistake? Kept for 30 days.</span>
-          <a class="btn-sm" href="/recover.html">Recently deleted…</a>
-        </div>
-        <div class="profile-row">
-          <span class="profile-help">Backup file (JSON)</span>
-          <span class="btn-pair">
-            <button type="button" class="btn-sm" onclick="exportData()"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Export</button>
-            <button type="button" class="btn-sm" onclick="document.getElementById('import-file-input').click()"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>Restore</button>
-          </span>
-        </div>
-        <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
-      </div>
+      </details>
 
-      <div class="profile-section profile-danger" id="profile-guest-section">
-        <h4>Guest data</h4>
-        <p class="profile-help">Removes everything NexOS saved in this browser for guest mode: tasks, habits, notes and focus history. Download your data first if you want to keep it.</p>
-        <button class="btn-danger" onclick="clearGuestData()">Clear guest data on this device</button>
-      </div>
+      <details class="profile-section ps-fold" id="profile-experience">
+        <summary><span class="ps-title">Experience</span><span class="ps-sum">Classic</span></summary>
+        <div class="ps-body">
+          <p class="profile-help">Classic is the simple version. Enterprise adds a calendar, a focus studio and more. Both use the same account and data.</p>
+          <div class="seg seg-wide" role="group" aria-label="Experience">
+            <span class="seg-btn active" aria-current="page">Classic</span>
+            <a class="seg-btn" href="/enterprise" style="text-decoration:none">Enterprise</a>
+          </div>
+        </div>
+      </details>
 
-      <div class="profile-section profile-danger" id="profile-delete-section">
-        <h4>Delete account data</h4>
-        <p class="profile-help">Permanently deletes your tasks, habits, notes, focus history, NexAI chats and reminder subscriptions. This cannot be undone. Your Google name, email and photo record stays on the server so you can sign in again; ask the site owner if you want it removed too. Type DELETE to confirm.</p>
-        <input type="text" id="profile-delete-input" class="modal-input" placeholder="Type DELETE" autocomplete="off" aria-label="Type DELETE to confirm" oninput="updateDeleteButton()">
-        <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete my data</button>
-        <span class="profile-msg error" id="profile-delete-msg"></span>
-      </div>
+      <details class="profile-section ps-fold" id="profile-reminders-section">
+        <summary><span class="ps-title">Reminders</span><span class="ps-sum" id="ps-sum-reminders"></span></summary>
+        <div class="ps-body">
+          <label class="switch-row"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Remind me about due tasks</span></label>
+          <div class="ps-sub" id="task-reminder-time-wrap">
+            <p class="profile-help">Time zone: <strong id="reminder-zone">Asia/Kolkata</strong> (updates to this device when you save).</p>
+            <div class="profile-row">
+              <label class="inline-label">Daily at <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"></label>
+              <button type="button" id="save-reminder-time" class="btn-outline" onclick="saveTaskReminderTime()">Save time</button>
+            </div>
+            <button type="button" class="btn-sm" onclick="enableNotifications()"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>Allow browser notifications</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="profile-section ps-fold" id="profile-data-section">
+        <summary><span class="ps-title">Your data</span><span class="ps-sum">Download, restore, deleted items</span></summary>
+        <div class="ps-body">
+          <p class="profile-help" id="profile-data-help"></p>
+          <div class="profile-row">
+            <span class="profile-msg" id="profile-download-msg"></span>
+            <span class="btn-pair">
+              <button class="btn-outline" id="profile-download-btn" onclick="downloadMyData()"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Download my data</button>
+              <button type="button" class="btn-sm" onclick="document.getElementById('import-file-input').click()"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>Restore</button>
+            </span>
+          </div>
+          <div class="profile-row" id="profile-trash-row">
+            <span class="profile-help">Deleted something by mistake? Kept for 30 days.</span>
+            <a class="btn-sm" href="/recover.html">Recently deleted…</a>
+          </div>
+          <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
+        </div>
+      </details>
+
+      <details class="profile-section profile-danger ps-fold" id="profile-guest-section">
+        <summary><span class="ps-title">Guest data</span></summary>
+        <div class="ps-body">
+          <p class="profile-help">Removes everything NexOS saved in this browser for guest mode: tasks, habits, notes and focus history. Download your data first if you want to keep it.</p>
+          <button class="btn-danger" onclick="clearGuestData()">Clear guest data on this device</button>
+        </div>
+      </details>
+
+      <details class="profile-section profile-danger ps-fold" id="profile-delete-section">
+        <summary><span class="ps-title">Delete account data</span></summary>
+        <div class="ps-body">
+          <p class="profile-help">Permanently deletes your tasks, habits, notes, focus history, NexAI chats and reminder subscriptions. This cannot be undone. Your Google name, email and photo record stays on the server so you can sign in again; ask the site owner if you want it removed too. Type DELETE to confirm.</p>
+          <input type="text" id="profile-delete-input" class="modal-input" placeholder="Type DELETE" autocomplete="off" aria-label="Type DELETE to confirm" oninput="updateDeleteButton()">
+          <button class="btn-danger" id="profile-delete-btn" onclick="deleteAccount()" disabled>Delete my data</button>
+          <span class="profile-msg error" id="profile-delete-msg"></span>
+        </div>
+      </details>
     </div>
   </div>
 </div>

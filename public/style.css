@@ -1019,3 +1019,38 @@ body.light-theme .modal-overlay { background: var(--overlay); }
 .pomo-task-clear { font: inherit; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 0 4px; }
 .dash-task-focus { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 10px; line-height: 1; }
 .dash-task-focus:hover, .dash-task-focus:focus-visible { color: var(--text-primary); }
+
+
+/* ---------- Settings: folded sections and Home setup card (2.5.9) ---------- */
+.profile-modal [hidden] { display: none !important; }
+html details.profile-section.ps-fold { display: block; padding: 0; }
+.ps-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 0; }
+.ps-fold > summary::-webkit-details-marker { display: none; }
+.ps-fold > summary::after { content: ''; flex: none; width: 8px; height: 8px; margin-left: 2px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); opacity: .55; transition: transform .15s; }
+.ps-fold[open] > summary::after { transform: rotate(45deg); }
+.ps-fold > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 8px; }
+.ps-title { font-weight: 600; font-size: 15px; color: inherit; }
+.ps-sum { margin-left: auto; font-size: 13px; text-align: right; opacity: .7; }
+.ps-setup .ps-setup-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ps-setup .ps-sum { margin-left: 0; text-align: left; }
+.ps-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
+.ps-sub { display: flex; flex-direction: column; gap: 10px; }
+.profile-danger .ps-title { color: var(--accent-rose, var(--danger, #d93025)); }
+.setup-card { border: 1px solid var(--glass-border, var(--outline, rgba(128,128,128,.35))); border-radius: 14px; padding: 12px 14px; margin: 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.setup-card[hidden] { display: none; }
+.setup-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.setup-card-head > div { display: flex; flex-direction: column; gap: 2px; }
+.setup-card-head span { font-size: 13px; opacity: .75; }
+.setup-card-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Laptop (901px and wider): the full, open layout. Phone: folded rows and compact buttons. */
+@media (min-width: 901px) {
+  .ps-fold > summary { cursor: default; min-height: 0; padding: 0 0 10px; }
+  .ps-fold > summary::after, .ps-fold > summary .ps-sum { display: none; }
+  .mob-only { display: none !important; }
+}
+@media (max-width: 900px) {
+  .desk-only { display: none !important; }
+}
+html details.profile-section.ps-fold { padding-top: 14px; }
+@media (max-width: 900px) { html details.profile-section.ps-fold { padding-top: 0; } }

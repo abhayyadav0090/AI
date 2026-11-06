@@ -525,7 +525,7 @@ async function startApp(user) {
   closeSidebar();
   await loadTaskReminderTime();
   const reminderToggle = document.getElementById('task-reminders-enabled');
-  if (reminderToggle && !reminderToggle.dataset.bound) { reminderToggle.addEventListener('change', updateTaskReminderControls); reminderToggle.dataset.bound = '1'; }
+  if (reminderToggle && !reminderToggle.dataset.bound) { reminderToggle.addEventListener('change', () => { updateTaskReminderControls(); saveTaskReminderTime(); }); reminderToggle.dataset.bound = '1'; }
   updateTaskReminderControls();
   checkDueNotifications();
   if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
@@ -601,6 +601,60 @@ function applyProfileTimer() {
   put('focus-duration', g.timer.focus); put('short-duration', g.timer.short); put('long-duration', g.timer.long);
   updateDurations();
 }
+// Same split the stylesheets use: 901px and wider is a laptop, anything narrower is a phone or small tablet.
+function settingsIsWide() { try { return window.matchMedia('(min-width: 901px)').matches; } catch (_) { return false; } }
+function applySettingsLayout() {
+  const modal = document.getElementById('profile-modal');
+  if (!modal) return;
+  const wide = settingsIsWide();
+  modal.classList.toggle('settings-wide', wide);
+  modal.querySelectorAll('details.ps-fold').forEach(d => { d.open = wide; }); // laptop: every section open, like before; phone: short list
+}
+function appearanceSummary(design, theme) {
+  return (design === 'apple' ? 'Apple' : 'Google') + ' · ' + (theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'Match device');
+}
+function reminderSummary(on, time) {
+  return on ? 'On, daily at ' + (/^([01]\d|2[0-3]):[0-5]\d$/.test(time || '') ? time : '09:00') : 'Off';
+}
+// Existing accounts (already seeded) that never answered the quick-start get a one-time card on Home.
+function needsHomeSetup(st) { return !!st && st.seeded === true && !st.profile; }
+function renderHomeSetupCard() {
+  const card = document.getElementById('home-setup-card');
+  if (!card) return;
+  const modalOpen = !!document.getElementById('quickstart-modal')?.classList.contains('is-open');
+  const show = needsHomeSetup(state) && !modalOpen;
+  card.hidden = !show;
+  const box = document.getElementById('home-setup-choices');
+  if (show && box && !box.childElementCount) {
+    box.innerHTML = Object.entries(GOALS).map(([key, g]) => `<button type="button" class="chip" onclick="homeSetupPick('${key}')">${g.label}</button>`).join('');
+  }
+}
+function homeSetupPick(key) {
+  if (!GOALS[key]) return;
+  quickStartMode = 'rerun'; quickStartPick = key; // layout only: tasks, habits and notes are never touched
+  finishQuickStart(false);
+}
+function homeSetupDismiss() {
+  state.profile = { goal: '', at: Date.now() };
+  saveState();
+  renderHomeSetupCard();
+  notify('You can set this up any time in Settings.');
+}
+function refreshProfileSummaries() {
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const active = kind => document.querySelector('#profile-appearance [data-' + kind + '-pick].active');
+  set('ps-sum-look', appearanceSummary(active('design')?.dataset.designPick, active('theme')?.dataset.themePick));
+  const on = document.getElementById('task-reminders-enabled'), time = document.getElementById('task-reminder-time');
+  set('ps-sum-reminders', reminderSummary(!!on && on.checked, time && time.value));
+  set('profile-goal-text', goalSummary(state && state.profile && state.profile.goal));
+}
+function syncNameSave() {
+  const input = document.getElementById('profile-name-input'), btn = document.getElementById('profile-name-save');
+  if (!input || !btn) return;
+  const clean = input.value.replace(/\s+/g, ' ').trim();
+  btn.hidden = !clean || clean === ((currentUser && currentUser.name) || '');
+  if (!btn.hidden) setProfileMsg('profile-name-msg', '', false);
+}
 function goalSummary(goal) {
   const g = GOALS[goal];
   return g ? g.label + ' (focus ' + g.timer.focus + '/' + g.timer.short + ' min)' : 'Standard layout (not chosen)';
@@ -639,6 +693,7 @@ function closeQuickStart() { document.getElementById('quickstart-modal')?.classL
 function renderAllAfterQuickStart() {
   renderDashboard(); renderKanban(); renderHabits(); renderNotes(); renderAnalytics();
   renderPomTimer(); renderPomoStats(); updateContextPanel();
+  refreshProfileSummaries();
 }
 async function finishQuickStart(skip) {
   const rerun = quickStartMode === 'rerun';
@@ -898,6 +953,7 @@ function completeTask(id) {
 
 function renderDashboard() {
   applyHomeOrder();
+  renderHomeSetupCard();
   updateStats();
   renderGuestBanner();
   renderGuide();
@@ -2207,7 +2263,8 @@ function updateTaskReminderControls() {
   const input = document.getElementById('task-reminder-time');
   const wrap = document.getElementById('task-reminder-time-wrap');
   if (input) input.disabled = !!enabled && !enabled.checked;
-  if (wrap) wrap.classList.toggle('is-off', !!enabled && !enabled.checked);
+  if (wrap) { wrap.classList.toggle('is-off', !!enabled && !enabled.checked); wrap.hidden = !!enabled && !enabled.checked; }
+  refreshProfileSummaries();
 }
 
 async function loadTaskReminderTime() {
@@ -2421,10 +2478,21 @@ function renderProfile() {
   show('profile-trash-row', !guest);
   if (window.NexUI) NexUI.syncAppearanceControls();
   show('profile-guest-section', guest);
-  const goalText = document.getElementById('profile-goal-text');
-  if (goalText) goalText.textContent = goalSummary(state.profile && state.profile.goal);
   const nameInput = document.getElementById('profile-name-input');
   if (nameInput) nameInput.value = currentUser.name || '';
+  syncNameSave();
+  const pm = document.getElementById('profile-modal');
+  if (pm && !pm.dataset.sumBound) { // keep the one-line summaries current after any tap or change inside Settings
+    pm.addEventListener('click', e => {
+      const sum = e.target.closest && e.target.closest('summary');
+      if (sum && settingsIsWide()) e.preventDefault(); // on a laptop the sections stay open
+      setTimeout(refreshProfileSummaries, 0);
+    });
+    try { window.matchMedia('(min-width: 901px)').addEventListener('change', () => { if (pm.classList.contains('is-open')) applySettingsLayout(); }); } catch (_) { /* old browser: layout is set each time Settings opens */ }
+    pm.addEventListener('change', () => setTimeout(refreshProfileSummaries, 0));
+    pm.dataset.sumBound = '1';
+  }
+  refreshProfileSummaries();
   const delInput = document.getElementById('profile-delete-input');
   if (delInput) delInput.value = '';
   updateDeleteButton();
@@ -2435,6 +2503,7 @@ function openProfile() {
   const modal = document.getElementById('profile-modal');
   if (!modal || !currentUser) return;
   renderProfile();
+  applySettingsLayout();
   closeSidebar(); // closes the drawer, its backdrop and the scroll lock together
   modal.classList.add('is-open');
 }
@@ -2468,6 +2537,7 @@ async function saveDisplayName() {
     showUser(currentUser);
     setProfileText('profile-name-text', currentUser.name);
     if (input) input.value = currentUser.name;
+    syncNameSave();
     setProfileMsg('profile-name-msg', 'Saved ✓', false);
   } catch (e) {
     setProfileMsg('profile-name-msg', 'Could not save your name. Please try again.', true);
