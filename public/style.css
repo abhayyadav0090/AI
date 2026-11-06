@@ -1054,3 +1054,56 @@ html details.profile-section.ps-fold { display: block; padding: 0; }
 }
 html details.profile-section.ps-fold { padding-top: 14px; }
 @media (max-width: 900px) { html details.profile-section.ps-fold { padding-top: 0; } }
+
+
+/* NexOS 3.0.1 — keep scrolling surfaces cheap on phones without flattening the whole design. */
+@media (max-width: 768px) {
+  html[data-design="apple"] .stat-card,
+  html[data-design="apple"] .widget,
+  html[data-design="apple"] .guide-card,
+  html[data-design="apple"] .analytics-card,
+  html[data-design="apple"] .pomo-stat-card,
+  html[data-design="apple"] .pomo-settings,
+  html[data-design="apple"] .notes-sidebar,
+  html[data-design="apple"] .note-editor,
+  html[data-design="apple"] .ai-chat-area,
+  html[data-design="apple"] .ai-context-panel,
+  html[data-design="apple"] .task-card,
+  html[data-design="apple"] .tl-row,
+  html[data-design="apple"] .habit-row,
+  html[data-design="apple"] .kanban-col,
+  html[data-design="apple"] .ask-box,
+  html[data-design="apple"] .toast {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html[data-design="apple"] .bottom-nav {
+    -webkit-backdrop-filter: blur(8px) saturate(125%) !important;
+    backdrop-filter: blur(8px) saturate(125%) !important;
+  }
+  html[data-design="apple"] .modal,
+  html[data-design="apple"] .menu-pop {
+    -webkit-backdrop-filter: blur(8px) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  .sidebar-backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+.nexos-recover-overlay {
+  position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: rgba(8, 8, 12, .62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.nexos-recover-frame {
+  width: min(760px, 100%); height: min(820px, 88dvh); border: 0; border-radius: 22px;
+  background: #121216; box-shadow: 0 24px 90px rgba(0,0,0,.42);
+}
+.nexos-recover-close {
+  position: absolute; z-index: 1; top: max(20px, calc(env(safe-area-inset-top) + 10px)); right: max(20px, calc(env(safe-area-inset-right) + 10px));
+  border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 14px;
+  background: rgba(30,30,36,.92); color: #fff; font: inherit; cursor: pointer;
+}
+@media (max-width: 768px) {
+  .nexos-recover-overlay { padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .nexos-recover-frame { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .nexos-recover-close { top: max(12px, env(safe-area-inset-top)); right: 12px; }
+}

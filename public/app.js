@@ -44,6 +44,7 @@ const LEGACY_CACHE_KEY = 'nexos_cache_v2';
 const LEGACY_PENDING_SYNC_KEY = 'nexos_pending_sync_v2';
 let CACHE_KEY = LEGACY_CACHE_KEY;
 let PENDING_SYNC_KEY = LEGACY_PENDING_SYNC_KEY;
+let CACHE_REVISION_KEY = 'nexos_cache_revision_v1';
 let stateLoadedOk = false;
 let clockTimer = null;
 let dueNotificationTimer = null;
@@ -200,6 +201,7 @@ function setAccountStorageKeys(user) {
   const suffix = storageHash(identity);
   CACHE_KEY = `nexos_cache_v2_user_${suffix}`;
   PENDING_SYNC_KEY = `nexos_pending_sync_v2_user_${suffix}`;
+  CACHE_REVISION_KEY = `${CACHE_KEY}_server_revision_v1`;
 }
 
 function cacheState() {
@@ -209,6 +211,13 @@ function cacheState() {
 
 function clearPendingSyncFlag() {
   try { localStorage.removeItem(PENDING_SYNC_KEY); } catch (_) {}
+}
+
+function rememberServerRevision(value) {
+  try {
+    const stamp = value ? new Date(value).toISOString() : '';
+    if (stamp && Number.isFinite(Date.parse(stamp))) localStorage.setItem(CACHE_REVISION_KEY, stamp);
+  } catch (_) {}
 }
 
 async function loadState(bootstrapPayload = null) {
@@ -222,15 +231,17 @@ async function loadState(bootstrapPayload = null) {
   }
   stateLoadedOk = false;
   try {
-    let saved;
+    let saved, serverRevision = null;
     if (bootstrapPayload && Object.prototype.hasOwnProperty.call(bootstrapPayload, 'state')) {
       saved = bootstrapPayload.state;
+      serverRevision = bootstrapPayload.workspaceUpdatedAt || null;
       stateLoadedOk = true;
     } else {
-      const res = await fetch('/api/state', { credentials: 'same-origin' });
-      if (!res.ok) throw new Error('status ' + res.status);
+      const res = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) { if (res.status === 401) handleSessionExpired(); throw new Error('status ' + res.status); }
       const payload = await res.json();
       saved = payload.state;
+      serverRevision = payload.updatedAt || null;
       stateLoadedOk = true;
     }
 
@@ -244,9 +255,21 @@ async function loadState(bootstrapPayload = null) {
       return;
     }
 
-    // MongoDB is authoritative when it already has this account's state.
+    // MongoDB is authoritative unless this browser has a previously confirmed, newer
+    // server revision. Pending local edits above always remain higher priority.
     if (saved) {
+      const cachedRevision = (() => { try { return localStorage.getItem(CACHE_REVISION_KEY); } catch (_) { return null; } })();
+      const remoteMs = Date.parse(serverRevision || '');
+      const cachedMs = Date.parse(cachedRevision || '');
+      if (cached && Number.isFinite(remoteMs) && Number.isFinite(cachedMs) && cachedMs > remoteMs) {
+        state = normalizeState(JSON.parse(cached), true);
+        stateLoadedOk = true;
+        try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
+        await pushState();
+        return;
+      }
       state = normalizeState(saved, true);
+      if (serverRevision) rememberServerRevision(serverRevision);
       clearPendingSyncFlag();
       cacheState();
       return;
@@ -331,6 +354,8 @@ async function pushState() {
     });
     if (res.status === 401) { handleSessionExpired(); throw new Error('status 401'); }
     if (!res.ok) throw new Error('status ' + res.status);
+    const result = await res.json().catch(() => ({}));
+    if (result.updatedAt) rememberServerRevision(result.updatedAt);
     cacheState();
     clearPendingSyncFlag();
     if (window.NexUI) NexUI.setSync('saved');
@@ -484,26 +509,113 @@ function showUser(user) {
   const greetName = document.getElementById('greeting-name');
   if (greetName) greetName.textContent = first ? ', ' + first : '';
   const status = document.querySelector('.user-status');
-  if (status) status.textContent = user.guest ? '\u25CF Guest mode' : '\u25CF Online';
+  if (status) status.textContent = user.guest ? '\u25CF Guest mode' : user.offline ? '\u25CF Offline · cached data' : '\u25CF Online';
   const out = document.querySelector('.logout-btn');
   if (out) out.title = user.guest ? 'Sign in with Google' : 'Sign out';
 }
 
-// ═══════════════════════════ INIT ═══════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  const user = await checkLogin();
-  if (user) startApp(user);
-  else if (localStorage.getItem(GUEST_FLAG_KEY) === '1') startApp({ name: 'Guest', guest: true });
-  else showLogin();
+// Keep Recently Deleted inside the active experience so the parent workspace never reloads.
+function openRecentlyDeleted(event) {
+  if (event) event.preventDefault();
+  if (document.getElementById('nexos-recover-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'nexos-recover-overlay';
+  overlay.className = 'nexos-recover-overlay';
+  overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Recently deleted');
+  const frame = document.createElement('iframe');
+  frame.className = 'nexos-recover-frame'; frame.title = 'Recently deleted items';
+  const theme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  const returnTo = location.pathname + location.search + location.hash;
+  frame.src = '/recover.html?embedded=1&theme=' + theme + '&returnTo=' + encodeURIComponent(returnTo);
+  const close = document.createElement('button');
+  close.type = 'button'; close.className = 'nexos-recover-close'; close.textContent = 'Close';
+  close.setAttribute('aria-label', 'Close Recently deleted');
+  const dismiss = () => { document.removeEventListener('keydown', onKey); closeClassicRecoveryPanel(); };
+  const onKey = e => { if (e.key === 'Escape') dismiss(); };
+  close.addEventListener('click', dismiss);
+  overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
+  document.addEventListener('keydown', onKey);
+  overlay.append(close, frame); document.body.appendChild(overlay);
+  close.focus({ preventScroll: true });
+  return false;
+}
+function closeClassicRecoveryPanel() {
+  const overlay = document.getElementById('nexos-recover-overlay');
+  if (!overlay) return;
+  const changed = overlay.dataset.recovered === '1';
+  overlay.remove();
+  // Reload only after a successful restore; the active Classic route remains intact.
+  if (changed) location.reload();
+}
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || !event.data || !['nexos-recover-close', 'nexos-recover-changed'].includes(event.data.type)) return;
+  const overlay = document.getElementById('nexos-recover-overlay');
+  const frame = overlay?.querySelector('iframe');
+  if (!overlay || event.source !== frame?.contentWindow) return;
+  if (event.data.type === 'nexos-recover-changed') overlay.dataset.recovered = '1';
+  else closeClassicRecoveryPanel();
 });
 
-async function startApp(user) {
+// ═══════════════════════════ INIT ═══════════════════════════
+function paintCachedClassicWorkspace() {
+  // Use only the account namespace belonging to the last successfully authenticated
+  // identity. Never use the legacy shared cache for optimistic account rendering.
+  let remembered;
+  try { remembered = JSON.parse(localStorage.getItem('nexos_last_user_v1') || 'null'); } catch (_) { return false; }
+  if (!remembered || !remembered.email) return false;
+  try {
+    setAccountStorageKeys(remembered);
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (!cached || typeof cached !== 'object' || Array.isArray(cached)) return false;
+    currentUser = { ...remembered, offline: true };
+    state = normalizeState(cached, true);
+    stateLoadedOk = false;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    showUser(currentUser);
+    if (window.NexUI) NexUI.setSync('saving');
+    applyTheme();
+    applyProfileTimer();
+    startClock();
+    setGreeting();
+    renderDashboard();
+    // Let the cached Home screen paint before the rest of the tab's views are prepared.
+    requestAnimationFrame(() => {
+      try { renderKanban(); renderHabits(); renderNotes(); renderAnalytics(); renderPomTimer(); renderPomoStats(); updateContextPanel(); updateNotifButtonUI(); } catch (err) { console.warn('Deferred cached view render failed:', err); }
+    });
+    performance.mark?.('nexos-classic-cache-painted');
+    return true;
+  } catch (err) {
+    console.warn('Could not paint the account cache; continuing with normal startup.', err);
+    return false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  performance.mark?.('nexos-classic-start');
+  const optimisticPainted = paintCachedClassicWorkspace();
+  const user = await checkLogin();
+  performance.mark?.('nexos-classic-auth-resolved');
+  if (user) await startApp(user, { optimisticPainted });
+  else if (localStorage.getItem(GUEST_FLAG_KEY) === '1') await startApp({ name: 'Guest', guest: true });
+  else await showLogin();
+  performance.mark?.('nexos-classic-workspace-ready');
+  try { performance.measure?.('nexos-classic-start-to-ready', 'nexos-classic-start', 'nexos-classic-workspace-ready'); } catch (_) {}
+});
+
+async function startApp(user, options = {}) {
   // Arrived from Enterprise's "Sign in" button: now that we are signed in (or a guest), go back there.
   if (new URLSearchParams(location.search).get('next') === 'enterprise') { location.replace('/enterprise?from=classic'); return; }
   currentUser = user;
   stateLoadedOk = false;
   if (!user.guest) {
     setAccountStorageKeys(user);
+    if (!user.offline) {
+      try { localStorage.setItem('nexos_last_user_v1', JSON.stringify({ name: user.name, email: user.email, picture: user.picture })); } catch (_) {}
+    }
     try { localStorage.removeItem(GUEST_FLAG_KEY); } catch (_) {}
   }
   document.getElementById('login-screen').style.display = 'none';
@@ -512,7 +624,8 @@ async function startApp(user) {
   if (window.NexUI) NexUI.setSync(user.guest ? 'local' : 'saving');
   const bootstrap = initialBootstrapPayload;
   initialBootstrapPayload = null;
-  await loadState(bootstrap);
+  if (!(user.offline && options.optimisticPainted)) await loadState(bootstrap);
+  else stateLoadedOk = false;
   if (window.NexUI && !user.guest) NexUI.setSync(stateLoadedOk ? 'saved' : 'offline');
   // Starter data is offered only once per account. A brand-new workspace first gets the quick-start
   // question; the workspace stays unseeded until it is answered or skipped, so closing the tab does not lose it.
@@ -523,19 +636,21 @@ async function startApp(user) {
       else askQuickStart = true;
     } else { state.seeded = true; saveState(); }
   }
-  applyTheme();
-  applyProfileTimer();
-  startClock();
-  setGreeting();
-  renderDashboard();
-  renderKanban();
-  renderHabits();
-  renderNotes();
-  renderAnalytics();
-  renderPomTimer();
-  renderPomoStats();
-  updateContextPanel();
-  updateNotifButtonUI();
+  if (!(user.offline && options.optimisticPainted)) {
+    applyTheme();
+    applyProfileTimer();
+    startClock();
+    setGreeting();
+    renderDashboard();
+    renderKanban();
+    renderHabits();
+    renderNotes();
+    renderAnalytics();
+    renderPomTimer();
+    renderPomoStats();
+    updateContextPanel();
+    updateNotifButtonUI();
+  }
   closeSidebar();
   await loadTaskReminderTime();
   const reminderToggle = document.getElementById('task-reminders-enabled');
@@ -544,6 +659,7 @@ async function startApp(user) {
   checkDueNotifications();
   if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
   initChat(); // loads saved chats in the background
+  performance.mark?.('nexos-classic-workspace-ready');
   if (askQuickStart) openQuickStart('new');
 }
 
@@ -2662,7 +2778,7 @@ async function deleteAccount() {
   wipingLocalData = true;
   clearTimeout(saveTimer);
   saveTimer = null;
-  try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(PENDING_SYNC_KEY); localStorage.removeItem('nexos_last_user_v1'); } catch (_) {}
+  try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(CACHE_REVISION_KEY); localStorage.removeItem(PENDING_SYNC_KEY); localStorage.removeItem('nexos_last_user_v1'); } catch (_) {}
   if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
   alert('Your account and all its data have been deleted.');
   location.reload();

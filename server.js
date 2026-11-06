@@ -30,7 +30,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "https://accounts.google.com"],
       workerSrc: ["'self'"],
       manifestSrc: ["'self'"],
-      frameSrc: ["https://accounts.google.com"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com", "fonts.gstatic.com", "https://accounts.google.com"],
       fontSrc: ["'self'", "fonts.googleapis.com", "fonts.gstatic.com"],
@@ -281,8 +281,8 @@ app.get('/api/bootstrap', requireAuth, wrap(async (req, res) => {
   // This response is user-specific and must never be cached by a shared intermediary.
   res.setHeader('Cache-Control', 'private, no-store');
   const { _id, name, email, picture } = req.authUser;
-  const workspace = await UserState.findOne({ userId: req.userId }).select('data').lean();
-  res.json({ user: { _id, name, email, picture }, state: workspace ? workspace.data : null });
+  const workspace = await UserState.findOne({ userId: req.userId }).select('data updatedAt').lean();
+  res.json({ user: { _id, name, email, picture }, state: workspace ? workspace.data : null, workspaceUpdatedAt: workspace?.updatedAt || null });
 }));
 
 // Profile: change the display name
@@ -319,15 +319,19 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
 }));
 
 app.get('/api/state', requireAuth, wrap(async (req, res) => {
-  const doc = await UserState.findOne({ userId: req.userId }).select('data').lean();
-  res.json({ state: doc ? doc.data : null });
+  const doc = await UserState.findOne({ userId: req.userId }).select('data updatedAt').lean();
+  res.json({ state: doc ? doc.data : null, updatedAt: doc?.updatedAt || null });
 }));
 
 app.put('/api/state', requireAuth, wrap(async (req, res) => {
   const { state } = req.body;
-  if (!state || typeof state !== 'object') return res.status(400).json({ error: 'state object required' });
-  await UserState.findOneAndUpdate({ userId: req.userId }, { data: state }, { upsert: true, setDefaultsOnInsert: true });
-  res.json({ ok: true });
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return res.status(400).json({ error: 'state object required' });
+  const doc = await UserState.findOneAndUpdate(
+    { userId: req.userId },
+    { data: state },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  ).select('updatedAt').lean();
+  res.json({ ok: true, updatedAt: doc?.updatedAt || null });
 }));
 
 // ───────────────────────── Shared Web Push / NexOS task reminders ─────────────────────────

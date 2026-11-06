@@ -12,8 +12,10 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="/push-client.js?v=3.0.0" defer></script>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
+<script src="/push-client.js?v=3.0.1" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1709,6 +1711,18 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 @media (prefers-reduced-motion: reduce) {
   .ambient-blob-1, .ambient-blob-2, .ai-sparkle-icon { animation: none !important; }
 }
+/* Recently Deleted is hosted in an iframe panel so the current Enterprise view stays mounted. */
+.nexos-recover-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: rgba(8,8,12,.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.nexos-recover-frame { width: min(760px, 100%); height: min(820px, 88dvh); border: 0; border-radius: 22px; background: #121216; box-shadow: 0 24px 90px rgba(0,0,0,.42); }
+.nexos-recover-close { position: absolute; z-index: 1; top: max(20px, calc(env(safe-area-inset-top) + 10px)); right: max(20px, calc(env(safe-area-inset-right) + 10px)); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 14px; background: rgba(30,30,36,.92); color: #fff; font: inherit; cursor: pointer; }
+@media (max-width: 768px) {
+  .ambient-blob-1, .ambient-blob-2 { filter: none !important; animation: none !important; opacity: .055; }
+  .dashboard-grid .dash-card, .kpi-card, .task-card, .calendar-card, .focus-card, .analytics-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .topbar, .mobile-bottom-nav { -webkit-backdrop-filter: blur(7px) !important; backdrop-filter: blur(7px) !important; }
+  .nexos-recover-overlay { padding: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .nexos-recover-frame { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .nexos-recover-close { top: max(12px, env(safe-area-inset-top)); right: 12px; }
+}
 </style>
 <script>
   (function () {
@@ -1719,7 +1733,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.0.0">
+<link rel="manifest" href="/manifest.json?v=3.0.1">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1883,7 +1897,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <option value="explore">Just exploring</option>
         </select></div>
       <div class="prefs-row"><span>Deleted by mistake?</span>
-        <a class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none" href="/recover.html">Recently deleted…</a></div>
+        <a class="btn-secondary" style="font-size:12px;padding:6px 12px;text-decoration:none" href="/recover.html" onclick="return openRecentlyDeleted(event)">Recently deleted…</a></div>
       <div class="prefs-row"><span>Task reminders</span>
         <button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="closePrefsPopover(); openEnterpriseAlerts()">🔔 Alerts…</button></div>
     </div>
@@ -2664,23 +2678,55 @@ let state = {
 };
 
 let pomoTimerInterval = null;
+let enterpriseClockTimer = null;
 let audioCtx = null;
 let ambientNodes = [];
 let speechRecognizer = null;
 
-// Initialize
+// Initialize. Paint an account-scoped local snapshot first when one is available;
+// the authenticated bootstrap then reconciles it with MongoDB in the background.
 window.addEventListener('DOMContentLoaded', async () => {
+  const cachePainted = hydrateEnterpriseFromLocalCache();
+  const cachedSnapshot = cachePainted ? stableKey(state) : null;
+  const cachedMode = enterpriseSession.mode;
+  performance.mark?.('nexos-enterprise-start');
+  if (cachePainted) {
+    performance.mark?.('nexos-enterprise-cache-painted');
+    syncGoalTimerInputs();
+    initClock();
+    updateKPICounters();
+    renderDashboard();
+    // Dashboard and its KPIs get the first paint. Other views are prepared next frame.
+    requestAnimationFrame(() => {
+      try { renderKanban(); renderHabits(); renderNotesList(); renderPomTimerUI(); renderCalendarTimeline(); } catch (err) { console.warn('Deferred Enterprise view render failed:', err); }
+    });
+  }
+
   await loadWorkspaceState();
   syncGoalTimerInputs();
   initClock();
-  applyNexusTheme(state.theme);
-  applyDensity(state.density || 'comfortable');
-  renderAllViews();
-  renderCalendarTimeline();
-  // These are independent, non-critical startup requests. Run them together rather
-  // than making the reminder preferences wait for chat history (or vice versa).
-  await Promise.allSettled([loadEnterpriseChatHistory(), loadEnterpriseReminderPreferences()]);
-  updateEnterpriseConnectionBadge();
+  const needsRefresh = !cachePainted || cachedMode !== enterpriseSession.mode || cachedSnapshot !== stableKey(state);
+  if (needsRefresh) {
+    // Apply persisted presentation state without scheduling a redundant workspace save.
+    if (state.theme) document.documentElement.setAttribute('data-theme', state.theme);
+    if (state.density) document.documentElement.setAttribute('data-density', state.density);
+    const themeSelect = document.getElementById('theme-selector'); if (themeSelect) themeSelect.value = state.theme;
+    const densitySelect = document.getElementById('density-selector'); if (densitySelect) densitySelect.value = state.density || 'comfortable';
+    // The greeting, date and KPI counters are updated before rendering the lower widgets.
+    updateEnterpriseConnectionBadge();
+    updateKPICounters();
+    renderDashboard();
+    requestAnimationFrame(() => {
+      try { renderKanban(); renderHabits(); renderNotesList(); renderPomTimerUI(); renderCalendarTimeline(); } catch (err) { console.warn('Deferred Enterprise view render failed:', err); }
+    });
+  } else {
+    updateEnterpriseConnectionBadge();
+    renderQuickStartCard();
+  }
+  performance.mark?.('nexos-enterprise-workspace-ready');
+  try { performance.measure?.('nexos-enterprise-cache-to-ready', 'nexos-enterprise-start', 'nexos-enterprise-workspace-ready'); } catch (_) {}
+  // Chat history and reminder preferences are not needed to display the workspace.
+  Promise.allSettled([loadEnterpriseChatHistory(), loadEnterpriseReminderPreferences()]).then(() => updateEnterpriseConnectionBadge());
 });
 
 function today() {
@@ -2716,8 +2762,9 @@ function initClock() {
     }
   };
   update();
-  // The clock only displays minutes; updating every second was needless repeated work.
-  setInterval(update, 15000);
+  // The clock only displays minutes; keep exactly one timer across cache hydration.
+  if (enterpriseClockTimer) clearInterval(enterpriseClockTimer);
+  enterpriseClockTimer = setInterval(update, 15000);
 }
 
 // Navigation
@@ -4493,6 +4540,44 @@ function enterpriseAccountCacheKey(user) {
 function readJSONStorage(key) {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
 }
+function openRecentlyDeleted(event) {
+  if (event) event.preventDefault();
+  if (document.getElementById('nexos-recover-overlay')) return false;
+  const overlay = document.createElement('div');
+  overlay.id = 'nexos-recover-overlay'; overlay.className = 'nexos-recover-overlay';
+  overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', 'Recently deleted');
+  const frame = document.createElement('iframe'); frame.className = 'nexos-recover-frame'; frame.title = 'Recently deleted items';
+  const rawTheme = document.documentElement.getAttribute('data-theme') || 'cyber-aubergine';
+  const theme = /light/.test(rawTheme) ? 'light' : 'dark';
+  const returnTo = location.pathname + location.search + location.hash;
+  frame.src = '/recover.html?embedded=1&theme=' + theme + '&returnTo=' + encodeURIComponent(returnTo);
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'nexos-recover-close'; close.textContent = 'Close';
+  close.setAttribute('aria-label', 'Close Recently deleted');
+  const dismiss = () => { document.removeEventListener('keydown', onKey); closeEnterpriseRecoveryPanel(); };
+  const onKey = e => { if (e.key === 'Escape') dismiss(); };
+  close.addEventListener('click', dismiss);
+  overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
+  document.addEventListener('keydown', onKey);
+  overlay.append(close, frame); document.body.appendChild(overlay); close.focus({ preventScroll: true });
+  return false;
+}
+function closeEnterpriseRecoveryPanel() {
+  const overlay = document.getElementById('nexos-recover-overlay');
+  if (!overlay) return;
+  const changed = overlay.dataset.recovered === '1';
+  overlay.remove();
+  // Refresh only when a restore actually changed server data. The current /enterprise
+  // URL is retained, so this never sends an Enterprise user back to Classic.
+  if (changed) location.reload();
+}
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || !event.data || !['nexos-recover-close', 'nexos-recover-changed'].includes(event.data.type)) return;
+  const overlay = document.getElementById('nexos-recover-overlay');
+  const frame = overlay?.querySelector('iframe');
+  if (!overlay || event.source !== frame?.contentWindow) return;
+  if (event.data.type === 'nexos-recover-changed') overlay.dataset.recovered = '1';
+  else closeEnterpriseRecoveryPanel();
+});
 function safeEnterpriseStage(value) {
   const s = String(value || '').toLowerCase();
   if (s === 'in_progress' || s === 'in-progress' || s === 'in progress') return 'inprogress';
@@ -4731,53 +4816,185 @@ function enterprisePrefsFromLocal(raw) {
   for (const key of keys) if (raw[key] !== undefined) out[key] = raw[key];
   return out;
 }
+function hydrateEnterpriseFromLocalCache() {
+  const remembered = readJSONStorage('nexos_last_user_v1');
+  if (remembered && remembered.email) {
+    const localAccountRoot = readJSONStorage(`nexos_cache_v2_user_${enterpriseHash(remembered.email || remembered._id || remembered.id)}`);
+    const localEnterpriseAccount = readJSONStorage(enterpriseAccountCacheKey(remembered));
+    if (!localAccountRoot && !localEnterpriseAccount) return false;
+    enterpriseSession.mode = 'offline-account';
+    enterpriseSession.user = remembered;
+    setEnterpriseCacheKey();
+    enterpriseSession.rootState = localAccountRoot || {};
+    enterpriseSession.baseCanon = localAccountRoot ? pickShared(localAccountRoot) : null;
+    enterpriseSession.ready = false;
+    state = localAccountRoot && typeof localAccountRoot === 'object'
+      ? classicRootToEnterprise(localAccountRoot, enterprisePrefsFromLocal(localEnterpriseAccount))
+      : { ...state, ...(localEnterpriseAccount || {}), pomoRunning: false };
+    // Preserve records from an Enterprise-only cache as the bridge's local root too.
+    if (!localAccountRoot) {
+      enterpriseSession.rootState = enterpriseToClassicRoot({});
+      enterpriseSession.baseCanon = pickShared(enterpriseSession.rootState);
+    }
+  } else if (localStorage.getItem(ENTERPRISE_GUEST_FLAG) === '1') {
+    enterpriseSession.mode = 'guest';
+    setEnterpriseCacheKey();
+    const guestRoot = readJSONStorage(ENTERPRISE_GUEST_STATE);
+    const localGuest = readJSONStorage(enterpriseSession.cacheKey);
+    state = guestRoot && typeof guestRoot === 'object'
+      ? classicRootToEnterprise(guestRoot, enterprisePrefsFromLocal(localGuest))
+      : (localGuest && typeof localGuest === 'object' ? { ...state, ...localGuest } : state);
+    enterpriseSession.rootState = guestRoot || {};
+    enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(enterpriseSession.rootState));
+    enterpriseSession.ready = true;
+  } else {
+    const localEnterprise = readJSONStorage(ENTERPRISE_LOCAL_STATE);
+    if (!localEnterprise || typeof localEnterprise !== 'object') return false;
+    enterpriseSession.mode = 'preview';
+    setEnterpriseCacheKey();
+    state = { ...state, ...localEnterprise };
+    enterpriseSession.rootState = null;
+    enterpriseSession.ready = true;
+  }
+
+  // Apply cached presentation state without calling saveWorkspaceState() before auth
+  // has been checked; cache hydration itself must not create a pending cloud write.
+  if (state.theme) document.documentElement.setAttribute('data-theme', state.theme);
+  if (state.density) document.documentElement.setAttribute('data-density', state.density);
+  const themeSelect = document.getElementById('theme-selector'); if (themeSelect) themeSelect.value = state.theme;
+  const densitySelect = document.getElementById('density-selector'); if (densitySelect) densitySelect.value = state.density || 'comfortable';
+  updateEnterpriseConnectionBadge();
+  return true;
+}
+
+function mergePendingLocalRoot(remoteRoot, localRoot) {
+  const remote = remoteRoot && typeof remoteRoot === 'object' ? remoteRoot : {};
+  const local = localRoot && typeof localRoot === 'object' ? localRoot : {};
+  const merged = { ...remote, ...local };
+  const localTrash = pruneTrash(local.trash);
+  const localItems = {
+    tasks: new Set(localTrash.filter(e => e.kind === 'task' && e.item.id != null).map(e => String(e.item.id))),
+    habits: new Set(localTrash.filter(e => e.kind === 'habit' && e.item.id != null).map(e => String(e.item.id))),
+    notes: new Set(localTrash.filter(e => e.kind === 'note' && e.item.id != null).map(e => String(e.item.id)))
+  };
+  for (const key of ['tasks', 'habits', 'notes']) {
+    const byId = new Map();
+    for (const item of Array.isArray(remote[key]) ? remote[key] : []) {
+      if (item && item.id != null && !localItems[key].has(String(item.id))) byId.set(String(item.id), item);
+    }
+    // A pending edit on this device wins for the same record; remote-only records remain.
+    for (const item of Array.isArray(local[key]) ? local[key] : []) {
+      if (item && item.id != null) byId.set(String(item.id), item);
+    }
+    merged[key] = [...byId.values()];
+  }
+  // Keep duplicate-looking focus sessions when they really occurred more than once;
+  // append only the local occurrences that exceed the server snapshot's multiplicity.
+  const logKey = item => JSON.stringify([item?.date || '', Number(item?.minutes) || 0, item?.taskId || '']);
+  const remoteLogs = Array.isArray(remote.pomodoroLog) ? remote.pomodoroLog : [];
+  const localLogs = Array.isArray(local.pomodoroLog) ? local.pomodoroLog : [];
+  const remoteLogCounts = new Map(), localLogCounts = new Map();
+  remoteLogs.forEach(item => remoteLogCounts.set(logKey(item), (remoteLogCounts.get(logKey(item)) || 0) + 1));
+  const extraLogs = localLogs.filter(item => {
+    const key = logKey(item), count = (localLogCounts.get(key) || 0) + 1;
+    localLogCounts.set(key, count);
+    return count > (remoteLogCounts.get(key) || 0);
+  });
+  merged.pomodoroLog = [...remoteLogs, ...extraLogs];
+  merged.trash = pruneTrash([...(Array.isArray(remote.trash) ? remote.trash : []), ...(Array.isArray(local.trash) ? local.trash : [])]);
+  return merged;
+}
+
 async function loadWorkspaceState() {
   const localEnterprise = readJSONStorage(ENTERPRISE_LOCAL_STATE);
+  let authRejected = false;
   try {
-    // Identity and state arrive together. The old startup path made two serial network
-    // trips and repeated the authentication database lookup before the workspace appeared.
     const bootstrapResponse = await fetch('/api/bootstrap', { credentials: 'same-origin', cache: 'no-store' });
-    if (bootstrapResponse.ok) {
+    if (bootstrapResponse.status === 401) {
+      authRejected = true;
+      try { localStorage.removeItem('nexos_last_user_v1'); } catch (_) {}
+    } else if (bootstrapResponse.ok) {
       const payload = await bootstrapResponse.json();
       enterpriseSession.mode = 'account';
       enterpriseSession.user = payload.user;
+      enterpriseSession.restoreCacheToServer = false;
+      try { localStorage.setItem('nexos_last_user_v1', JSON.stringify({ name: payload.user.name, email: payload.user.email, picture: payload.user.picture })); } catch (_) {}
       setEnterpriseCacheKey();
-      const localAccountRoot = readJSONStorage(`nexos_cache_v2_user_${enterpriseHash(enterpriseSession.user.email || enterpriseSession.user._id || enterpriseSession.user.id)}`);
+      const identity = String(payload.user.email || payload.user._id || payload.user.id || '').trim().toLowerCase();
+      const suffix = enterpriseHash(identity);
+      const classicCacheKey = `nexos_cache_v2_user_${suffix}`;
+      const pendingSyncKey = `nexos_pending_sync_v2_user_${suffix}`;
+      const revisionKey = `${classicCacheKey}_server_revision_v1`;
+      const localAccountRoot = readJSONStorage(classicCacheKey);
       const localEnterpriseAccount = readJSONStorage(enterpriseSession.cacheKey);
-      try {
-        if (!Object.prototype.hasOwnProperty.call(payload, 'state')) throw new Error('Workspace data was not included in the bootstrap response.');
-        if (payload.state && typeof payload.state === 'object') {
-          enterpriseSession.rootState = payload.state;
-          state = classicRootToEnterprise(payload.state, enterprisePrefsFromLocal(localEnterpriseAccount));
-        } else if (localAccountRoot && typeof localAccountRoot === 'object') {
-          // The Classic app already has an account-scoped recovery cache. Only migrate it
-          // when the backend has no state for this same signed-in identity.
-          enterpriseSession.rootState = localAccountRoot;
-          state = classicRootToEnterprise(localAccountRoot, enterprisePrefsFromLocal(localEnterpriseAccount));
-          enterpriseSession.restoreCacheToServer = true;
-        } else {
-          enterpriseSession.rootState = {};
-          state = classicRootToEnterprise({}, enterprisePrefsFromLocal(localEnterpriseAccount));
-        }
-        enterpriseSession.mode = 'account';
-        enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(enterpriseSession.rootState || {}));
-        enterpriseSession.ready = true;
-      } catch (err) {
-        console.warn('Enterprise cloud state unavailable; keeping account-scoped local cache.', err);
-        enterpriseSession.mode = 'offline-account';
-        enterpriseSession.rootState = localAccountRoot || {};
-        state = localAccountRoot && typeof localAccountRoot === 'object'
-          ? classicRootToEnterprise(localAccountRoot, enterprisePrefsFromLocal(localEnterpriseAccount))
-          : { ...state, ...(localEnterpriseAccount || {}), tasks: [], habits: [], notes: [], pomodoroLog: [] };
-        enterpriseSession.ready = false;
-        enterpriseSession.lastError = err.message || 'Cloud unavailable';
+      const hasPendingLocalChanges = localStorage.getItem(pendingSyncKey) === '1';
+      if (!Object.prototype.hasOwnProperty.call(payload, 'state')) throw new Error('Workspace data was not included in the bootstrap response.');
+
+      if (payload.state && hasPendingLocalChanges && localAccountRoot && typeof localAccountRoot === 'object') {
+        // Offline edits are pending: keep this device's version for matching IDs, while
+        // retaining records that were added on another device since the cache was saved.
+        const merged = mergePendingLocalRoot(payload.state, localAccountRoot);
+        enterpriseSession.rootState = merged;
+        state = classicRootToEnterprise(merged, enterprisePrefsFromLocal(localEnterpriseAccount));
+        // Keep the server snapshot as the three-way merge baseline. The merged local
+        // snapshot must remain distinguishable from it when the pending save runs.
+        enterpriseSession.baseCanon = pickShared(payload.state);
+        enterpriseSession.restoreCacheToServer = stableKey(pickShared(merged)) !== stableKey(pickShared(payload.state));
+        if (!enterpriseSession.restoreCacheToServer) { try { localStorage.removeItem(pendingSyncKey); } catch (_) {} }
+      } else if (payload.state && typeof payload.state === 'object') {
+        enterpriseSession.rootState = payload.state;
+        state = classicRootToEnterprise(payload.state, enterprisePrefsFromLocal(localEnterpriseAccount));
+        enterpriseSession.baseCanon = pickShared(enterpriseToClassicRoot(payload.state));
+        try { localStorage.removeItem(pendingSyncKey); } catch (_) {}
+      } else if (localAccountRoot && typeof localAccountRoot === 'object') {
+        enterpriseSession.rootState = localAccountRoot;
+        state = classicRootToEnterprise(localAccountRoot, enterprisePrefsFromLocal(localEnterpriseAccount));
+        // There is no remote workspace yet; treat every cached record as local work
+        // that must be uploaded, not as an already-synced baseline.
+        enterpriseSession.baseCanon = pickShared({});
+        enterpriseSession.restoreCacheToServer = true;
+      } else if (localEnterpriseAccount && typeof localEnterpriseAccount === 'object') {
+        // An account-scoped Enterprise cache can be the only remaining copy if Classic
+        // has not written its shared root cache on this device yet. Preserve its records.
+        state = { ...state, ...localEnterpriseAccount, pomoRunning: false };
+        enterpriseSession.rootState = enterpriseToClassicRoot({});
+        enterpriseSession.baseCanon = pickShared({});
+        enterpriseSession.restoreCacheToServer = true;
+        enterpriseSession.restoreCacheToServer = true;
+      } else {
+        enterpriseSession.rootState = {};
+        state = classicRootToEnterprise({}, enterprisePrefsFromLocal(localEnterpriseAccount));
+        enterpriseSession.baseCanon = pickShared({});
+      }
+      enterpriseSession.mode = 'account';
+      enterpriseSession.ready = true;
+      enterpriseSession.lastError = '';
+      if (payload.workspaceUpdatedAt) {
+        try { localStorage.setItem(revisionKey, new Date(payload.workspaceUpdatedAt).toISOString()); } catch (_) {}
       }
       try { localStorage.setItem(enterpriseSession.cacheKey, JSON.stringify(state)); } catch (_) {}
+      try { localStorage.setItem(classicCacheKey, JSON.stringify(enterpriseToClassicRoot(enterpriseSession.rootState || {}))); } catch (_) {}
       updateEnterpriseConnectionBadge();
       if (enterpriseSession.restoreCacheToServer) scheduleEnterpriseCloudSave(100);
       return;
     }
-  } catch (_) { /* unauthenticated preview/guest remains available */ }
+  } catch (err) {
+    console.warn('Enterprise workspace bootstrap failed; checking safe local fallback.', err);
+  }
+
+  // A network failure may continue with the last authenticated account's cache. A 401
+  // is different: discard that account's visible state before showing preview/login UI.
+  if (enterpriseSession.mode === 'offline-account' && !authRejected) {
+    enterpriseSession.lastError = 'Offline cache · cloud connection unavailable';
+    updateEnterpriseConnectionBadge();
+    return;
+  }
+  if (authRejected) {
+    state = { ...state, tasks: [], habits: [], notes: [], pomodoroLog: [] };
+    enterpriseSession.user = null;
+    enterpriseSession.rootState = null;
+    enterpriseSession.ready = false;
+  }
 
   if (localStorage.getItem(ENTERPRISE_GUEST_FLAG) === '1') {
     enterpriseSession.mode = 'guest';
@@ -4797,17 +5014,31 @@ async function loadWorkspaceState() {
 
   enterpriseSession.mode = 'preview';
   setEnterpriseCacheKey();
-  if (localEnterprise && typeof localEnterprise === 'object') {
+  if (localEnterprise && typeof localEnterprise === 'object' && !authRejected) {
     state = { ...state, ...localEnterprise };
   } else {
-    // A sample workspace is shown only in unauthenticated preview mode and is never
-    // pushed to the production account or MongoDB without explicit login.
     loadSampleWorkspaceData(false);
   }
   enterpriseSession.rootState = null;
   enterpriseSession.ready = true;
   updateEnterpriseConnectionBadge();
 }
+
+let enterpriseReconnectPromise = null;
+window.addEventListener('online', () => {
+  if (enterpriseSession.mode !== 'offline-account' || enterpriseReconnectPromise) return;
+  enterpriseReconnectPromise = loadWorkspaceState().then(() => {
+    if (enterpriseSession.mode === 'account') {
+      syncGoalTimerInputs();
+      updateEnterpriseConnectionBadge();
+      renderAllViews();
+      renderCalendarTimeline();
+    }
+  }).catch(err => console.warn('Enterprise reconnect failed:', err)).finally(() => {
+    enterpriseReconnectPromise = null;
+  });
+});
+
 function scheduleEnterpriseCloudSave(delay = 700) {
   if (enterpriseSession.saveTimer) clearTimeout(enterpriseSession.saveTimer);
   enterpriseSession.saveTimer = setTimeout(() => { persistEnterpriseWorkspace().catch(err => {
@@ -4898,6 +5129,11 @@ async function persistEnterpriseWorkspace() {
     });
     const result = await putResponse.json().catch(() => ({}));
     if (!putResponse.ok) throw new Error(result.error || `Workspace save failed (${putResponse.status})`);
+    if (result.updatedAt) {
+      const identity = String(enterpriseSession.user?.email || enterpriseSession.user?._id || enterpriseSession.user?.id || '').trim().toLowerCase();
+      const key = `nexos_cache_v2_user_${enterpriseHash(identity)}_server_revision_v1`;
+      try { localStorage.setItem(key, new Date(result.updatedAt).toISOString()); } catch (_) {}
+    }
     enterpriseSession.lastError = '';
     enterpriseSession.pendingTrash = (enterpriseSession.pendingTrash || []).filter(e => !sentTrash.has(e.id)); // delivered
     enterpriseSession.pendingProfile = null;
@@ -4994,6 +5230,15 @@ function enterpriseQuickStart(goal) {
 }
 function saveWorkspaceState() {
   try { localStorage.setItem(enterpriseLocalKey(), JSON.stringify(state)); } catch (e) { console.warn('Enterprise local save failed:', e); }
+  if (enterpriseSession.mode === 'offline-account' && enterpriseSession.user) {
+    const identity = String(enterpriseSession.user.email || enterpriseSession.user._id || enterpriseSession.user.id || '').trim().toLowerCase();
+    const suffix = enterpriseHash(identity);
+    const classicKey = `nexos_cache_v2_user_${suffix}`;
+    const pendingKey = `nexos_pending_sync_v2_user_${suffix}`;
+    const root = enterpriseToClassicRoot(enterpriseSession.rootState || {});
+    enterpriseSession.rootState = root;
+    try { localStorage.setItem(classicKey, JSON.stringify(root)); localStorage.setItem(pendingKey, '1'); } catch (_) {}
+  }
   updateKPICounters();
   if (enterpriseSession.mode === 'account' || enterpriseSession.mode === 'guest') scheduleEnterpriseCloudSave();
 }

@@ -117,3 +117,40 @@ console.log('Recently deleted rules passed.');
   assert.strictEqual(saved.enterpriseWorkspace.pomoGoalApplied, 'habits');
   console.log('Quick-start goal rules (Enterprise) passed.');
 }
+
+// ---- 3.0.1: pending offline state must preserve local edits/deletes and remote additions ----
+{
+  const start = html.indexOf('function mergePendingLocalRoot(remoteRoot, localRoot)');
+  const end = html.indexOf('async function loadWorkspaceState()', start);
+  if (start < 0 || end < 0) throw new Error('Pending-cache reconciliation helper not found.');
+  new vm.Script(html.slice(start, end), { filename: 'pending-cache-merge.js' }).runInContext(context);
+  const now = Date.now();
+  const remote = {
+    tasks: [T('edited', { title: 'server title' }), T('deleted-remotely-locally', { title: 'should be trashed' }), T('remote-only')],
+    habits: [{ id: 'habit-remote', name: 'Remote habit' }],
+    notes: [{ id: 'note-remote', title: 'Remote note' }],
+    pomodoroLog: [
+      { date: '2026-11-06', minutes: 25, taskId: 'same' },
+      { date: '2026-11-06', minutes: 25, taskId: 'same' }
+    ],
+    trash: []
+  };
+  const local = {
+    tasks: [T('edited', { title: 'local pending edit' }), T('local-new')],
+    habits: [], notes: [],
+    pomodoroLog: [
+      { date: '2026-11-06', minutes: 25, taskId: 'same' },
+      { date: '2026-11-06', minutes: 25, taskId: 'same' },
+      { date: '2026-11-06', minutes: 25, taskId: 'same' },
+      { date: '2026-11-06', minutes: 15, taskId: 'local-focus' }
+    ],
+    trash: [{ id: 'trash-c', kind: 'task', item: { id: 'deleted-remotely-locally' }, deletedAt: now }]
+  };
+  const reconciled = context.mergePendingLocalRoot(remote, local);
+  const ids = reconciled.tasks.map(t => t.id).sort();
+  assert.deepStrictEqual(J(ids), ['edited', 'local-new', 'remote-only'].sort(), 'pending cache merge should retain local edits/additions and remote-only records, while preserving local deletions');
+  assert.strictEqual(reconciled.tasks.find(t => t.id === 'edited').title, 'local pending edit');
+  assert.strictEqual(reconciled.pomodoroLog.length, 4, 'offline focus log merge must preserve repeated sessions without double-counting synced sessions');
+  assert.ok(reconciled.pomodoroLog.some(l => l.taskId === 'local-focus'));
+  console.log('Pending offline cache reconciliation checks passed.');
+}

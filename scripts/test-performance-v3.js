@@ -14,12 +14,15 @@ const sw = read('public/sw.js');
 const pkg = JSON.parse(read('package.json'));
 const lock = JSON.parse(read('package-lock.json'));
 
-assert.strictEqual(pkg.version, '3.0.0', 'package version must be 3.0.0');
-assert.strictEqual(lock.version, '3.0.0', 'lockfile version must be 3.0.0');
+assert.strictEqual(pkg.version, '3.0.1', 'package version must be 3.0.1');
+assert.strictEqual(lock.version, '3.0.1', 'lockfile version must be 3.0.1');
 assert.ok(server.includes("'/bootstrap'"), 'bootstrap must pass through the database connection middleware');
 assert.ok(server.includes("app.get('/api/bootstrap', requireAuth"), 'authenticated bootstrap endpoint must exist');
 assert.ok(server.includes("res.setHeader('Cache-Control', 'private, no-store')"), 'personalized bootstrap data must not be cached');
-assert.ok(server.includes(".select('data').lean()"), 'workspace reads should use lean, projected queries');
+assert.ok(server.includes(".select('data updatedAt').lean()"), 'workspace reads should use lean, projected data and update timestamps');
+assert.ok(server.includes('workspaceUpdatedAt'), 'bootstrap should expose the server workspace revision');
+assert.ok(server.includes('frameSrc: ["\'self\'", "https://accounts.google.com"]'), 'same-origin Recently Deleted iframe must be permitted by CSP');
+assert.ok(server.includes('updatedAt: doc?.updatedAt || null'), 'state reads and writes should expose server update timestamps');
 assert.ok(server.includes('stale-while-revalidate=300'), 'HTML should have a short stale-while-revalidate cache policy');
 assert.ok(server.includes('max-age=31536000, immutable'), 'versioned assets should be immutable cached');
 
@@ -27,7 +30,10 @@ assert.ok(classic.includes("fetch('/api/bootstrap'"), 'Classic should use the co
 assert.ok(classic.includes('async function loadState(bootstrapPayload = null)'), 'Classic state loader should accept the bootstrap payload');
 assert.ok(classic.includes('ensureClassicChartLibrary'), 'Classic charts should be lazy-loaded');
 assert.ok(!classicHtml.includes('chart.umd.min.js'), 'Classic should not eagerly load Chart.js in the HTML');
-assert.ok(classicHtml.includes('app.js?v=3.0.0') && classicHtml.includes('ui.js?v=3.0.0'), 'Classic application scripts should be versioned');
+assert.ok(classicHtml.includes('app.js?v=3.0.1') && classicHtml.includes('ui.js?v=3.0.1'), 'Classic application scripts should be versioned for 3.0.1');
+assert.ok(classicHtml.includes('media=\"print\" onload=\"this.media=\'all\'\"'), 'Classic font stylesheet should not block the initial paint');
+assert.ok(classic.includes('function paintCachedClassicWorkspace()'), 'Classic should paint the account-scoped cache before waiting for bootstrap');
+assert.ok(classic.includes('nexos_last_user_v1'), 'Classic cache hydration should require the last authenticated identity marker');
 
 const loadStart = enterprise.indexOf('async function loadWorkspaceState()');
 const loadEnd = enterprise.indexOf('function scheduleEnterpriseCloudSave(', loadStart);
@@ -46,6 +52,22 @@ assert.ok(!enterprise.includes("document.addEventListener('mousemove'"), 'unused
 assert.ok(enterprise.includes('setInterval(update, 15000)'), 'Enterprise clock should not run every second');
 assert.ok(enterprise.includes("document.querySelectorAll('.modal-overlay-backdrop').forEach"), 'Enterprise dialog observer should be scoped to dialog roots');
 assert.ok(ui.includes("document.querySelectorAll('.modal-overlay').forEach"), 'Classic dialog observer should be scoped to dialog roots');
-assert.ok(sw.includes("const CACHE = 'nexos-shell-v4'"), 'service worker cache namespace should be bumped');
+assert.ok(sw.includes("const CACHE = 'nexos-shell-v5'"), 'service worker cache namespace should be bumped for 3.0.1');
+assert.ok(enterprise.includes('function hydrateEnterpriseFromLocalCache()'), 'Enterprise should hydrate the local account cache before bootstrap');
+assert.ok(enterprise.includes('function mergePendingLocalRoot(remoteRoot, localRoot)'), 'Enterprise should reconcile pending local edits with remote-only records');
+assert.ok(enterprise.includes('enterpriseSession.baseCanon = pickShared(payload.state)'), 'Enterprise pending edits must retain the server snapshot as the merge baseline');
+assert.ok(enterprise.includes("e.kind === 'task'"), 'Enterprise reconciliation should honour locally trashed records');
+assert.ok(enterprise.includes('localTrash = pruneTrash(local.trash)'), 'Enterprise reconciliation should only honour valid, unexpired local trash entries');
+assert.ok(enterprise.includes('remoteLogCounts'), 'Enterprise reconciliation should preserve duplicate-looking focus sessions without duplicating synced sessions');
+assert.ok(enterprise.includes('media=\"print\" onload=\"this.media=\'all\'\"'), 'Enterprise font stylesheet should not block the initial paint');
+assert.ok(enterprise.includes('updateKPICounters();\n    renderDashboard();\n    // Dashboard and its KPIs get the first paint.'), 'Enterprise should paint greeting, KPI values and dashboard from the same cached snapshot');
+assert.ok(enterprise.includes('nexos-recover-changed'), 'Enterprise recovery panel should preserve its route and refresh after a restore');
+assert.ok(classic.includes('nexos-recover-changed'), 'Classic recovery panel should refresh after a successful restore');
+const recovery = read('public/recover.html');
+assert.ok(recovery.includes('embedded=') || recovery.includes("params.get('embedded')"), 'Recently Deleted should support embedded mode');
+assert.ok(recovery.includes('nexos-recover-changed'), 'Recently Deleted should notify its parent after restoring an item');
+assert.ok(!recovery.includes('for (let i = 0; i < localStorage.length'), 'Recently Deleted should not scan every localStorage key');
+assert.ok(enterprise.includes('filter: none !important; animation: none !important'), 'Enterprise ambient effects should be simplified on mobile');
+assert.ok(read('public/style.css').includes('backdrop-filter: none !important'), 'Classic mobile scrolling cards should avoid stacked blur filters');
 
-console.log('NexOS 3.0.0 performance and startup checks passed.');
+console.log('NexOS 3.0.1 speed and responsiveness checks passed.');
