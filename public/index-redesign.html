@@ -4410,7 +4410,7 @@ function toggleVoiceDictation(target, btn) {
   rec.interimResults = false;
   if (button) button.classList.add('recording');
   showToast('Listening… Speak now');
-  const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
+  field.blur(); // Keep the mobile keyboard closed while the microphone is listening.\n  const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
 
   rec.onresult = (e) => {
     const transcript = nexosSpokenText(e.results);
