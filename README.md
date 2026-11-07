@@ -64,6 +64,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - Uploaded files are validated by the server and are processed for the request rather than kept as permanent workspace files. If sending fails, the draft message and selected files remain available for retry.
 - **3.3.1 mobile layout:** the NexAI mobile interface groups Action Mode, New Chat, Workspace Context and Past Conversations into compact controls. Context and history open in a sheet so the chat can use more of the available screen height. Desktop layout remains unchanged by this mobile-specific adjustment.
 - **3.3.1 dictation reliability:** speech recognition results are rebuilt from the current recognition session instead of blindly appending every browser result. This prevents repeated words when a browser sends progressively longer recognition results and preserves multiple phrases returned in one event.
+- **3.3.2 mobile voice and send reliability:** dictation no longer programmatically refocuses the text field or leaves it focused while listening, preventing the mobile keyboard from being summoned by voice input. Enterprise chat now blocks overlapping sends, synchronizes composer clearing, and restores a failed message when the user has not started typing a newer one. Classic's existing send lock and clear behaviour are covered by regression checks.
 
 ### General
 
