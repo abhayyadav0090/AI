@@ -338,7 +338,7 @@
     active = { rec, btn };
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
-    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
+    field.blur(); // Keep the mobile keyboard closed while the microphone is listening.\n    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
     rec.onresult = (e) => {
       const text = spokenText(e.results);
       if (!text) return;
