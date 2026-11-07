@@ -333,29 +333,33 @@
   }
 
   function guardChatKeyboard(field) {
-    if (field.id !== 'chat-input') return;
-    if (!field.dataset.nexosVoiceKeyboardGuard) {
-      const original = field.getAttribute('inputmode');
-      field.dataset.nexosVoiceOriginalInputMode = original === null ? '__default__' : original;
-      field.dataset.nexosVoiceKeyboardGuard = '1';
-      field.addEventListener('pointerdown', () => {
-        if (field.dataset.nexosVoiceKeyboardSuppressed !== '1') return;
-        field.dataset.nexosVoiceKeyboardSuppressed = '0';
-        const mode = field.dataset.nexosVoiceOriginalInputMode;
-        if (mode === '__default__') field.removeAttribute('inputmode');
-        else field.setAttribute('inputmode', mode);
-      }, true);
-    }
-    field.dataset.nexosVoiceKeyboardSuppressed = '1';
+    if (field.id !== 'chat-input' || field.dataset.nexosVoiceKeyboardGuard === '1') return;
+    field.dataset.nexosVoiceKeyboardGuard = '1';
+    field.dataset.nexosVoiceOriginalReadOnly = field.readOnly ? '1' : '0';
+    const originalMode = field.getAttribute('inputmode');
+    field.dataset.nexosVoiceOriginalInputMode = originalMode === null ? '__default__' : originalMode;
+    field.readOnly = true;
     field.setAttribute('inputmode', 'none');
     field.blur();
+
+    // Restore editing before a deliberate user tap allows the browser to focus the field.
+    field.addEventListener('pointerdown', () => {
+      if (active && active.field === field) stop();
+      field.readOnly = field.dataset.nexosVoiceOriginalReadOnly === '1';
+      const mode = field.dataset.nexosVoiceOriginalInputMode;
+      if (mode === '__default__') field.removeAttribute('inputmode');
+      else field.setAttribute('inputmode', mode);
+      delete field.dataset.nexosVoiceKeyboardGuard;
+      delete field.dataset.nexosVoiceOriginalReadOnly;
+      delete field.dataset.nexosVoiceOriginalInputMode;
+    }, { capture: true, once: true });
   }
 
   function start(field, btn) {
     const rec = new SR();
     rec.lang = lang(); rec.continuous = false; rec.interimResults = false;
+    active = { rec, btn, field };
     guardChatKeyboard(field);
-    active = { rec, btn };
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
     field.blur(); // Keep the mobile keyboard closed while the microphone is listening.\n    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
