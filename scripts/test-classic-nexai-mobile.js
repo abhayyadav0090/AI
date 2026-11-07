@@ -19,7 +19,7 @@ assert.ok(mobile.includes('@media(max-width:768px)')&&mobile.includes('#view-ai.
 assert.ok(mobile.includes('grid-template-columns:repeat(4,minmax(0,1fr))')&&mobile.includes('#view-ai .ai-context-panel.open{display:flex}'));
 assert.ok(mobile.includes('#classic-ai-sheet-backdrop.open')&&mobile.includes('body.nexos-ai-view-active .fab'));
 assert.ok(classic.includes('style.css?v=3.3.1')&&classic.includes('app.js?v=3.3.1')&&classic.includes('ui.js?v=3.3.1'));
-assert.ok(enterprise.includes('attach.js?v=3.3.1')&&enterprise.includes('app.js?v=3.3.1'));
+assert.ok(enterprise.includes('attach.js?v=3.3.1')&&enterprise.includes('push-client.js?v=3.3.1'));
 assert.ok(!/v=3\.3\.0/.test(classic)&&!/v=3\.3\.0/.test(sw));
 assert.ok(sw.includes("const CACHE = 'nexos-shell-v9'")&&sw.includes("url.pathname.startsWith('/api/')"));
 assert.ok(!recover.includes('classic-ai-context-panel')&&!recover.includes('ai-mobile-actions'));
