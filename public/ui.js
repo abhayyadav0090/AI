@@ -344,7 +344,13 @@
 
     // Restore editing before a deliberate user tap allows the browser to focus the field.
     field.addEventListener('pointerdown', () => {
-      if (active && active.field === field) stop();
+      if (active && active.field === field) {
+        const current = active;
+        active = null;
+        current.btn.classList.remove('is-recording');
+        current.btn.setAttribute('aria-pressed', 'false');
+        try { current.rec.abort(); } catch (_) { try { current.rec.stop(); } catch (_) {} }
+      }
       field.readOnly = field.dataset.nexosVoiceOriginalReadOnly === '1';
       const mode = field.dataset.nexosVoiceOriginalInputMode;
       if (mode === '__default__') field.removeAttribute('inputmode');
