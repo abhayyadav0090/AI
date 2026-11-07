@@ -16,9 +16,9 @@ const lock = JSON.parse(read('package-lock.json'));
 const readme = read('README.md');
 const releaseNotes = read('RELEASE-NOTES/RELEASE-NOTES NexOS 3.0/RELEASE-NOTES-3.3.0.md');
 
-assert.strictEqual(pkg.version, '3.3.1', 'package version must be 3.3.0');
-assert.strictEqual(lock.version, '3.3.1', 'lockfile version must be 3.3.0');
-assert.ok(readme.includes('Current source release: 3.3.1'), 'README should identify 3.3.0 as the current release');
+assert.strictEqual(pkg.version, '3.3.1', 'package version must be 3.3.1');
+assert.strictEqual(lock.version, '3.3.1', 'lockfile version must be 3.3.1');
+assert.ok(readme.includes('Current source release: 3.3.1'), 'README should identify 3.3.1 as the current release');
 assert.ok(releaseNotes.startsWith('# NexOS 3.3.0'), '3.3.0 release notes should be present');
 assert.ok(server.includes("'/bootstrap'"), 'bootstrap must pass through the database connection middleware');
 assert.ok(server.includes("app.get('/api/bootstrap', requireAuth"), 'authenticated bootstrap endpoint must exist');
@@ -34,9 +34,9 @@ assert.ok(classic.includes("fetch('/api/bootstrap'"), 'Classic should use the co
 assert.ok(classic.includes('async function loadState(bootstrapPayload = null)'), 'Classic state loader should accept the bootstrap payload');
 assert.ok(classic.includes('ensureClassicChartLibrary'), 'Classic charts should be lazy-loaded');
 assert.ok(!classicHtml.includes('chart.umd.min.js'), 'Classic should not eagerly load Chart.js in the HTML');
-assert.ok(classicHtml.includes('app.js?v=3.3.1') && classicHtml.includes('ui.js?v=3.3.1'), 'Classic application scripts should be versioned for 3.3.0');
-assert.ok(classicHtml.includes('push-client.js?v=3.3.1'), 'Classic push client should be versioned for 3.3.0');
-assert.ok(classicHtml.includes('app.js?v=3.3.0\" defer') && classicHtml.includes('ui.js?v=3.3.0\" defer') && classicHtml.includes('push-client.js?v=3.3.0\" defer'), 'Classic local scripts should download in parallel with defer');
+assert.ok(classicHtml.includes('app.js?v=3.3.1') && classicHtml.includes('ui.js?v=3.3.1'), 'Classic application scripts should be versioned for 3.3.1');
+assert.ok(classicHtml.includes('push-client.js?v=3.3.1'), 'Classic push client should be versioned for 3.3.1');
+assert.ok(classicHtml.includes('app.js?v=3.3.1\" defer') && classicHtml.includes('ui.js?v=3.3.1\" defer') && classicHtml.includes('push-client.js?v=3.3.1\" defer'), 'Classic local scripts should download in parallel with defer');
 assert.ok(classicHtml.includes('media=\"print\" onload=\"this.media=\'all\'\"'), 'Classic font stylesheet should not block the initial paint');
 assert.ok(classic.includes('function paintCachedClassicWorkspace()'), 'Classic should paint the account-scoped cache before waiting for bootstrap');
 assert.ok(classic.includes('nexos_last_user_v1'), 'Classic cache hydration should require the last authenticated identity marker');
