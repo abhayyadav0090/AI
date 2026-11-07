@@ -8,6 +8,7 @@ const express    = require('express');
 const cors       = require('cors');
 const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
+const { AttachmentError, parseAttachments, ATTACHMENT_SYSTEM_NOTE } = require('./lib/attachments');
 const compression = require('compression');
 const morgan     = require('morgan');
 const path       = require('path');
@@ -42,7 +43,9 @@ app.use(helmet({
 
 app.use(compression());
 app.use(morgan('dev'));
-app.use(express.json({ limit: '2mb' }));
+const jsonSmall = express.json({ limit: '2mb' });
+// POST /api/chat can carry file attachments, so it uses a larger parser that only runs after login and rate limits (see the route).
+app.use((req, res, next) => (req.path === '/api/chat' && req.method === 'POST' ? next() : jsonSmall(req, res, next)));
 app.use(cookieParser());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
@@ -187,6 +190,7 @@ const PushPreference = mongoose.model('PushPreference', new mongoose.Schema({
 }, { timestamps: true, minimize: false }));
 
 const MAX_MSG_CHARS = 4000;
+const ATTACHMENT_BODY_LIMIT = '9mb';
 const MAX_CHAT_MESSAGES = 200;
 const CONTEXT_MESSAGES = 40;
 const MAX_CHATS = 100;
@@ -634,20 +638,20 @@ function aiErrorFor(upstreamStatus) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function askGemini({ system, contents }) {
+async function askGemini({ system, contents, timeoutMs = 45000, maxAttempts = 2 }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly.');
   const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(Boolean);
   let lastStatus = 0;
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       let upstream;
       try {
         upstream = await fetch(geminiUrl(model), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
           body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents }),
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
         await sleep(1000); continue;
@@ -685,6 +689,7 @@ function makeTitle(text) {
 }
 
 function sendAIError(err, res) {
+  if (err instanceof AttachmentError) return res.status(err.status).json({ error: err.message, code: err.code });
   if (err instanceof AIError) return res.status(err.status).json({ error: err.message, code: err.code });
   return res.status(500).json({ error: 'Something went wrong.', code: 'SERVER_ERROR' });
 }
@@ -694,12 +699,14 @@ async function pruneOldChats(userId) {
   if (extra.length) await Chat.deleteMany({ _id: { $in: extra.map((c) => c._id) } });
 }
 
-app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) => {
+app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ limit: ATTACHMENT_BODY_LIMIT }), async (req, res) => {
   try {
-    const { chatId, message, system } = req.body || {};
-    const text = typeof message === 'string' ? message.trim() : '';
-    if (!text) return res.status(400).json({ error: 'Type a message first.', code: 'BAD_REQUEST' });
-    if (text.length > MAX_MSG_CHARS) {
+    const { chatId, message, system, attachments } = req.body || {};
+    const typed = typeof message === 'string' ? message.trim() : '';
+    const files = parseAttachments(attachments);
+    if (!typed && !files.parts.length) return res.status(400).json({ error: 'Type a message first.', code: 'BAD_REQUEST' });
+    const text = typed || 'Please analyze the attached file(s).';
+    if (typed.length > MAX_MSG_CHARS) {
       return res.status(413).json({ error: `Messages must be ${MAX_MSG_CHARS} characters or fewer.`, code: 'MESSAGE_TOO_LONG' });
     }
     let chat;
@@ -711,11 +718,16 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) =
       chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
     }
     const history = chat.messages.slice(-CONTEXT_MESSAGES).map((m) => ({ role: m.role, content: m.content }));
+    const contents = toGeminiContents([...history, { role: 'user', content: text }]);
+    if (files.parts.length && contents.length) contents[contents.length - 1].parts.push(...files.parts);
+    const baseSystem = typeof system === 'string' ? system.slice(0, 6000) : '';
     const reply = await askGemini({
-      system: typeof system === 'string' ? system.slice(0, 6000) : '',
-      contents: toGeminiContents([...history, { role: 'user', content: text }]),
+      system: files.parts.length ? (baseSystem ? baseSystem + '\n\n' : '') + ATTACHMENT_SYSTEM_NOTE : baseSystem,
+      contents,
+      ...(files.parts.length ? { timeoutMs: 80000, maxAttempts: 1 } : {}),
     });
-    chat.messages.push({ role: 'user', content: text, ts: Date.now() });
+    const savedUser = files.names.length ? `${text}\n\n\u{1F4CE} ${files.names.join(', ')}` : text;
+    chat.messages.push({ role: 'user', content: savedUser, ts: Date.now() });
     chat.messages.push({ role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() });
     // Bound persisted history. The most recent 200 messages are enough for UI history;
     // only the latest CONTEXT_MESSAGES are sent to Gemini for each request.

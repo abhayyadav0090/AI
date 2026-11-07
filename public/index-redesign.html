@@ -2487,7 +2487,10 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
                 <button class="prompt-chip-btn" onclick="sendQuickPrompt('Suggest 2 high-leverage atomic habits based on my current sprint')">✨ Suggest habits</button>
               </div>
 
+              <div class="nexos-attach-tray" id="ai-attach-tray" hidden></div>
               <div class="chat-input-textarea-row">
+                <button type="button" class="nexos-attach-btn lg" id="ai-attach-btn" aria-label="Attach a file" title="Attach a PDF, photo or text file">📎</button>
+                <input type="file" id="ai-attach-input" hidden multiple accept="image/*,application/pdf,.pdf,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.cs,.go,.rs,.php,.rb,.sql,.yml,.yaml,.log,.tex">
                 <textarea id="ai-chat-input" placeholder="Ask NexAI anything about your tasks, schedule, or notes… (Enter to send)" class="chat-input-box" rows="1" onkeydown="handleChatInputKey(event)"></textarea>
                 <button class="voice-input-btn" id="chat-voice-btn" onclick="toggleVoiceDictation('chat')" title="Voice to text">🎙️</button>
                 <button class="btn-primary" onclick="sendAIChatMessage()" id="ai-send-btn">Send ➔</button>
@@ -5389,7 +5392,7 @@ function appendEnterpriseChatBubble(box, role, content) {
   row.append(avatar, bubble); box.appendChild(row); box.scrollTop = box.scrollHeight;
   return bubble;
 }
-async function postEnterpriseChat(message, box) {
+async function postEnterpriseChat(message, box, files = []) {
   if (enterpriseSession.mode !== 'account') {
     appendEnterpriseChatBubble(box, 'assistant', 'Live NexAI requires a signed-in NexOS account. Your workspace remains local in guest/preview mode. Open Classic NexOS and sign in with Google to enable AI chat and Action Mode.');
     return;
@@ -5400,7 +5403,7 @@ async function postEnterpriseChat(message, box) {
   const send = chatId => fetch('/api/chat', {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId: chatId || undefined, message, system: enterpriseWorkspaceContext() })
+    body: JSON.stringify({ chatId: chatId || undefined, message, system: enterpriseWorkspaceContext(), ...(files.length ? { attachments: files } : {}) })
   });
   // The conversation we remember may have been deleted (Classic's chat list, the server's old-chat limit, a data reset).
   const chatIsGone = (response, payload) => response.status === 404 && (payload.code === 'CHAT_NOT_FOUND' || /chat not found/i.test(payload.error || ''))
@@ -5416,6 +5419,7 @@ async function postEnterpriseChat(message, box) {
     }
     if (!response.ok) throw new Error(payload.error || `NexAI request failed (${response.status})`);
     state.activeChatId = String(payload.chatId || state.activeChatId || '');
+    if (files.length && enterpriseAttach) enterpriseAttach.clear();
     if (pending) pending.innerHTML = renderSimpleMarkdown(payload.text || 'No response received.');
     saveWorkspaceState();
     await refreshEnterpriseChatList();
@@ -5423,18 +5427,30 @@ async function postEnterpriseChat(message, box) {
     if (pending) pending.textContent = err.message || 'NexAI could not respond. Please try again.';
   } finally { if (sendButton) sendButton.disabled = false; box.scrollTop = box.scrollHeight; }
 }
+// File attachments for the NexAI chat (3.3.0). The helper lives in attach.js.
+let enterpriseAttach = null;
+function initEnterpriseAttach() {
+  const input = document.getElementById('ai-attach-input');
+  const button = document.getElementById('ai-attach-btn');
+  const tray = document.getElementById('ai-attach-tray');
+  if (window.NexAttach && input && button && tray) enterpriseAttach = NexAttach.create({ input, button, tray, say: showToast });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initEnterpriseAttach); else initEnterpriseAttach();
+
 async function sendAIChatMessage() {
   const input = document.getElementById('ai-chat-input');
   const message = input?.value.trim();
-  if (!message) return;
+  if (enterpriseAttach && enterpriseAttach.busy()) { showToast('Still preparing your file…'); return; }
+  const files = enterpriseAttach ? enterpriseAttach.list() : [];
+  if (!message && !files.length) return;
   const box = document.getElementById('ai-messages-scroll-area');
   if (!box) return;
   if (box.querySelector('.welcome-message')) box.innerHTML = '';
   else if (box.querySelector('.chat-msg-row.assistant') && box.children.length === 1 && !state.activeChatId) box.innerHTML = '';
-  appendEnterpriseChatBubble(box, 'user', message);
+  appendEnterpriseChatBubble(box, 'user', files.length ? (message ? message + '\n\n' : '') + '\u{1F4CE} ' + enterpriseAttach.names().join(', ') : message);
   input.value = '';
   playTactileClick();
-  await postEnterpriseChat(message, box);
+  await postEnterpriseChat(message, box, files);
 }
 async function sendFloatingChatMessage() {
   const input = document.getElementById('floating-chat-input');
@@ -5727,5 +5743,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
+<script src="attach.js?v=3.3.0" defer></script>
 </body>
 </html>

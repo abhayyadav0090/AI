@@ -2210,25 +2210,38 @@ async function deleteChat(id) {
   }
 }
 
+// File attachments for the NexAI chat (3.3.0). The helper lives in attach.js.
+let chatAttach = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('chat-attach-input');
+  const button = document.getElementById('chat-attach-btn');
+  const tray = document.getElementById('chat-attach-tray');
+  if (window.NexAttach && input && button && tray) chatAttach = NexAttach.create({ input, button, tray, say: (m) => { if (window.NexUI) NexUI.toast(m); } });
+});
+
 async function sendMessage() {
   if (chatBusy) return;
   const input = document.getElementById('chat-input');
   const msg = input.value.trim();
-  if (!msg) return;
+  if (chatAttach && chatAttach.busy()) { if (window.NexUI) NexUI.toast('Still preparing your file…'); return; }
+  const files = chatAttach ? chatAttach.list() : [];
+  if (!msg && !files.length) return;
   chatBusy = true;
   document.querySelectorAll('#chat-messages .chat-msg.error').forEach(n => n.remove());
   input.value = '';
   autoResizeTextarea(input);
   setChips(false);
-  const userDiv = appendChatMsg('user', msg);
+  const shownMsg = files.length ? (msg ? msg + '\n\n' : '') + '\u{1F4CE} ' + chatAttach.names().join(', ') : msg;
+  const userDiv = appendChatMsg('user', shownMsg);
   showTyping();
   const sendBtn = document.getElementById('chat-send-btn');
   if (sendBtn) sendBtn.disabled = true;
   try {
-    const data = await callAIChat(activeChatId, msg, buildSystemContext());
+    const data = await callAIChat(activeChatId, msg, buildSystemContext(), files);
     removeTyping();
     appendChatMsg('assistant', data.text);
     activeChatId = data.chatId;
+    if (chatAttach) chatAttach.clear();
     upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
     if (!state.usedAI) { state.usedAI = true; saveState(); }
   } catch (e) {
@@ -3235,8 +3248,8 @@ async function callAI(prompt, systemPrompt = 'You are a helpful productivity ass
 }
 
 // A chat message. The server saves it and the reply to the chat's history.
-function callAIChat(chatId, message, system) {
-  return postJSON('/api/chat', { chatId, message, system });
+function callAIChat(chatId, message, system, attachments) {
+  return postJSON('/api/chat', attachments && attachments.length ? { chatId, message, system, attachments } : { chatId, message, system });
 }
 
 // ═══════════════════════════ HELPERS ═══════════════════════════
