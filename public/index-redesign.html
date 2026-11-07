@@ -246,6 +246,54 @@
   --shadow-glow: 0 0 28px rgba(250, 160, 0, 0.38);
 }
 
+[data-theme="cobalt-lime-dark"] {
+  color-scheme: dark;
+  --theme-name: "Cobalt Lime";
+  --bg-app: #030407;
+  --bg-surface: #070b16;
+  --bg-surface-elevated: #0b1530;
+  --bg-card: rgba(11, 21, 48, 0.74);
+  --bg-card-hover: rgba(21, 88, 201, 0.2);
+  --bg-card-active: rgba(21, 88, 201, 0.34);
+  --bg-glass: rgba(7, 11, 22, 0.84);
+  --bg-sidebar: rgba(3, 4, 7, 0.96);
+  --bg-topbar: rgba(3, 4, 7, 0.9);
+
+  --border-subtle: rgba(110, 160, 255, 0.16);
+  --border-medium: rgba(110, 160, 255, 0.3);
+  --border-focus: #D4FF24;
+
+  --accent-primary: #D4FF24;
+  --accent-primary-hover: #e2ff5c;
+  --accent-secondary: #5B8FF0;
+  --accent-gradient: linear-gradient(135deg, #D4FF24, #A6E600);
+  --accent-sparkle: linear-gradient(135deg, #1558C9, #3D7BEF, #D4FF24);
+
+  --status-todo: #7C8BA8;
+  --status-progress: #5B8FF0;
+  --status-review: #D4FF24;
+  --status-done: #4ADE80;
+
+  --priority-low: #4ADE80;
+  --priority-medium: #D4FF24;
+  --priority-high: #FF6B7A;
+
+  --text-main: #EEF3FF;
+  --text-secondary: #B5C2DE;
+  --text-muted: #8294B8;
+  --text-on-accent: #030407;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 26px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 28px rgba(212, 255, 36, 0.3);
+}
+/* Cobalt Lime: lime surfaces need dark text, and the chat avatar sits on cobalt so it keeps white */
+[data-theme="cobalt-lime-dark"] .brand-logo-icon,
+[data-theme="cobalt-lime-dark"] .pomo-play-hero,
+[data-theme="cobalt-lime-dark"] .nexos-experience-switch .active { color: var(--text-on-accent); }
+[data-theme="cobalt-lime-dark"] .chat-msg-row.assistant .chat-avatar-circle { background: linear-gradient(135deg, #1558C9, #3D7BEF); color: #fff; }
+
 /* Density Profiles */
 [data-density="compact"] {
   --spacing-unit: 8px;
@@ -1730,7 +1778,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     try {
       var t = localStorage.getItem('nexos_enterprise_theme');
       t = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' })[t] || t; /* old theme names */
-      if (['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
+      if (['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine', 'cobalt-lime-dark'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   })();
 </script>
@@ -1868,6 +1916,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <option value="apple-light">☀️ Apple Light</option>
             <option value="material-light">⚪ M3</option>
             <option value="cyber-aubergine">🟣 Overgame</option>
+            <option value="cobalt-lime-dark">🔵 Cobalt Lime</option>
         </select></div>
       <div class="prefs-row"><label for="density-selector">Density</label>
         <select class="density-dropdown" onchange="applyDensity(this.value)" id="density-selector" title="View density">
@@ -4684,7 +4733,7 @@ function classicRootToEnterprise(root, localPrefs = {}) {
     },
     currentNoteId: saved.currentNoteId || pref.currentNoteId || null,
     theme: (() => {
-      const known = ['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine'];
+      const known = ['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine', 'cobalt-lime-dark'];
       const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' };   // the blue Fluent themes became Apple Glass / Apple Light
       const saved = renamed[pref.theme] || pref.theme;
       if (!known.includes(saved)) return 'cyber-aubergine';                              // nothing chosen yet: Overgame

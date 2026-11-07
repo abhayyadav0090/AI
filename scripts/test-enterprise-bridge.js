@@ -82,6 +82,14 @@ const legacyDark = context.classicRootToEnterprise({ enterpriseWorkspace: { them
 assert.strictEqual(legacyDark.theme, 'apple-dark', 'old Fluent dark theme was not renamed');
 const untouched = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark' } }, {});
 assert.strictEqual(untouched.theme, 'cyber-aubergine', 'old default theme should move to Overgame once');
+const cobalt = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'cobalt-lime-dark', themeVersion: 2 } }, {});
+assert.strictEqual(cobalt.theme, 'cobalt-lime-dark', 'Cobalt Lime theme was not kept after reload');
+const bogus = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'not-a-theme', themeVersion: 2 } }, {});
+assert.strictEqual(bogus.theme, 'cyber-aubergine', 'unknown theme should fall back to Overgame');
+const themeHtml = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index-redesign.html'), 'utf8');
+assert.ok(themeHtml.includes('<option value="cobalt-lime-dark">'), 'Cobalt Lime missing from the theme dropdown');
+assert.ok(themeHtml.includes('[data-theme="cobalt-lime-dark"] {'), 'Cobalt Lime colours are missing');
+assert.strictEqual((themeHtml.match(/'cyber-aubergine', 'cobalt-lime-dark'/g) || []).length, 2, 'Cobalt Lime must be in both saved-theme allowlists');
 console.log('Theme renaming checks passed.');
 
 // ---- 2.5.3: Recently deleted keeps 30 days, 30 entries, and drops bad data ----

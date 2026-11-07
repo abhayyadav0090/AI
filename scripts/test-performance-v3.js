@@ -14,8 +14,8 @@ const sw = read('public/sw.js');
 const pkg = JSON.parse(read('package.json'));
 const lock = JSON.parse(read('package-lock.json'));
 
-assert.strictEqual(pkg.version, '3.0.3', 'package version must be 3.0.3');
-assert.strictEqual(lock.version, '3.0.3', 'lockfile version must be 3.0.3');
+assert.strictEqual(pkg.version, '3.1.0', 'package version must be 3.1.0');
+assert.strictEqual(lock.version, '3.1.0', 'lockfile version must be 3.1.0');
 assert.ok(server.includes("'/bootstrap'"), 'bootstrap must pass through the database connection middleware');
 assert.ok(server.includes("app.get('/api/bootstrap', requireAuth"), 'authenticated bootstrap endpoint must exist');
 assert.ok(server.includes("res.setHeader('Cache-Control', 'private, no-store')"), 'personalized bootstrap data must not be cached');
