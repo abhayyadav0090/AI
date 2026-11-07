@@ -1276,6 +1276,21 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
   color: var(--priority-high); animation: voicePulse 1.2s infinite;
 }
 @keyframes voicePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.voice-input-btn.sm { width: 32px; height: 32px; font-size: 14px; flex: none; padding: 0; }
+.voice-input-btn.voice-float { float: right; margin: -4px 0 4px 8px; }
+/* 3.2.0: on phones the NexAI chat gets most of the screen; context and past chats sit below it. */
+@media (max-width: 768px) {
+  .ai-view-layout { height: auto; min-height: 0; grid-template-rows: auto auto; gap: 16px; }
+  .ai-chat-main-container { height: calc(100vh - 270px); height: calc(100dvh - 270px); min-height: 420px; max-height: 760px; }
+  .ai-chat-main-container .ai-chat-messages-box { padding: 14px; gap: 14px; overscroll-behavior: contain; }
+  .ai-chat-main-container .chat-msg-row { max-width: 96%; gap: 10px; }
+  .ai-chat-main-container .chat-avatar-circle { width: 30px; height: 30px; font-size: 13px; }
+  .ai-chat-main-container .chat-bubble-card { padding: 11px 14px; }
+  .ai-chat-main-container .ai-input-dock { padding: 10px 12px; }
+  .ai-chat-main-container .ai-prompt-chips-strip { padding-bottom: 8px; margin-bottom: 8px; scrollbar-width: none; }
+  .ai-chat-main-container .ai-prompt-chips-strip::-webkit-scrollbar { display: none; }
+  .ai-chat-main-container .chat-input-box { max-height: 96px; padding: 10px 12px; }
+}
 
 /* Omnipresent Floating Copilot Side-Drawer */
 .floating-copilot-drawer {
@@ -2116,6 +2131,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <div class="kanban-cards-container" id="col-cards-todo"></div>
             <div class="inline-add-task-wrap">
               <input type="text" placeholder="+ Add task and hit Enter…" class="inline-add-input" onkeydown="handleQuickAddKey(event, 'todo')">
+              <button type="button" class="voice-input-btn sm" onclick="toggleVoiceDictation('prev', this)" title="Voice: speak a task title" aria-label="Voice input">🎙️</button>
             </div>
           </div>
 
@@ -2131,6 +2147,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <div class="kanban-cards-container" id="col-cards-inprogress"></div>
             <div class="inline-add-task-wrap">
               <input type="text" placeholder="+ Add task and hit Enter…" class="inline-add-input" onkeydown="handleQuickAddKey(event, 'inprogress')">
+              <button type="button" class="voice-input-btn sm" onclick="toggleVoiceDictation('prev', this)" title="Voice: speak a task title" aria-label="Voice input">🎙️</button>
             </div>
           </div>
 
@@ -2146,6 +2163,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <div class="kanban-cards-container" id="col-cards-review"></div>
             <div class="inline-add-task-wrap">
               <input type="text" placeholder="+ Add task and hit Enter…" class="inline-add-input" onkeydown="handleQuickAddKey(event, 'review')">
+              <button type="button" class="voice-input-btn sm" onclick="toggleVoiceDictation('prev', this)" title="Voice: speak a task title" aria-label="Voice input">🎙️</button>
             </div>
           </div>
 
@@ -2161,6 +2179,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <div class="kanban-cards-container" id="col-cards-done"></div>
             <div class="inline-add-task-wrap">
               <input type="text" placeholder="+ Add task and hit Enter…" class="inline-add-input" onkeydown="handleQuickAddKey(event, 'done')">
+              <button type="button" class="voice-input-btn sm" onclick="toggleVoiceDictation('prev', this)" title="Voice: speak a task title" aria-label="Voice input">🎙️</button>
             </div>
           </div>
         </div>
@@ -2518,6 +2537,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
   <div class="ai-input-dock">
     <div class="chat-input-textarea-row">
       <textarea id="floating-chat-input" placeholder="Ask NexAI while working…" class="chat-input-box" rows="1" onkeydown="handleFloatingChatKey(event)"></textarea>
+      <button type="button" class="voice-input-btn" onclick="toggleVoiceDictation('floating-chat-input', this)" title="Voice to text" aria-label="Voice input">🎙️</button>
       <button class="btn-primary" onclick="sendFloatingChatMessage()">Send</button>
     </div>
   </div>
@@ -2591,10 +2611,12 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     <div style="display:flex;flex-direction:column;gap:14px">
       <label>
         <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Task Title</span>
+        <button type="button" class="voice-input-btn sm voice-float" onclick="toggleVoiceDictation('task-modal-title', this)" title="Voice input" aria-label="Voice input">🎙️</button>
         <input type="text" id="task-modal-title" class="inline-add-input" style="width:100%;margin-top:4px">
       </label>
       <label>
         <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Description / Acceptance Criteria</span>
+        <button type="button" class="voice-input-btn sm voice-float" onclick="toggleVoiceDictation('task-modal-desc', this)" title="Voice input" aria-label="Voice input">🎙️</button>
         <textarea id="task-modal-desc" class="inline-add-input" style="width:100%;margin-top:4px;height:80px;resize:vertical"></textarea>
       </label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -2656,6 +2678,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">
       Describe what you want NexAI to do. It will draft reviewable changes before anything touches your data.
     </p>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button type="button" class="voice-input-btn sm" onclick="toggleVoiceDictation('action-mode-input-text', this)" title="Speak your request" aria-label="Voice input">🎙️</button></div>
     <textarea id="action-mode-input-text" placeholder="e.g., Create 3 tasks for preparing my portfolio launch, set the design review to High priority due tomorrow, and make a launch checklist note." class="inline-add-input" style="width:100%;height:80px;resize:vertical;margin-bottom:12px"></textarea>
     <div style="display:flex;gap:10px;margin-bottom:14px">
       <button class="btn-primary" onclick="draftCopilotActions()">Draft Proposed Actions</button>
@@ -4296,8 +4319,19 @@ function handleFloatingChatKey(e) {
   }
 }
 
-// Voice Dictation (Web Speech API)
-function toggleVoiceDictation(target) {
+// Voice Dictation (Web Speech API). 3.2.0: works for chat, notes, Action Mode and task fields.
+let voiceLongPressFired = false;
+function voiceLang() {
+  try { return localStorage.getItem('nexos_voice_lang') === 'hi-IN' ? 'hi-IN' : 'en-IN'; } catch (_) { return 'en-IN'; }
+}
+function resolveVoiceTarget(target, btn) {
+  if (target === 'chat') return document.getElementById('ai-chat-input');
+  if (target === 'note') return document.getElementById('note-editor-textarea');
+  if (target === 'prev') return btn ? btn.previousElementSibling : null;
+  return document.getElementById(target);
+}
+function toggleVoiceDictation(target, btn) {
+  if (voiceLongPressFired) { voiceLongPressFired = false; return; }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     showToast('Speech recognition not supported in this browser.');
@@ -4305,39 +4339,71 @@ function toggleVoiceDictation(target) {
   }
 
   if (speechRecognizer) {
-    speechRecognizer.stop();
+    try { speechRecognizer.stop(); } catch (_) {}
     speechRecognizer = null;
     document.querySelectorAll('.voice-input-btn').forEach(b => b.classList.remove('recording'));
     return;
   }
 
-  speechRecognizer = new SpeechRecognition();
-  speechRecognizer.continuous = false;
-  speechRecognizer.interimResults = false;
+  const field = resolveVoiceTarget(target, btn);
+  if (!field) return;
+  const button = btn || document.getElementById(target === 'chat' ? 'chat-voice-btn' : 'note-voice-btn');
 
-  const btn = target === 'chat' ? document.getElementById('chat-voice-btn') : document.getElementById('note-voice-btn');
-  if (btn) btn.classList.add('recording');
+  const rec = new SpeechRecognition();
+  speechRecognizer = rec;
+  rec.lang = voiceLang();
+  rec.continuous = false;
+  rec.interimResults = false;
+  if (button) button.classList.add('recording');
   showToast('Listening… Speak now');
 
-  speechRecognizer.onresult = (e) => {
-    const transcript = e.results[0][0].transcript;
-    if (target === 'chat') {
-      const input = document.getElementById('ai-chat-input');
-      input.value = (input.value ? input.value + ' ' : '') + transcript;
-    } else {
-      const textarea = document.getElementById('note-editor-textarea');
-      textarea.value = (textarea.value ? textarea.value + ' ' : '') + transcript;
-      handleNoteContentChange();
-    }
+  rec.onresult = (e) => {
+    const transcript = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : '';
+    if (!transcript) return;
+    let next = (field.value ? field.value + ' ' : '') + transcript;
+    if (field.maxLength > 0) next = next.slice(0, field.maxLength);
+    field.value = next;
+    if (target === 'note') handleNoteContentChange();
+    else field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.focus();
   };
 
-  speechRecognizer.onend = () => {
-    if (btn) btn.classList.remove('recording');
-    speechRecognizer = null;
+  rec.onerror = (e) => {
+    const code = e && e.error;
+    if (code === 'not-allowed' || code === 'service-not-allowed') showToast('Microphone is blocked. Allow it in your browser settings.');
+    else if (code === 'no-speech') showToast('Did not hear anything. Try again.');
+    else if (code !== 'aborted') showToast('Voice input failed. Please try again.');
   };
 
-  speechRecognizer.start();
+  rec.onend = () => {
+    if (button) button.classList.remove('recording');
+    if (speechRecognizer === rec) speechRecognizer = null;
+  };
+
+  try { rec.start(); } catch (_) { speechRecognizer = null; if (button) button.classList.remove('recording'); }
 }
+
+// Long-press a mic button to switch the voice language between English (India) and Hindi.
+function bindVoiceLongPress() {
+  document.querySelectorAll('.voice-input-btn').forEach((b) => {
+    if (b.dataset.longpress) return;
+    b.dataset.longpress = '1';
+    let timer = null;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    b.addEventListener('pointerdown', () => {
+      voiceLongPressFired = false;
+      timer = setTimeout(() => {
+        voiceLongPressFired = true; timer = null;
+        const next = voiceLang() === 'hi-IN' ? 'en-IN' : 'hi-IN';
+        try { localStorage.setItem('nexos_voice_lang', next); } catch (_) {}
+        showToast(next === 'hi-IN' ? 'Voice language: Hindi' : 'Voice language: English (India)');
+      }, 600);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, cancel));
+    b.addEventListener('contextmenu', (e) => { if (voiceLongPressFired) e.preventDefault(); });
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindVoiceLongPress); else bindVoiceLongPress();
 
 // ---------------- ACTION MODE ----------------
 let proposedActions = [];

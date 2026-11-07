@@ -10,7 +10,7 @@ NexOS is a web workspace for planning your day and staying focused. It combines 
 
 
 
-**Current source release: 3.1.1.** The 3.0 series focuses on performance, mobile responsiveness and reliable navigation while preserving existing NexOS features and workspace data.
+**Current source release: 3.2.0.** The 3.0 series focuses on performance, mobile responsiveness and reliable navigation while preserving existing NexOS features and workspace data.
 
 
 
@@ -550,3 +550,4 @@ They use the same sign-in and the same data. Shortcuts in Enterprise: `Alt+1` to
 - **3.0.3 — Recovery Center:** Gave Recently Deleted its own design with a single Close control, emerald Restore buttons, days-left badges, a clearer empty state and a tidier mobile layout. Restore behaviour and 30-day retention are unchanged. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.3.md)
 - **3.1.0 — Cobalt Lime:** Added a sixth Enterprise theme in midnight black, electric cobalt blue and acid lime. It appears in the Enterprise theme list and is remembered after refresh. Classic and the other five Enterprise themes are unchanged. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.1.0.md)
 - **3.1.1 — Faster PWA Startup:** Precaches the Classic app shell, serves cached shell/assets before the network, parallelises Classic script downloads and fixes semantic-version asset cache headers. API responses and the Recovery Center remain unchanged. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.1.1.md)
+- **3.2.0 — Voice Input:** Adds a microphone button to the NexAI chat, NexAI Action Mode and the Add Task fields in Classic and Enterprise, using the browser's built-in speech recognition. Tap to speak, long-press the mic to switch between English (India) and Hindi. Nothing is submitted automatically. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.2.0.md)

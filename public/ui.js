@@ -279,6 +279,130 @@
   };
 })();
 
+/* NexOS 3.2.0 voice input: a mic beside the NexAI chat, Action Mode and Add Task fields (Web Speech API). */
+(function () {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return; // Unsupported browsers keep the normal typing UI with no dead buttons.
+  const LANG_KEY = 'nexos_voice_lang';
+  const TARGETS = [
+    { id: 'chat-input', mode: 'before', ref: 'chat-send-btn' },
+    { id: 'new-task-input', mode: 'after' },
+    { id: 'modal-title-input', mode: 'label' },
+    { id: 'modal-desc-input', mode: 'label' },
+    { id: 'nexos-action-request', mode: 'label' },
+  ];
+  let active = null;   // { rec, btn }
+  let longFired = false;
+
+  const lang = () => { try { return localStorage.getItem(LANG_KEY) === 'hi-IN' ? 'hi-IN' : 'en-IN'; } catch (_) { return 'en-IN'; } };
+  const say = (msg) => { if (window.NexUI && NexUI.toast) NexUI.toast(msg); };
+
+  function injectStyle() {
+    if (document.getElementById('nexos-mic-styles')) return;
+    const st = document.createElement('style');
+    st.id = 'nexos-mic-styles';
+    st.textContent = '.nexos-mic{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--border,rgba(128,128,128,.35));background:transparent;color:inherit;font-size:16px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}'
+      + '.nexos-mic.is-label{float:right;width:28px;height:28px;font-size:14px;margin:-4px 0 4px 8px}'
+      + '.nexos-mic.is-recording{background:rgba(220,38,38,.18);border-color:#dc2626;animation:nexosMicPulse 1.2s infinite}'
+      + '@keyframes nexosMicPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}';
+    document.head.appendChild(st);
+  }
+
+  function stop() {
+    if (!active) return;
+    const { rec, btn } = active;
+    active = null;
+    btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed', 'false');
+    try { rec.stop(); } catch (_) {}
+  }
+
+  function start(field, btn) {
+    const rec = new SR();
+    rec.lang = lang(); rec.continuous = false; rec.interimResults = false;
+    active = { rec, btn };
+    btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
+    say('Listening… speak now');
+    rec.onresult = (e) => {
+      const text = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : '';
+      if (!text) return;
+      let next = (field.value ? field.value + ' ' : '') + text;
+      if (field.maxLength > 0) next = next.slice(0, field.maxLength);
+      field.value = next;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.focus();
+    };
+    rec.onerror = (e) => {
+      const code = e && e.error;
+      if (code === 'not-allowed' || code === 'service-not-allowed') say('Microphone is blocked. Allow it in your browser settings.');
+      else if (code === 'no-speech') say('Did not hear anything. Try again.');
+      else if (code !== 'aborted') say('Voice input failed. Please try again.');
+    };
+    rec.onend = () => { if (active && active.rec === rec) { btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed', 'false'); active = null; } };
+    try { rec.start(); } catch (_) { stop(); }
+  }
+
+  function makeButton(id, asLabel) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'nexos-mic' + (asLabel ? ' is-label' : '');
+    btn.dataset.micFor = id;
+    btn.setAttribute('aria-label', 'Voice input'); btn.setAttribute('aria-pressed', 'false');
+    btn.title = 'Tap to speak. Long-press to switch English / Hindi.';
+    btn.textContent = '🎙️';
+    let timer = null;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    btn.addEventListener('pointerdown', () => {
+      longFired = false;
+      timer = setTimeout(() => {
+        longFired = true; timer = null;
+        const nextLang = lang() === 'hi-IN' ? 'en-IN' : 'hi-IN';
+        try { localStorage.setItem(LANG_KEY, nextLang); } catch (_) {}
+        say(nextLang === 'hi-IN' ? 'Voice language: Hindi' : 'Voice language: English (India)');
+      }, 600);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, cancel));
+    btn.addEventListener('contextmenu', (e) => { if (longFired) e.preventDefault(); });
+    btn.addEventListener('click', () => {
+      if (longFired) { longFired = false; return; }
+      const field = document.getElementById(id);
+      if (!field) return;
+      const wasThis = active && active.btn === btn;
+      stop();
+      if (!wasThis) start(field, btn);
+    });
+    return btn;
+  }
+
+  function scan() {
+    TARGETS.forEach((t) => {
+      const field = document.getElementById(t.id);
+      if (!field || document.querySelector('.nexos-mic[data-mic-for="' + t.id + '"]')) return;
+      if (t.mode === 'before') {
+        const ref = document.getElementById(t.ref);
+        if (ref && ref.parentNode) ref.parentNode.insertBefore(makeButton(t.id, false), ref);
+      } else if (t.mode === 'after') {
+        field.insertAdjacentElement('afterend', makeButton(t.id, false));
+      } else {
+        const label = field.closest('label') || document.querySelector('label[for="' + t.id + '"]');
+        if (label) label.insertBefore(makeButton(t.id, true), label.firstChild);
+      }
+    });
+  }
+
+  let queued = false;
+  function queueScan() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; scan(); });
+  }
+
+  function init() {
+    injectStyle(); scan();
+    new MutationObserver(queueScan).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
 // Used by the task list and keyboard flows.
 function toggleTaskDone(id) {
   const task = state.tasks.find(t => t.id === id);
