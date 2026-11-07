@@ -1815,13 +1815,18 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 /* NexOS 3.3.2 — keep the Enterprise AI workspace inside the viewport on phones.
    The document and view shell stay fixed; only the message history scrolls. */
 @media (max-width: 768px) {
-  body.nexos-ai-view-active,
-  body.nexos-ai-view-active html {
-    height: 100dvh;
+  html.nexos-ai-view-active,
+  html.nexos-ai-view-active body {
+    height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
   }
-  body.nexos-ai-view-active .main-wrapper {
+  html.nexos-ai-view-active #nexus-app {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  html.nexos-ai-view-active .main-wrapper {
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
@@ -2959,6 +2964,7 @@ function switchNexusView(name) {
   closeAISheet();
   document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
   document.body.classList.toggle('nexos-ai-view-active', name === 'ai');
+  document.documentElement.classList.toggle('nexos-ai-view-active', name === 'ai');
   document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
     const on = b.dataset.view === name;
     b.classList.toggle('active', on);
