@@ -1018,6 +1018,8 @@ function switchView(name) {
   if (name === 'dashboard') { renderDashboard(); updateStats(); }
   if (name === 'analytics') renderAnalytics();
   if (name === 'ai') updateContextPanel();
+  if (name !== 'ai') closeClassicAISheet();
+  document.body.classList.toggle('nexos-ai-view-active', name === 'ai');
   // Close the mobile drawer after navigation.
   if (window.innerWidth < 900) closeSidebar();
   // A different primary view starts at its own top; reselecting the active view preserves position.
@@ -2174,7 +2176,32 @@ function renderMessages(messages) {
   scrollChat();
 }
 
+/* NexOS 3.3.1 Classic NexAI mobile Context and History sheets. */
+function openClassicAISheet(which) {
+ const panel=document.getElementById('classic-ai-context-panel'),backdrop=document.getElementById('classic-ai-sheet-backdrop');
+ if(!panel||!backdrop)return;
+ const target=which==='history'?'history':'context';
+ if(panel.classList.contains('open')&&panel.dataset.sheet===target){closeClassicAISheet();return;}
+ panel.dataset.sheet=target;
+ const title=document.getElementById('classic-ai-sheet-title');
+ if(title)title.textContent=target==='history'?'Past Conversations':'Workspace Context';
+ panel.classList.add('open');backdrop.classList.add('open');backdrop.setAttribute('aria-hidden','false');
+ document.body.classList.add('classic-ai-sheet-open');
+ document.getElementById('classic-ai-context-btn')?.setAttribute('aria-expanded',String(target==='context'));
+ document.getElementById('classic-ai-history-btn')?.setAttribute('aria-expanded',String(target==='history'));
+ if(target==='history'&&typeof loadChatList==='function')loadChatList();
+}
+function closeClassicAISheet(){
+ document.getElementById('classic-ai-context-panel')?.classList.remove('open');
+ const backdrop=document.getElementById('classic-ai-sheet-backdrop');
+ if(backdrop){backdrop.classList.remove('open');backdrop.setAttribute('aria-hidden','true');}
+ document.body.classList.remove('classic-ai-sheet-open');
+ document.getElementById('classic-ai-context-btn')?.setAttribute('aria-expanded','false');
+ document.getElementById('classic-ai-history-btn')?.setAttribute('aria-expanded','false');
+}
+
 async function openChat(id) {
+  closeClassicAISheet();
   if (chatBusy) return;
   try {
     const res = await fetch('/api/chats/' + encodeURIComponent(id));
@@ -2189,6 +2216,7 @@ async function openChat(id) {
 }
 
 function newChat() {
+  closeClassicAISheet();
   if (chatBusy) return;
   activeChatId = null;
   renderMessages([]);
