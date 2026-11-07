@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.3.1" defer></script>
+<script src="/push-client.js?v=3.3.2" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1821,7 +1821,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.3.1">
+<link rel="manifest" href="/manifest.json?v=3.3.2">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -4326,6 +4326,8 @@ function saveWeeklyReviewToNotes() {
 }
 
 // ---------------- COPILOT & GEMINI AI CHAT ----------------
+let enterpriseChatSending = false;
+
 function handleChatInputKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -4418,7 +4420,7 @@ function toggleVoiceDictation(target, btn) {
     field.value = next;
     if (target === 'note') handleNoteContentChange();
     else field.dispatchEvent(new Event('input', { bubbles: true }));
-    field.focus();
+    // Keep focus on the microphone; focusing this field opens the mobile keyboard.
   };
 
   rec.onerror = (e) => {
@@ -5445,7 +5447,7 @@ function appendEnterpriseChatBubble(box, role, content) {
 async function postEnterpriseChat(message, box, files = []) {
   if (enterpriseSession.mode !== 'account') {
     appendEnterpriseChatBubble(box, 'assistant', 'Live NexAI requires a signed-in NexOS account. Your workspace remains local in guest/preview mode. Open Classic NexOS and sign in with Google to enable AI chat and Action Mode.');
-    return;
+    return false;
   }
   const pending = appendEnterpriseChatBubble(box, 'assistant', 'Thinking…');
   const sendButton = document.getElementById('ai-send-btn');
@@ -5473,8 +5475,10 @@ async function postEnterpriseChat(message, box, files = []) {
     if (pending) pending.innerHTML = renderSimpleMarkdown(payload.text || 'No response received.');
     saveWorkspaceState();
     await refreshEnterpriseChatList();
+    return true;
   } catch (err) {
     if (pending) pending.textContent = err.message || 'NexAI could not respond. Please try again.';
+    return false;
   } finally { if (sendButton) sendButton.disabled = false; box.scrollTop = box.scrollHeight; }
 }
 // File attachments for the NexAI chat (3.3.0). The helper lives in attach.js.
@@ -5488,6 +5492,7 @@ function initEnterpriseAttach() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initEnterpriseAttach); else initEnterpriseAttach();
 
 async function sendAIChatMessage() {
+  if (enterpriseChatSending) return;
   const input = document.getElementById('ai-chat-input');
   const message = input?.value.trim();
   if (enterpriseAttach && enterpriseAttach.busy()) { showToast('Still preparing your file…'); return; }
@@ -5497,19 +5502,40 @@ async function sendAIChatMessage() {
   if (!box) return;
   if (box.querySelector('.welcome-message')) box.innerHTML = '';
   else if (box.querySelector('.chat-msg-row.assistant') && box.children.length === 1 && !state.activeChatId) box.innerHTML = '';
+  enterpriseChatSending = true;
   appendEnterpriseChatBubble(box, 'user', files.length ? (message ? message + '\n\n' : '') + '\u{1F4CE} ' + enterpriseAttach.names().join(', ') : message);
   input.value = '';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
   playTactileClick();
-  await postEnterpriseChat(message, box, files);
+  try {
+    const sent = await postEnterpriseChat(message, box, files);
+    if (!sent && input && !input.value.trim()) {
+      input.value = message || '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  } finally {
+    enterpriseChatSending = false;
+  }
 }
 async function sendFloatingChatMessage() {
+  if (enterpriseChatSending) return;
   const input = document.getElementById('floating-chat-input');
   const message = input?.value.trim();
   const box = document.getElementById('floating-copilot-messages');
   if (!message || !box) return;
+  enterpriseChatSending = true;
   appendEnterpriseChatBubble(box, 'user', message);
   input.value = '';
-  await postEnterpriseChat(message, box);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  try {
+    const sent = await postEnterpriseChat(message, box);
+    if (!sent && input && !input.value.trim()) {
+      input.value = message;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  } finally {
+    enterpriseChatSending = false;
+  }
 }
 function openAISheet(which) {
   const drawer = document.querySelector('#pane-ai .ai-context-drawer');
@@ -5811,6 +5837,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.3.1" defer></script>
+<script src="attach.js?v=3.3.2" defer></script>
 </body>
 </html>

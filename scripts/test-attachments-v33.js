@@ -56,14 +56,14 @@ assert.ok(!/inlineData|base64/i.test(server.slice(server.indexOf("chat.messages.
 const classic = read('public/index.html');
 const app = read('public/app.js');
 assert.ok(classic.includes('id="chat-attach-btn"') && classic.includes('id="chat-attach-input"') && classic.includes('id="chat-attach-tray"'), 'Classic needs attach controls');
-assert.ok(classic.includes('attach.js?v=3.3.1" defer') && classic.indexOf('attach.js?v=') < classic.indexOf('app.js?v='), 'attach.js loads before app.js');
+assert.ok(classic.includes('attach.js?v=3.3.2" defer') && classic.indexOf('attach.js?v=') < classic.indexOf('app.js?v='), 'attach.js loads before app.js');
 assert.ok(app.includes('NexAttach.create') && app.includes('chatAttach.list()') && app.includes('chatAttach.clear()'), 'Classic chat must send and then clear attachments');
 assert.ok(app.includes("{ chatId, message, system, attachments }"), 'Classic must post attachments');
 
 // Enterprise UI.
 const ent = read('public/index-redesign.html');
 assert.ok(ent.includes('id="ai-attach-btn"') && ent.includes('id="ai-attach-input"') && ent.includes('id="ai-attach-tray"'), 'Enterprise needs attach controls');
-assert.ok(ent.includes('attach.js?v=3.3.1'), 'Enterprise must load attach.js');
+assert.ok(ent.includes('attach.js?v=3.3.2'), 'Enterprise must load attach.js');
 assert.ok(ent.includes('postEnterpriseChat(message, box, files)') && ent.includes('attachments: files'), 'Enterprise chat must send attachments');
 assert.ok(!/postEnterpriseChat\(message, box, files\)/.test(ent.slice(ent.indexOf('async function sendFloatingChatMessage'), ent.indexOf('async function sendFloatingChatMessage') + 400)), 'side panel stays text-only');
 
@@ -71,7 +71,7 @@ assert.ok(!/postEnterpriseChat\(message, box, files\)/.test(ent.slice(ent.indexO
 const attach = read('public/attach.js');
 assert.ok(attach.includes('MAX_FILES = 3') && attach.includes('6 * 1024 * 1024') && attach.includes('toBlob'), 'client limits and image shrinking');
 assert.ok(!attach.includes('innerHTML'), 'file names must never be written as HTML');
-assert.ok(read('public/sw.js').includes("'/attach.js?v=3.3.1'"), 'service worker precaches attach.js');
+assert.ok(read('public/sw.js').includes("'/attach.js?v=3.3.2'"), 'service worker precaches attach.js');
 
 // Recovery Center stays untouched.
 assert.ok(!read('public/recover.html').includes('attach'), 'Recovery Center must not contain attachment code');
