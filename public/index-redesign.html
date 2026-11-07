@@ -4462,7 +4462,7 @@ function prepareVoiceKeyboardGuard(field) {
   // A deliberate tap restores ordinary editing before the browser's focus/keyboard step.
   field.addEventListener('pointerdown', () => {
     if (speechRecognizer) {
-      try { speechRecognizer.stop(); } catch (_) {}
+      try { speechRecognizer.abort(); } catch (_) { try { speechRecognizer.stop(); } catch (_) {} }
       speechRecognizer = null;
       document.querySelectorAll('.voice-input-btn').forEach(b => b.classList.remove('recording'));
     }
