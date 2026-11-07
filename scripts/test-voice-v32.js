@@ -32,11 +32,15 @@ assert.ok(ent.includes("nexos_voice_lang"), 'voice language must be remembered')
 assert.ok(!/\.submit\(/.test(ent.slice(ent.indexOf('Voice Dictation (Web Speech API)'), ent.indexOf('// ---------------- ACTION MODE'))), 'Enterprise voice must never auto-submit');
 
 // Mobile NexAI chat layout: tall chat box, desktop rules untouched.
-assert.ok(ent.includes('3.2.0: on phones the NexAI chat gets most of the screen') && ent.includes('height: calc(100dvh - 270px); min-height: 420px'), 'mobile NexAI chat should be taller');
+assert.ok(ent.includes('3.3.1: on phones NexAI gets one compact row of 4 buttons') && ent.includes('height: calc(100dvh - 202px - env(safe-area-inset-bottom, 0px)); min-height: 300px'), 'mobile NexAI chat should be taller');
 
 // Recovery Center stays untouched.
 assert.ok(!recover.includes('nexos-mic') && !recover.includes('SpeechRecognition'), 'Recovery Center must not contain voice code');
 
 assert.ok(fs.existsSync(path.join(__dirname, '..', 'RELEASE-NOTES/RELEASE-NOTES NexOS 3.0/RELEASE-NOTES-3.2.0.md')), '3.2.0 release notes should be kept');
+
+// Repeat-text guard: results must be rebuilt from the whole event on top of the text that was there before the mic, never appended.
+assert.ok(ent.includes('function nexosSpokenText') && ent.includes('const transcript = nexosSpokenText(e.results)') && ent.includes('baseText + transcript'), 'Enterprise mic must rewrite the field instead of appending each result');
+assert.ok(ui.includes('function spokenText') && ui.includes('const text = spokenText(e.results)') && ui.includes('baseText + text'), 'Classic mic must rewrite the field instead of appending each result');
 
 console.log('NexOS 3.2.0 voice input checks passed.');

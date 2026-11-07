@@ -316,16 +316,33 @@
     try { rec.stop(); } catch (_) {}
   }
 
+  // Builds the full spoken text from every result of a recognition event. Some browsers (Android Chrome) send growing
+  // partial results even when interimResults is off, so a result is never appended: the field is rewritten as
+  // "text that was there before the mic" + "everything heard so far".
+  function spokenText(results) {
+    let spoken = '';
+    for (let i = 0; results && i < results.length; i++) {
+      const alt = results[i] && results[i][0];
+      const piece = alt && alt.transcript ? String(alt.transcript).trim() : '';
+      if (!piece) continue;
+      const a = spoken.toLowerCase(), b = piece.toLowerCase();
+      if (!spoken || b.startsWith(a)) spoken = piece;
+      else if (!a.endsWith(b)) spoken += ' ' + piece;
+    }
+    return spoken;
+  }
+
   function start(field, btn) {
     const rec = new SR();
     rec.lang = lang(); rec.continuous = false; rec.interimResults = false;
     active = { rec, btn };
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
+    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
     rec.onresult = (e) => {
-      const text = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : '';
+      const text = spokenText(e.results);
       if (!text) return;
-      let next = (field.value ? field.value + ' ' : '') + text;
+      let next = baseText + text;
       if (field.maxLength > 0) next = next.slice(0, field.maxLength);
       field.value = next;
       field.dispatchEvent(new Event('input', { bubbles: true }));
