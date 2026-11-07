@@ -14,13 +14,13 @@ assert.ok(app.includes("target==='history'?'Past Conversations':'Workspace Conte
 assert.ok(app.includes("if(target==='history'&&typeof loadChatList==='function')loadChatList();"));
 assert.ok(app.includes('async function openChat(id) {\n  closeClassicAISheet();')&&app.includes('function newChat() {\n  closeClassicAISheet();'));
 assert.ok(app.includes("document.body.classList.toggle('nexos-ai-view-active', name === 'ai')"));
-const mobile=css.slice(css.indexOf('/* NexOS 3.3.2 Classic NexAI mobile layout */'));
+const mobile=css.slice(css.indexOf('/* NexOS 3.3.1 Classic NexAI mobile layout */'));
 assert.ok(mobile.includes('@media(max-width:768px)')&&mobile.includes('#view-ai.active')&&mobile.includes('height:calc(100dvh'));
 assert.ok(mobile.includes('grid-template-columns:repeat(4,minmax(0,1fr))')&&mobile.includes('#view-ai .ai-context-panel.open{display:flex}'));
 assert.ok(mobile.includes('#classic-ai-sheet-backdrop.open')&&mobile.includes('body.nexos-ai-view-active .fab'));
 assert.ok(classic.includes('style.css?v=3.3.2')&&classic.includes('app.js?v=3.3.2')&&classic.includes('ui.js?v=3.3.2'));
 assert.ok(enterprise.includes('attach.js?v=3.3.2')&&enterprise.includes('push-client.js?v=3.3.2'));
 assert.ok(!/v=3\.3\.0/.test(classic)&&!/v=3\.3\.0/.test(sw));
-assert.ok(sw.includes("const CACHE = 'nexos-shell-v9'")&&sw.includes("url.pathname.startsWith('/api/')"));
+assert.ok(sw.includes("const CACHE = 'nexos-shell-v10'")&&sw.includes("url.pathname.startsWith('/api/')"));
 assert.ok(!recover.includes('classic-ai-context-panel')&&!recover.includes('ai-mobile-actions'));
 console.log('NexOS 3.3.2 Classic NexAI mobile checks passed.');
