@@ -362,7 +362,8 @@
     guardChatKeyboard(field);
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
-    field.blur(); // Keep the mobile keyboard closed while the microphone is listening.\n    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
+    // Keyboard suppression is handled by guardChatKeyboard until the user taps the field again.
+    const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
     rec.onresult = (e) => {
       const text = spokenText(e.results);
       if (!text) return;
