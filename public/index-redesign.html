@@ -1811,6 +1811,75 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
   .nexos-recover-frame { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .nexos-recover-close { top: max(12px, env(safe-area-inset-top)); right: 12px; }
 }
+
+/* NexOS 3.3.2 — keep the Enterprise AI workspace inside the viewport on phones.
+   The document and view shell stay fixed; only the message history scrolls. */
+@media (max-width: 768px) {
+  body.nexos-ai-view-active,
+  body.nexos-ai-view-active html {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body.nexos-ai-view-active .main-wrapper {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  body.nexos-ai-view-active .topbar {
+    flex: 0 0 56px;
+  }
+  body.nexos-ai-view-active .view-content-wrapper {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-top: 12px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body.nexos-ai-view-active #pane-ai.active {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    animation: none;
+  }
+  body.nexos-ai-view-active #pane-ai .view-banner {
+    flex: 0 0 auto;
+    margin-bottom: 10px;
+  }
+  body.nexos-ai-view-active #pane-ai .ai-view-layout {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto !important;
+    max-height: none;
+    overflow: hidden;
+    width: 100%;
+  }
+  body.nexos-ai-view-active #pane-ai .ai-chat-main-container {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto !important;
+    max-height: none;
+    width: 100%;
+  }
+  body.nexos-ai-view-active #pane-ai .ai-chat-messages-box {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  body.nexos-ai-view-active #pane-ai .ai-input-dock {
+    flex: 0 0 auto;
+  }
+}
+
 </style>
 <script>
   (function () {
@@ -2889,6 +2958,7 @@ function switchNexusView(name) {
   playTactileClick();
   closeAISheet();
   document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+  document.body.classList.toggle('nexos-ai-view-active', name === 'ai');
   document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
     const on = b.dataset.view === name;
     b.classList.toggle('active', on);
@@ -4372,6 +4442,34 @@ function resolveVoiceTarget(target, btn) {
 // Builds the full spoken text from every result of a recognition event. Some browsers (Android Chrome) send growing
 // partial results even when interimResults is off, so a result is never appended: the field is rewritten as
 // "text that was there before the mic" + "everything heard so far".
+function prepareVoiceKeyboardGuard(field) {
+  if (!field || !['ai-chat-input', 'floating-chat-input'].includes(field.id)) return;
+  if (field.dataset.nexosKeyboardGuard === '1') return;
+
+  field.dataset.nexosKeyboardGuard = '1';
+  field.dataset.nexosOriginalReadOnly = field.readOnly ? '1' : '0';
+  field.dataset.nexosOriginalInputMode = field.getAttribute('inputmode') ?? '__default__';
+  field.readOnly = true;
+  field.setAttribute('inputmode', 'none');
+  field.blur();
+
+  // A deliberate tap restores ordinary editing before the browser's focus/keyboard step.
+  field.addEventListener('pointerdown', () => {
+    if (speechRecognizer) {
+      try { speechRecognizer.stop(); } catch (_) {}
+      speechRecognizer = null;
+      document.querySelectorAll('.voice-input-btn').forEach(b => b.classList.remove('recording'));
+    }
+    field.readOnly = field.dataset.nexosOriginalReadOnly === '1';
+    const mode = field.dataset.nexosOriginalInputMode;
+    if (mode === '__default__') field.removeAttribute('inputmode');
+    else field.setAttribute('inputmode', mode);
+    delete field.dataset.nexosKeyboardGuard;
+    delete field.dataset.nexosOriginalReadOnly;
+    delete field.dataset.nexosOriginalInputMode;
+  }, { capture: true, once: true });
+}
+
 function nexosSpokenText(results) {
   let spoken = '';
   for (let i = 0; results && i < results.length; i++) {
@@ -4410,7 +4508,8 @@ function toggleVoiceDictation(target, btn) {
   rec.interimResults = false;
   if (button) button.classList.add('recording');
   showToast('Listening… Speak now');
-  field.blur(); // Keep the mobile keyboard closed while the microphone is listening.\n  const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
+  prepareVoiceKeyboardGuard(field);
+  const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
 
   rec.onresult = (e) => {
     const transcript = nexosSpokenText(e.results);
