@@ -2257,6 +2257,7 @@ async function sendMessage() {
   chatBusy = true;
   document.querySelectorAll('#chat-messages .chat-msg.error').forEach(n => n.remove());
   input.value = '';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
   autoResizeTextarea(input);
   setChips(false);
   const shownMsg = files.length ? (msg ? msg + '\n\n' : '') + '\u{1F4CE} ' + chatAttach.names().join(', ') : msg;
