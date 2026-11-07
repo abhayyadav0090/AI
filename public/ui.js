@@ -332,9 +332,29 @@
     return spoken;
   }
 
+  function guardChatKeyboard(field) {
+    if (field.id !== 'chat-input') return;
+    if (!field.dataset.nexosVoiceKeyboardGuard) {
+      const original = field.getAttribute('inputmode');
+      field.dataset.nexosVoiceOriginalInputMode = original === null ? '__default__' : original;
+      field.dataset.nexosVoiceKeyboardGuard = '1';
+      field.addEventListener('pointerdown', () => {
+        if (field.dataset.nexosVoiceKeyboardSuppressed !== '1') return;
+        field.dataset.nexosVoiceKeyboardSuppressed = '0';
+        const mode = field.dataset.nexosVoiceOriginalInputMode;
+        if (mode === '__default__') field.removeAttribute('inputmode');
+        else field.setAttribute('inputmode', mode);
+      }, true);
+    }
+    field.dataset.nexosVoiceKeyboardSuppressed = '1';
+    field.setAttribute('inputmode', 'none');
+    field.blur();
+  }
+
   function start(field, btn) {
     const rec = new SR();
     rec.lang = lang(); rec.continuous = false; rec.interimResults = false;
+    guardChatKeyboard(field);
     active = { rec, btn };
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
