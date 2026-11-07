@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.3.2" defer></script>
+<script src="/push-client.js?v=3.3.3" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1280,6 +1280,19 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
 .voice-input-btn.voice-float { float: right; margin: -4px 0 4px 8px; }
 /* 3.3.1: on phones NexAI gets one compact row of 4 buttons (Action, New, Context, History) and the chat fills the rest of the screen.
    Workspace Context and Past Conversations open as a bottom sheet instead of sitting under the chat. */
+/* 3.3.3: on phones the NexAI page fits the screen exactly. The page itself never scrolls; only the chat does. */
+@media (max-width: 768px) {
+  html.view-ai-active, html.view-ai-active body { overflow: hidden; overscroll-behavior: none; }
+  html.view-ai-active .view-content-wrapper {
+    flex: none; display: flex; flex-direction: column; overflow: hidden;
+    height: calc(100vh - var(--nex-topbar-h, 56px)); height: calc(100dvh - var(--nex-topbar-h, 56px));
+    padding-top: 12px; padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html.view-ai-active #pane-ai.active { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: none; }
+  html.view-ai-active #pane-ai .view-banner { flex: none; }
+  html.view-ai-active #pane-ai .ai-view-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  html.view-ai-active #pane-ai .ai-chat-main-container { flex: 1; height: auto; min-height: 0; max-height: none; }
+}
 .ai-mobile-only, .ai-sheet-head, .ai-sheet-backdrop { display: none; }
 @media (max-width: 768px) {
   #pane-ai .view-headline, #pane-ai .view-subheadline, .ai-btn-long { display: none; }
@@ -1821,7 +1834,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.3.2">
+<link rel="manifest" href="/manifest.json?v=3.3.3">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -2883,12 +2896,21 @@ const NEXUS_VIEWS = {
 };
 const MOBILE_PRIMARY_VIEWS = ['dashboard', 'kanban', 'habits', 'focus', 'notes'];
 let currentViewTitle = 'Dashboard';
+// The phone NexAI page is sized from the real top bar height, so it fits the screen exactly whatever the bar measures.
+function syncTopbarHeight() {
+  const bar = document.querySelector('.topbar');
+  if (bar) document.documentElement.style.setProperty('--nex-topbar-h', bar.offsetHeight + 'px');
+}
+window.addEventListener('resize', syncTopbarHeight);
+window.addEventListener('orientationchange', syncTopbarHeight);
 function switchNexusView(name) {
   if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
   const previousPane = document.querySelector('.view-pane.active')?.id;
   playTactileClick();
   closeAISheet();
   document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+  document.documentElement.classList.toggle('view-ai-active', name === 'ai');
+  syncTopbarHeight();
   document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
     const on = b.dataset.view === name;
     b.classList.toggle('active', on);
@@ -4384,6 +4406,31 @@ function nexosSpokenText(results) {
   }
   return spoken;
 }
+// Keeps the on-screen keyboard closed while listening and just after, until the user taps the field themselves.
+function nexosHoldKeyboardClosed(field) {
+  const prev = field.getAttribute('inputmode');
+  let tapped = false, timer = null, held = true;
+  const restore = () => {
+    if (!held) return;
+    held = false;
+    field.removeEventListener('pointerdown', onTap);
+    if (prev === null) field.removeAttribute('inputmode'); else field.setAttribute('inputmode', prev);
+  };
+  const onTap = () => { tapped = true; clearTimeout(timer); restore(); };
+  const ae = document.activeElement;
+  if (ae && ae !== document.body && typeof ae.blur === 'function') ae.blur();
+  field.blur();
+  field.setAttribute('inputmode', 'none');
+  field.addEventListener('pointerdown', onTap);
+  return {
+    release() {
+      if (!held) return;
+      if (!tapped) field.blur();
+      clearTimeout(timer);
+      timer = setTimeout(restore, 900);
+    },
+  };
+}
 function toggleVoiceDictation(target, btn) {
   if (voiceLongPressFired) { voiceLongPressFired = false; return; }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -4411,6 +4458,7 @@ function toggleVoiceDictation(target, btn) {
   if (button) button.classList.add('recording');
   showToast('Listening… Speak now');
   const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
+  const kb = nexosHoldKeyboardClosed(field);
 
   rec.onresult = (e) => {
     const transcript = nexosSpokenText(e.results);
@@ -4431,11 +4479,12 @@ function toggleVoiceDictation(target, btn) {
   };
 
   rec.onend = () => {
+    kb.release();
     if (button) button.classList.remove('recording');
     if (speechRecognizer === rec) speechRecognizer = null;
   };
 
-  try { rec.start(); } catch (_) { speechRecognizer = null; if (button) button.classList.remove('recording'); }
+  try { rec.start(); } catch (_) { kb.release(); speechRecognizer = null; if (button) button.classList.remove('recording'); }
 }
 
 // Long-press a mic button to switch the voice language between English (India) and Hindi.
@@ -5837,6 +5886,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.3.2" defer></script>
+<script src="attach.js?v=3.3.3" defer></script>
 </body>
 </html>

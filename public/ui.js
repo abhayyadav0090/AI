@@ -332,10 +332,37 @@
     return spoken;
   }
 
+  // Keeps the on-screen keyboard closed while listening and just after, until the user taps the field themselves.
+  function holdKeyboardClosed(field) {
+    const prev = field.getAttribute('inputmode');
+    let tapped = false, timer = null, held = true;
+    const restore = () => {
+      if (!held) return;
+      held = false;
+      field.removeEventListener('pointerdown', onTap);
+      if (prev === null) field.removeAttribute('inputmode'); else field.setAttribute('inputmode', prev);
+    };
+    const onTap = () => { tapped = true; clearTimeout(timer); restore(); };
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && typeof ae.blur === 'function') ae.blur();
+    field.blur();
+    field.setAttribute('inputmode', 'none');
+    field.addEventListener('pointerdown', onTap);
+    return {
+      release() {
+        if (!held) return;
+        if (!tapped) field.blur();
+        clearTimeout(timer);
+        timer = setTimeout(restore, 900);
+      },
+    };
+  }
+
   function start(field, btn) {
     const rec = new SR();
     rec.lang = lang(); rec.continuous = false; rec.interimResults = false;
     active = { rec, btn };
+    const kb = holdKeyboardClosed(field);
     btn.classList.add('is-recording'); btn.setAttribute('aria-pressed', 'true');
     say('Listening… speak now');
     const baseText = field.value ? field.value.replace(/\s+$/, '') + ' ' : ''; // what was in the field before the mic
@@ -354,8 +381,8 @@
       else if (code === 'no-speech') say('Did not hear anything. Try again.');
       else if (code !== 'aborted') say('Voice input failed. Please try again.');
     };
-    rec.onend = () => { if (active && active.rec === rec) { btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed', 'false'); active = null; } };
-    try { rec.start(); } catch (_) { stop(); }
+    rec.onend = () => { kb.release(); if (active && active.rec === rec) { btn.classList.remove('is-recording'); btn.setAttribute('aria-pressed', 'false'); active = null; } };
+    try { rec.start(); } catch (_) { kb.release(); stop(); }
   }
 
   function makeButton(id, asLabel) {

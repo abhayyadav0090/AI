@@ -12,7 +12,7 @@ const recover = read('public/recover.html');
 assert.ok(classic.includes('if (chatBusy) return;'), 'Classic must reject duplicate sends while a request is in flight');
 assert.ok(classic.includes("const msg = input.value.trim();") && classic.includes("input.value = '';"), 'Classic must clear its composer on send');
 assert.ok(classic.includes('chatBusy = true;'), 'Classic must acquire its send lock before awaiting the API');
-assert.ok(classicVoice.includes('// Do not focus the field here: mobile browsers may open the keyboard after dictation.'), 'Classic dictation must not refocus the input after speech recognition');
+assert.ok(classicVoice.includes('// Do not focus the field here'), 'Classic dictation must not refocus the input after speech recognition');
 
 assert.ok(enterprise.includes('let enterpriseChatSending = false;'), 'Enterprise must use one shared send lock');
 assert.ok((enterprise.match(/if \(enterpriseChatSending\) return;/g) || []).length >= 2, 'Both Enterprise chat send entry points must reject overlapping sends');

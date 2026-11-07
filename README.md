@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.3.2.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.3.3.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -63,6 +63,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - On mobile, the attachment picker can offer camera and gallery options where the browser supports them.
 - Uploaded files are validated by the server and are processed for the request rather than kept as permanent workspace files. If sending fails, the draft message and selected files remain available for retry.
 - **3.3.1 mobile layout:** the NexAI mobile interface groups Action Mode, New Chat, Workspace Context and Past Conversations into compact controls. Context and history open in a sheet so the chat can use more of the available screen height. Desktop layout remains unchanged by this mobile-specific adjustment.
+- **3.3.3 — NexAI fit and keyboard:** The phone NexAI page now fits the screen exactly and no longer scrolls under the top bar. The on-screen keyboard stays closed after dictation until you tap the message box. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
 - **3.3.1 dictation reliability:** speech recognition results are rebuilt from the current recognition session instead of blindly appending every browser result. This prevents repeated words when a browser sends progressively longer recognition results and preserves multiple phrases returned in one event.
 
 ### General

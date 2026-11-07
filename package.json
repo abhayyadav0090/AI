@@ -1,6 +1,6 @@
 {
   "name": "nexos-ai-productivity-os",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "description": "NexOS — AI-powered productivity workspace",
   "main": "server.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "build": "echo 'No build step required for vanilla JS frontend'",
     "lint": "eslint server.js",
-    "test": "node --check server.js && node --check public/app.js && node --check public/ui.js && node --check public/push-client.js && node --check public/sw.js && node scripts/check-enterprise-inline.js && node scripts/test-enterprise-bridge.js && node scripts/test-quickstart.js && node scripts/test-day1.js && node scripts/test-focus-task.js && node scripts/test-settings.js && node scripts/test-performance-v3.js && node scripts/test-voice-v32.js && node scripts/test-attachments-v33.js && node scripts/test-scroll-fix.js && node scripts/test-recovery.js && node scripts/test-classic-nexai-mobile.js && node scripts/test-chat-mobile-voice-send.js",
+    "test": "node --check server.js && node --check public/app.js && node --check public/ui.js && node --check public/push-client.js && node --check public/sw.js && node scripts/check-enterprise-inline.js && node scripts/test-enterprise-bridge.js && node scripts/test-quickstart.js && node scripts/test-day1.js && node scripts/test-focus-task.js && node scripts/test-settings.js && node scripts/test-performance-v3.js && node scripts/test-voice-v32.js && node scripts/test-attachments-v33.js && node scripts/test-scroll-fix.js && node scripts/test-recovery.js && node scripts/test-classic-nexai-mobile.js && node scripts/test-chat-mobile-voice-send.js && node scripts/test-nexai-fit-keyboard.js",
     "generate:vapid": "node scripts/generate-vapid-keys.js"
   },
   "keywords": [
