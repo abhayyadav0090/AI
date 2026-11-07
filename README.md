@@ -10,7 +10,7 @@ NexOS is a web workspace for planning your day and staying focused. It combines 
 
 
 
-**Current source release: 3.0.2.** The 3.0 series focuses on performance, mobile responsiveness and reliable navigation while preserving existing NexOS features and workspace data.
+**Current source release: 3.0.3.** The 3.0 series focuses on performance, mobile responsiveness and reliable navigation while preserving existing NexOS features and workspace data.
 
 
 
@@ -547,3 +547,4 @@ They use the same sign-in and the same data. Shortcuts in Enterprise: `Alt+1` to
 - **3.0.0 — Performance foundation:** Added a unified authenticated bootstrap, leaner database reads, lazy-loaded analytics resources, scoped observers and versioned asset caching. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.0.md)
 - **3.0.1 — Speed & Responsiveness:** Added account-scoped cache-first startup, aligned Enterprise dashboard hydration, improved Recently Deleted navigation and reduced costly mobile visual effects. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.1.md)
 - **3.0.2 — Scroll Fix:** Isolated modal scrolling from the page background, reset new Classic and Enterprise views to the top, and preserved the page position when dialogs close. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.2.md)
+- **3.0.3 — Recovery Center:** Gave Recently Deleted its own design with a single Close control, emerald Restore buttons, days-left badges, a clearer empty state and a tidier mobile layout. Restore behaviour and 30-day retention are unchanged. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.0.3.md)

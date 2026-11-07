@@ -9,6 +9,7 @@
 (function () {
   try {
     const params = new URLSearchParams(location.search);
+    if (params.get('embedded') === '1') document.documentElement.classList.add('embedded');
     let theme = params.get('theme');
     if (!theme) {
       const enterpriseTheme = localStorage.getItem('nexos_enterprise_theme') || '';
@@ -30,56 +31,146 @@
 })();
 </script>
 <style>
-  :root { color-scheme: dark; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #121216; color: #f2f2f5; }
-  :root[data-theme="light"] { color-scheme: light; background: #f4f4f8; color: #1d1d1f; }
+  /* Recovery has its own look: a calm graphite-and-emerald "safety net", separate from Classic and Enterprise. */
+  :root {
+    color-scheme: dark;
+    --bg: #0f1412; --panel: #161d1a; --panel-2: #1b2420; --line: #26322d; --text: #eaf2ee; --muted: #9aaba3;
+    --emerald: #10b981; --emerald-hover: #34d399; --on-emerald: #04251a; --emerald-soft: rgba(16, 185, 129, .13); --emerald-line: rgba(16, 185, 129, .34);
+    --warn: #fbbf24; --bad-bg: rgba(248, 113, 113, .12); --bad-line: rgba(248, 113, 113, .38); --bad-text: #fecaca;
+    --task-fg: #7cb7ff; --task-bg: rgba(96, 165, 250, .15);
+    --habit-fg: #fbbf24; --habit-bg: rgba(251, 191, 36, .14);
+    --note-fg: #c4b5fd; --note-bg: rgba(167, 139, 250, .16);
+    --ghost-line: #34443d;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f2f7f4; --panel: #ffffff; --panel-2: #f7faf8; --line: #d9e5df; --text: #14201a; --muted: #566860;
+    --emerald: #047857; --emerald-hover: #065f46; --on-emerald: #ffffff; --emerald-soft: rgba(4, 120, 87, .09); --emerald-line: rgba(4, 120, 87, .3);
+    --warn: #b45309; --bad-bg: #fdecec; --bad-line: #f3b4b4; --bad-text: #8a1c1c;
+    --task-fg: #1d5fc4; --task-bg: #e3eeff;
+    --habit-fg: #92520a; --habit-bg: #fdf0d0;
+    --note-fg: #5b3fc4; --note-bg: #ece8ff;
+    --ghost-line: #c5d5cd;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; padding: 24px 18px 48px; background: #121216; color: #f2f2f5; line-height: 1.5; }
-  :root[data-theme="light"] body { background: #f4f4f8; color: #1d1d1f; }
+  html, body { margin: 0; }
+  body { min-height: 100vh; min-height: 100dvh; padding: 28px 18px 44px; background: var(--bg); color: var(--text); line-height: 1.5; -webkit-text-size-adjust: 100%; }
   main { max-width: 680px; margin: 0 auto; }
-  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  h1 { font-size: 24px; margin: 0 0 8px; }
-  p { color: #c4c4cc; }
-  :root[data-theme="light"] p { color: #48484a; }
-  .card { margin: 12px 0; padding: 14px 16px; border: 1px solid #3a3a44; border-radius: 14px; background: #1b1b21; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-  .card b { display: block; color: #fff; word-break: break-word; }
-  .card small { color: #a8a8b3; }
-  :root[data-theme="light"] .card { background: #fff; border-color: #d4d4dc; }
-  :root[data-theme="light"] .card b { color: #111; }
-  :root[data-theme="light"] .card small { color: #636366; }
-  button, a.btn { min-height: 40px; padding: 9px 16px; border: 0; border-radius: 999px; background: #3b82f6; color: #fff; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
-  button[disabled] { opacity: .55; cursor: default; }
-  .note { padding: 12px 14px; border-radius: 12px; background: #1d2a3a; color: #cfe3ff; }
-  .bad { background: #3a1d22; color: #ffd6da; }
-  .good { background: #14301f; color: #c9f5d6; }
-  :root[data-theme="light"] .note { background: #e6f0ff; color: #0b3b7a; }
-  :root[data-theme="light"] .bad { background: #ffe5e8; color: #7a0b1b; }
-  :root[data-theme="light"] .good { background: #dcf7e5; color: #0b5a2b; }
-  .actions { margin-top: 22px; display: flex; justify-content: flex-start; gap: 10px; }
   [hidden] { display: none !important; }
-  @media (max-width: 520px) { body { padding: max(20px, env(safe-area-inset-top)) 14px max(28px, env(safe-area-inset-bottom)); } .card { align-items: flex-start; } .card button { flex-shrink: 0; } }
+  h1, h2, h3, p { margin: 0; }
+
+  /* header (the host page supplies the grey Close button, so nothing here competes with it) */
+  .top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  html.embedded .top { padding-right: 88px; }
+  .top-icon { flex: none; width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: var(--emerald-soft); color: var(--emerald); border: 1px solid var(--emerald-line); }
+  .top-icon svg { width: 26px; height: 26px; }
+  .titles { min-width: 0; }
+  h1 { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+  /* status line */
+  .status { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 11px 14px; border-radius: 14px; font-size: 14px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
+  .status::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status.good { background: var(--emerald-soft); border-color: var(--emerald-line); color: var(--text); }
+  .status.good::before { background: var(--emerald); }
+  .status.bad { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad-text); }
+  .status.bad::before { background: #f87171; }
+
+  /* item cards */
+  .stack { display: grid; gap: 10px; }
+  .item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 14px; padding: 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); transition: opacity .2s, border-color .2s; }
+  .item.restored { opacity: .62; border-color: var(--emerald-line); }
+  .kind { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; }
+  .kind svg { width: 22px; height: 22px; }
+  .kind-task { background: var(--task-bg); color: var(--task-fg); }
+  .kind-habit { background: var(--habit-bg); color: var(--habit-fg); }
+  .kind-note { background: var(--note-bg); color: var(--note-fg); }
+  .body { min-width: 0; }
+  .title { font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 4px; font-size: 13px; color: var(--muted); }
+  .meta span + span::before { content: '·'; margin-right: 8px; opacity: .7; }
+  .meta .tag + span::before { content: none; margin: 0; }
+  .tag { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .tag-task { background: var(--task-bg); color: var(--task-fg); }
+  .tag-habit { background: var(--habit-bg); color: var(--habit-fg); }
+  .tag-note { background: var(--note-bg); color: var(--note-fg); }
+  .meta .urgent { color: var(--warn); font-weight: 600; }
+
+  /* buttons: Restore is emerald */
+  button, a.btn { font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .restore { min-height: 44px; padding: 10px 20px; border: 0; border-radius: 999px; background: var(--emerald); color: var(--on-emerald); transition: background .15s, transform .1s; }
+  .restore:hover { background: var(--emerald-hover); }
+  .restore:active { transform: scale(.98); }
+  .restore[disabled] { cursor: default; opacity: .8; }
+  .item.restored .restore { background: transparent; color: var(--emerald); box-shadow: inset 0 0 0 1.5px var(--emerald-line); opacity: 1; }
+  .btn.ghost { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 20px; border-radius: 999px; color: var(--text); background: transparent; border: 1px solid var(--ghost-line); }
+  .btn.ghost:hover { background: var(--panel-2); }
+  button:focus-visible, a.btn:focus-visible { outline: 3px solid var(--emerald-line); outline-offset: 2px; }
+
+  /* empty state */
+  .empty { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 38px 22px; border: 1.5px dashed var(--ghost-line); border-radius: 22px; background: var(--panel); }
+  .empty-art { width: 72px; height: 72px; border-radius: 24px; display: grid; place-items: center; background: var(--emerald-soft); color: var(--emerald); }
+  .empty-art svg { width: 36px; height: 36px; }
+  .empty h2 { font-size: 18px; font-weight: 700; }
+  .empty p { color: var(--muted); font-size: 14px; max-width: 34ch; }
+
+  /* "found in this browser" section */
+  .copies { margin-top: 30px; }
+  .copies h2 { font-size: 17px; font-weight: 700; }
+  .copies .help { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
+
+  .actions { margin-top: 26px; display: flex; }
+  @media (max-width: 520px) {
+    body { padding: max(22px, env(safe-area-inset-top)) 14px max(32px, env(safe-area-inset-bottom)); }
+    .top-icon { width: 42px; height: 42px; border-radius: 14px; }
+    h1 { font-size: 21px; }
+    .item { grid-template-columns: auto minmax(0, 1fr); padding: 13px; }
+    .item .restore { grid-column: 1 / -1; width: 100%; min-height: 46px; }
+    .actions .btn { width: 100%; justify-content: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <main>
-  <div class="head"><h1>Recently deleted</h1><button id="close" type="button" hidden>Close</button></div>
-  <p>Things you delete in NexOS are kept for 30 days. Restoring one puts it back exactly as it was. The current workspace is refreshed when you close this panel.</p>
-  <div id="status" class="note">Looking…</div>
-  <div id="trash"></div>
-  <h2 id="copies-title" hidden style="font-size:18px;margin-top:28px">Found in this browser</h2>
-  <p id="copies-help" hidden>Older copies of habits that this browser still has. Only known NexOS cache keys for the current account and guest workspace are checked.</p>
-  <div id="list"></div>
-  <div class="actions"><a class="btn" id="back" href="/">Back to NexOS</a></div>
+  <header class="top">
+    <div class="top-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg></div>
+    <div class="titles">
+      <h1>Recently deleted</h1>
+      <p class="sub">Kept for 30 days, then removed for good.</p>
+    </div>
+  </header>
+
+  <div id="status" class="status" role="status" aria-live="polite">Looking…</div>
+  <div id="trash" class="stack"></div>
+
+  <div id="empty" class="empty" hidden>
+    <div class="empty-art" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg></div>
+    <h2>Nothing deleted recently</h2>
+    <p>Tasks, habits and notes you delete will wait here for 30 days, so you can bring them back.</p>
+  </div>
+
+  <section class="copies" id="copies" hidden>
+    <h2 id="copies-title">Found in this browser</h2>
+    <p class="help" id="copies-help">Older copies of habits that this browser still has. Only known NexOS cache keys for the current account and guest workspace are checked.</p>
+    <div id="list" class="stack"></div>
+  </section>
+
+  <div class="actions"><a class="btn ghost" id="back" href="/">Back to NexOS</a></div>
 </main>
 <script>
 (async function () {
   const status = document.getElementById('status'), trashBox = document.getElementById('trash'), list = document.getElementById('list');
+  const emptyBox = document.getElementById('empty'), copies = document.getElementById('copies');
   const params = new URLSearchParams(location.search);
   const embedded = params.get('embedded') === '1';
-  const say = (text, cls) => { status.textContent = text; status.className = 'note ' + (cls || ''); };
-  const closeButton = document.getElementById('close'), back = document.getElementById('back');
+  const say = (text, cls) => { status.hidden = false; status.textContent = text; status.className = 'status ' + (cls || ''); };
+  const back = document.getElementById('back');
   if (embedded) {
-    closeButton.hidden = false; back.hidden = true;
-    closeButton.addEventListener('click', () => parent.postMessage({ type: 'nexos-recover-close' }, location.origin));
+    // The page that opened this panel already shows one Close button, so this page does not add a second one.
+    back.parentElement.hidden = true;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') parent.postMessage({ type: 'nexos-recover-close' }, location.origin); });
   } else {
     let returnTo = params.get('returnTo') || '/';
     try {
@@ -91,6 +182,12 @@
   }
 
   const KEY = { task: 'tasks', habit: 'habits', note: 'notes' }, LABEL = { task: 'Task', habit: 'Habit', note: 'Note' };
+  const SVG = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+  const ICON = {
+    task: SVG('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/>'),
+    habit: SVG('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>'),
+    note: SVG('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>')
+  };
   const api = async (method, state) => {
     const res = await fetch('/api/state', { method, credentials: 'same-origin', cache: 'no-store', headers: state ? { 'Content-Type': 'application/json' } : undefined, body: state ? JSON.stringify({ state }) : undefined });
     if (!res.ok) { const e = new Error('status ' + res.status); e.status = res.status; throw e; }
@@ -104,13 +201,31 @@
     await api('PUT', state);
   };
   const ago = at => { const m = Math.max(1, Math.round((Date.now() - at) / 60000)); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
-  const card = (title, sub, label, onClick, done) => {
-    const c = document.createElement('div'); c.className = 'card';
-    const info = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small');
-    b.textContent = title; sm.textContent = sub; info.append(b, sm);
-    const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label;
-    btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Restoring…'; try { await onClick(); if (embedded) parent.postMessage({ type: 'nexos-recover-changed' }, location.origin); btn.textContent = 'Restored ✓'; say('Restored. Close this panel to refresh your workspace.', 'good'); } catch (e) { btn.disabled = false; btn.textContent = label; say('Could not restore it. Please try again.', 'bad'); } });
-    c.append(info, btn); return c;
+  const daysLeft = at => Math.max(0, Math.ceil((Number(at) + 30 * 864e5 - Date.now()) / 864e5));
+
+  // One item card. All text is set with textContent, so item titles can never inject markup.
+  const card = ({ kind, title, parts, left, label, onClick }) => {
+    const c = document.createElement('article'); c.className = 'item';
+    const k = document.createElement('span'); k.className = 'kind kind-' + kind; k.setAttribute('aria-hidden', 'true'); k.innerHTML = ICON[kind];
+    const info = document.createElement('div'); info.className = 'body';
+    const h = document.createElement('h3'); h.className = 'title'; h.textContent = title;
+    const meta = document.createElement('p'); meta.className = 'meta';
+    const tag = document.createElement('span'); tag.className = 'tag tag-' + kind; tag.textContent = LABEL[kind]; meta.append(tag);
+    for (const part of parts) { const s = document.createElement('span'); s.textContent = part; meta.append(s); }
+    if (left != null) { const s = document.createElement('span'); s.textContent = left <= 1 ? 'Last day' : left + ' days left'; if (left <= 3) s.className = 'urgent'; meta.append(s); }
+    info.append(h, meta);
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'restore'; btn.textContent = label;
+    btn.setAttribute('aria-label', label + ': ' + title);
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Restoring…';
+      try {
+        await onClick();
+        if (embedded) parent.postMessage({ type: 'nexos-recover-changed' }, location.origin);
+        btn.textContent = 'Restored ✓'; c.classList.add('restored');
+        say(embedded ? 'Restored. Close this panel to refresh your workspace.' : 'Restored. Open NexOS to see it.', 'good');
+      } catch (e) { btn.disabled = false; btn.textContent = label; say('Could not restore it. Please try again.', 'bad'); }
+    });
+    c.append(k, info, btn); return c;
   };
 
   let account;
@@ -124,9 +239,13 @@
         const it = e.item, title = it.title || it.name || 'Untitled';
         const days = it.checks && typeof it.checks === 'object' ? Object.values(it.checks).filter(Boolean).length : 0;
         const exists = (account[KEY[e.kind]] || []).some(x => String(x.id) === String(it.id));
-        trashBox.appendChild(card(title, `${LABEL[e.kind]}${days ? ' · ' + days + ' days ticked' : ''} · deleted ${ago(e.deletedAt)}${exists ? ' · already back' : ''}`, exists ? 'Restore again' : 'Restore', () => addBack(e.kind, it)));
+        const parts = [];
+        if (days) parts.push(days + ' days ticked');
+        parts.push('deleted ' + ago(e.deletedAt));
+        if (exists) parts.push('already back');
+        trashBox.appendChild(card({ kind: e.kind, title, parts, left: daysLeft(e.deletedAt), label: exists ? 'Restore again' : 'Restore', onClick: () => addBack(e.kind, it) }));
       }
-    } else say('Nothing has been deleted in the last 30 days.', '');
+    } else { status.hidden = true; emptyBox.hidden = false; }
   }
 
   // Inspect only known NexOS cache namespaces, rather than parsing every localStorage item.
@@ -159,10 +278,10 @@
   const inTrash = new Set((account.trash || []).filter(e => e && e.kind === 'habit' && e.item).map(e => String(e.item.id)));
   const missing = [...found.values()].filter(f => !have.has(String(f.habit.id)) && !inTrash.has(String(f.habit.id))).sort((a, b) => b.ticked.length - a.ticked.length);
   if (!missing.length) return;
-  document.getElementById('copies-title').hidden = false; document.getElementById('copies-help').hidden = false;
+  copies.hidden = false;
   for (const f of missing) {
     const h = f.habit, last = f.ticked.length ? f.ticked[f.ticked.length - 1] : null;
-    list.appendChild(card(h.name, f.ticked.length ? `${f.ticked.length} day${f.ticked.length === 1 ? '' : 's'} ticked, last on ${last}` : 'No days ticked', 'Restore', () => addBack('habit', { id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 })));
+    list.appendChild(card({ kind: 'habit', title: h.name, parts: [f.ticked.length ? `${f.ticked.length} day${f.ticked.length === 1 ? '' : 's'} ticked, last on ${last}` : 'No days ticked'], left: null, label: 'Restore', onClick: () => addBack('habit', { id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 }) }));
   }
 })();
 </script>
