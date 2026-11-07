@@ -110,7 +110,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
     // Versioned assets can be reused without a network revalidation. HTML stays briefly
     // fresh so a new release is picked up quickly; unversioned code always revalidates.
     const requestUrl = res.req && (res.req.originalUrl || res.req.url) || '';
-    const versioned = /[?&]v=3\.0\.0(?:&|$)/.test(requestUrl);
+    const versioned = /[?&]v=\d+\.\d+\.\d+(?:[-+][\w.-]+)?(?:&|$)/.test(requestUrl);
     if (versioned && /\.(?:js|css|png|svg|ico|webp|woff2?)$/i.test(file)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (/\.html?$/i.test(file)) {
