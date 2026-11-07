@@ -346,7 +346,7 @@
       if (field.maxLength > 0) next = next.slice(0, field.maxLength);
       field.value = next;
       field.dispatchEvent(new Event('input', { bubbles: true }));
-      field.focus();
+      // Do not focus the field here: mobile browsers may open the keyboard after dictation ends.
     };
     rec.onerror = (e) => {
       const code = e && e.error;
