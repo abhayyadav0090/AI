@@ -255,12 +255,12 @@ The delete-workspace action removes NexOS chats, workspace state and NexOS push 
 
 ## Release history
 
-### NexOS 1.x
+### NexOS 1.x release series
 
 - **1.0 — Front-end only:** NexOS began in March 2026 from a simple HTML and CSS assignment, a "Daily Routine Timeline" web page. The first versions had no server. They were a front-end app with a Kanban board, a to-do list and a focus timer. The look and themes were changed several times during this phase. Per-version notes were not kept.
 - **1.1 — Google sign-in and NexAI:** By the end of the 1.1 series, Google sign-in and the NexAI assistant had been added. Per-version notes were not kept.
 
-### Earlier releases
+### NexOS 2.x release series
 
 - **2.0.1 — Daily task reminder time:** Signed-in users can choose a daily reminder time from the clock control beside the notification bell. The preference is stored separately in MongoDB and applies to in-app due notifications and server push reminders, using India Standard Time (`Asia/Kolkata`). The default is 09:00. The background scheduler polls every five minutes, so delivery is approximate; a sleeping Render Free instance can delay reminders.
 - **2.1.0 — Editorial visual refresh:** Introduced the Ice Silver (`#DDE3E8`), Deep Aubergine (`#3A0F34`) and Marigold (`#FAA000`) design system across the dashboard, task board, habits, notes, analytics, focus timer and sign-in experience. Light and dark themes define their own surface, text, border, overlay and chart tokens.
