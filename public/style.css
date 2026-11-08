@@ -1132,3 +1132,8 @@ html details.profile-section.ps-fold { padding-top: 14px; }
  body.classic-ai-sheet-open{overflow:hidden}
  body.nexos-ai-view-active .fab{display:none!important}
 }
+/* 3.3.5: exact fit. The measured space replaces the guessed height above, and the page cannot scroll behind the top bar. */
+@media(max-width:768px){
+ html.nexos-ai-fit,html.nexos-ai-fit body{overflow:hidden;overscroll-behavior:none}
+ html.nexos-ai-fit body.nexos-ai-view-active #view-ai.active{height:calc(100vh - var(--nex-ai-top,130px) - var(--nex-ai-bottom,92px));height:calc(100dvh - var(--nex-ai-top,130px) - var(--nex-ai-bottom,92px));min-height:0}
+}

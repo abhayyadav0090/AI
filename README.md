@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.3.3.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.3.4.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -12,7 +12,9 @@ The demo runs on a free server, so its first load after inactivity can take up t
 
 NexOS is developed independently, with AI used as a pair-programming tool.
 
-![Dashboard](docs/screenshots/dashboard.png)
+| Google design | Apple design |
+|:---:|:---:|
+| ![Dashboard, Google design](docs/screenshots/dashboard.png) | ![Dashboard, Apple design](docs/screenshots/dashboard-apple.png) |
 
 | Kanban | NexAI | Mobile |
 |:---:|:---:|:---:|
@@ -63,7 +65,6 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - On mobile, the attachment picker can offer camera and gallery options where the browser supports them.
 - Uploaded files are validated by the server and are processed for the request rather than kept as permanent workspace files. If sending fails, the draft message and selected files remain available for retry.
 - **3.3.1 mobile layout:** the NexAI mobile interface groups Action Mode, New Chat, Workspace Context and Past Conversations into compact controls. Context and history open in a sheet so the chat can use more of the available screen height. Desktop layout remains unchanged by this mobile-specific adjustment.
-- **3.3.3 — NexAI fit and keyboard:** The phone NexAI page now fits the screen exactly and no longer scrolls under the top bar. The on-screen keyboard stays closed after dictation until you tap the message box. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
 - **3.3.1 dictation reliability:** speech recognition results are rebuilt from the current recognition session instead of blindly appending every browser result. This prevents repeated words when a browser sends progressively longer recognition results and preserves multiple phrases returned in one event.
 
 ### General
@@ -254,6 +255,11 @@ The delete-workspace action removes NexOS chats, workspace state and NexOS push 
 
 ## Release history
 
+### NexOS 1.x
+
+- **1.0 — Front-end only:** NexOS began in March 2026 from a simple HTML and CSS assignment, a "Daily Routine Timeline" web page. The first versions had no server. They were a front-end app with a Kanban board, a to-do list and a focus timer. The look and themes were changed several times during this phase. Per-version notes were not kept.
+- **1.1 — Google sign-in and NexAI:** By the end of the 1.1 series, Google sign-in and the NexAI assistant had been added. Per-version notes were not kept.
+
 ### Earlier releases
 
 - **2.0.1 — Daily task reminder time:** Signed-in users can choose a daily reminder time from the clock control beside the notification bell. The preference is stored separately in MongoDB and applies to in-app due notifications and server push reminders, using India Standard Time (`Asia/Kolkata`). The default is 09:00. The background scheduler polls every five minutes, so delivery is approximate; a sleeping Render Free instance can delay reminders.
@@ -273,6 +279,9 @@ The delete-workspace action removes NexOS chats, workspace state and NexOS push 
 - **3.2.0 — Voice input:** Added browser speech input to NexAI chat, Action Mode and supported Add Task inputs in Classic and Enterprise. The user can dictate without automatically submitting a prompt or approving an action. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.2.0.md)
 - **3.3.0 — File upload for NexAI:** Added attachment support to the main NexAI chat in Classic and Enterprise, with a limit of 3 files and 6 MB combined per message. Supported PDFs, images and text/code files can be analysed or used for step-by-step assignment help. Files are validated by the server and are not retained as permanent workspace files. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.0.md)
 - **3.3.1 — NexAI mobile layout and voice reliability:** Refined the mobile NexAI controls so Action Mode, New Chat, Workspace Context and Past Conversations are accessible from a compact control row. Context and history open in sheets, giving the chat more screen space. Improved Classic mobile spacing and fixed the floating action button overlap/extra page scroll described in the release work. Fixed duplicated speech text caused by browsers returning progressively longer recognition results; the current recognition session is reconstructed instead of appending every event. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.1.md)
+- **3.3.2 — Mobile voice and send reliability:** Stopped dictation from forcing the keyboard open and blocked overlapping sends in the NexAI chat and floating Copilot. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.2.md)
+- **3.3.3 — NexAI fit and keyboard:** Made the phone Enterprise NexAI page fit the screen exactly and kept the keyboard closed after dictation until you tap the message box. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
+- **3.3.4 — Classic NexAI exact fit:** Sized the phone Classic NexAI page from the real space between the top bar and the bottom nav, so it no longer scrolls under the top bar in any design or theme. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.4.md)
 
 ---
 

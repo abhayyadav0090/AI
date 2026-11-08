@@ -16,9 +16,9 @@ const lock = JSON.parse(read('package-lock.json'));
 const readme = read('README.md');
 const releaseNotes = read('RELEASE-NOTES/RELEASE-NOTES NexOS 3.0/RELEASE-NOTES-3.3.0.md');
 
-assert.strictEqual(pkg.version, '3.3.3', 'package version must be 3.3.3');
-assert.strictEqual(lock.version, '3.3.3', 'lockfile version must be 3.3.3');
-assert.ok(readme.includes('Current source release: 3.3.3'), 'README should identify 3.3.3 as the current release');
+assert.strictEqual(pkg.version, '3.3.4', 'package version must be 3.3.4');
+assert.strictEqual(lock.version, '3.3.4', 'lockfile version must be 3.3.4');
+assert.ok(readme.includes('Current source release: 3.3.4'), 'README should identify 3.3.4 as the current release');
 assert.ok(releaseNotes.startsWith('# NexOS 3.3.0'), '3.3.0 release notes should be present');
 assert.ok(server.includes("'/bootstrap'"), 'bootstrap must pass through the database connection middleware');
 assert.ok(server.includes("app.get('/api/bootstrap', requireAuth"), 'authenticated bootstrap endpoint must exist');
@@ -34,9 +34,9 @@ assert.ok(classic.includes("fetch('/api/bootstrap'"), 'Classic should use the co
 assert.ok(classic.includes('async function loadState(bootstrapPayload = null)'), 'Classic state loader should accept the bootstrap payload');
 assert.ok(classic.includes('ensureClassicChartLibrary'), 'Classic charts should be lazy-loaded');
 assert.ok(!classicHtml.includes('chart.umd.min.js'), 'Classic should not eagerly load Chart.js in the HTML');
-assert.ok(classicHtml.includes('app.js?v=3.3.3') && classicHtml.includes('ui.js?v=3.3.3'), 'Classic application scripts should be versioned for 3.3.3');
-assert.ok(classicHtml.includes('push-client.js?v=3.3.3'), 'Classic push client should be versioned for 3.3.3');
-assert.ok(classicHtml.includes('app.js?v=3.3.3\" defer') && classicHtml.includes('ui.js?v=3.3.3\" defer') && classicHtml.includes('push-client.js?v=3.3.3\" defer'), 'Classic local scripts should download in parallel with defer');
+assert.ok(classicHtml.includes('app.js?v=3.3.4') && classicHtml.includes('ui.js?v=3.3.4'), 'Classic application scripts should be versioned for 3.3.4');
+assert.ok(classicHtml.includes('push-client.js?v=3.3.4'), 'Classic push client should be versioned for 3.3.4');
+assert.ok(classicHtml.includes('app.js?v=3.3.4\" defer') && classicHtml.includes('ui.js?v=3.3.4\" defer') && classicHtml.includes('push-client.js?v=3.3.4\" defer'), 'Classic local scripts should download in parallel with defer');
 assert.ok(classicHtml.includes('media=\"print\" onload=\"this.media=\'all\'\"'), 'Classic font stylesheet should not block the initial paint');
 assert.ok(classic.includes('function paintCachedClassicWorkspace()'), 'Classic should paint the account-scoped cache before waiting for bootstrap');
 assert.ok(classic.includes('nexos_last_user_v1'), 'Classic cache hydration should require the last authenticated identity marker');
@@ -58,7 +58,7 @@ assert.ok(!enterprise.includes("document.addEventListener('mousemove'"), 'unused
 assert.ok(enterprise.includes('setInterval(update, 15000)'), 'Enterprise clock should not run every second');
 assert.ok(enterprise.includes("document.querySelectorAll('.modal-overlay-backdrop').forEach"), 'Enterprise dialog observer should be scoped to dialog roots');
 assert.ok(ui.includes("document.querySelectorAll('.modal-overlay').forEach"), 'Classic dialog observer should be scoped to dialog roots');
-assert.ok(sw.includes("const CACHE = 'nexos-shell-v11'"), 'service worker cache namespace should be bumped for 3.3.3');
+assert.ok(sw.includes("const CACHE = 'nexos-shell-v12'"), 'service worker cache namespace should be bumped for 3.3.4');
 assert.ok(sw.includes('PRECACHE_URLS'), 'service worker should precache the Classic app shell during installation');
 assert.ok(sw.includes('APP_SHELL_ROUTES.has(url.pathname)'), 'Classic app-shell navigations should use stale-while-revalidate');
 assert.ok(sw.includes('new Set(PRECACHE_URLS.filter'), 'cache-first handling should be limited to the precached app assets');
@@ -82,4 +82,4 @@ assert.ok(!recovery.includes('for (let i = 0; i < localStorage.length'), 'Recent
 assert.ok(enterprise.includes('filter: none !important; animation: none !important'), 'Enterprise ambient effects should be simplified on mobile');
 assert.ok(read('public/style.css').includes('backdrop-filter: none !important'), 'Classic mobile scrolling cards should avoid stacked blur filters');
 
-console.log('NexOS 3.3.3 performance and PWA startup checks passed.');
+console.log('NexOS 3.3.4 performance and PWA startup checks passed.');

@@ -1002,6 +1002,32 @@ function toggleTheme() {
 })();
 
 // ═══════════════════════════ VIEW SWITCHING ═══════════════════════════
+// The phone NexAI page is sized from the real space between the top bar and the bottom nav, so it fits the screen
+// exactly in every design, theme and phone, and the page itself never scrolls (only the chat does).
+let classicAIFitWatching = false;
+function syncClassicAIFit() {
+  const root = document.documentElement;
+  const view = document.getElementById('view-ai');
+  if (!view || !root.classList.contains('nexos-ai-fit')) return;
+  const top = Math.max(0, Math.round(view.getBoundingClientRect().top + window.scrollY));
+  const nav = document.getElementById('bottom-nav');
+  const navBox = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect() : null;
+  const bottom = navBox ? Math.max(0, Math.round(window.innerHeight - navBox.top)) + 8 : 16;
+  root.style.setProperty('--nex-ai-top', top + 'px');
+  root.style.setProperty('--nex-ai-bottom', bottom + 'px');
+  if (!classicAIFitWatching) {
+    classicAIFitWatching = true;
+    window.addEventListener('resize', syncClassicAIFit);
+    window.addEventListener('orientationchange', syncClassicAIFit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncClassicAIFit);
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(syncClassicAIFit);
+      document.querySelectorAll('.topbar').forEach((el) => ro.observe(el));
+      if (nav) ro.observe(nav);
+    }
+  }
+}
+
 function switchView(name) {
   const previousView = document.querySelector('.view.active')?.id;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -1020,6 +1046,8 @@ function switchView(name) {
   if (name === 'ai') updateContextPanel();
   if (name !== 'ai') closeClassicAISheet();
   document.body.classList.toggle('nexos-ai-view-active', name === 'ai');
+  document.documentElement.classList.toggle('nexos-ai-fit', name === 'ai');
+  if (name === 'ai') { window.scrollTo(0, 0); syncClassicAIFit(); setTimeout(syncClassicAIFit, 400); }
   // Close the mobile drawer after navigation.
   if (window.innerWidth < 900) closeSidebar();
   // A different primary view starts at its own top; reselecting the active view preserves position.

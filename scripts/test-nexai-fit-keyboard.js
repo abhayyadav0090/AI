@@ -23,6 +23,13 @@ const css = ent.slice(ent.indexOf('/* 3.3.3: on phones the NexAI page fits the s
 assert.ok(/max-width: 768px/.test(css.slice(0, 200)), 'fit rules are phone-only');
 ['html.view-ai-active, html.view-ai-active body { overflow: hidden', 'height: calc(100dvh - var(--nex-topbar-h, 56px))', '.ai-chat-main-container { flex: 1; height: auto; min-height: 0'].forEach((rule) => assert.ok(css.includes(rule), 'missing: ' + rule));
 
+// 3.3.4: Classic NexAI is sized from the measured space and the page cannot scroll.
+const app = read('public/app.js');
+const style = read('public/style.css');
+assert.ok(app.includes('function syncClassicAIFit()') && app.includes("setProperty('--nex-ai-top'") && app.includes("setProperty('--nex-ai-bottom'"), 'Classic NexAI must measure its space');
+assert.ok(app.includes("document.documentElement.classList.toggle('nexos-ai-fit', name === 'ai')"), 'Classic must mark the page while NexAI is open');
+assert.ok(style.includes('html.nexos-ai-fit,html.nexos-ai-fit body{overflow:hidden') && style.includes('calc(100dvh - var(--nex-ai-top,130px) - var(--nex-ai-bottom,92px))'), 'Classic must lock page scroll and use the measured height');
+
 // Recovery Center stays untouched.
 assert.ok(!read('public/recover.html').includes('view-ai-active') && !read('public/recover.html').includes('inputmode'), 'Recovery Center must not change');
 console.log('NexOS 3.3.3 NexAI fit and keyboard checks passed.');
