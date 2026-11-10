@@ -42,7 +42,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|:---:|:---:|
 | ![Classic NexAI on a phone](docs/screenshots/classic-nexai.png) | ![Enterprise NexAI on a phone with an attached file and a microphone button](docs/screenshots/enterprise-nexai-attach.png) | ![NexAI Action Mode with a microphone button](docs/screenshots/enterprise-action-mode.png) | ![Recently deleted page](docs/screenshots/recovery-center.png) |
 
-*These screenshots were taken in guest mode with sample data, so NexAI shows its sign-in prompt instead of a saved conversation.*
+*All screenshots were taken in guest mode with sample data, not a real account. The NexAI conversation in the Classic desktop screenshot is an example written for this README, and the phone NexAI screenshots show the guest sign-in prompt.*
 
 ---
 
