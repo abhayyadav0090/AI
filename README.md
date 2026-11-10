@@ -12,17 +12,47 @@ The demo runs on a free server, so its first load after inactivity can take up t
 
 NexOS is developed independently, with AI used as a pair-programming tool.
 
+**Classic**
+
 | Google design | Apple design |
 |:---:|:---:|
 | ![Dashboard, Google design](docs/screenshots/dashboard.png) | ![Dashboard, Apple design](docs/screenshots/dashboard-apple.png) |
 
-| Kanban | NexAI | Mobile |
+**Enterprise**
+
+| Dashboard | Apple Glass theme |
+|:---:|:---:|
+| ![Enterprise dashboard](docs/screenshots/enterprise-dashboard.png) | ![Enterprise dashboard, Apple Glass theme](docs/screenshots/enterprise-apple-glass.png) |
+
+**Tasks and NexAI**
+
+| Kanban | NexAI |
+|:---:|:---:|
+| ![Kanban board](docs/screenshots/kanban.png) | ![NexAI chat](docs/screenshots/nexai.png) |
+
+**On a phone**
+
+| Classic, Google design | Classic, Apple design | Enterprise |
 |:---:|:---:|:---:|
-| ![Kanban](docs/screenshots/kanban.png) | ![NexAI](docs/screenshots/nexai.png) | ![Mobile](docs/screenshots/mobile.png) |
+| ![Classic on a phone, Google design](docs/screenshots/mobile.png) | ![Classic on a phone, Apple design](docs/screenshots/mobile-apple.png) | ![Enterprise on a phone](docs/screenshots/enterprise-mobile.png) |
+
+**NexAI, voice and Recently deleted on a phone**
+
+| Classic NexAI | Enterprise NexAI: file attached, mic beside it | Action Mode with a mic | Recently deleted |
+|:---:|:---:|:---:|:---:|
+| ![Classic NexAI on a phone](docs/screenshots/classic-nexai.png) | ![Enterprise NexAI on a phone with an attached file and a microphone button](docs/screenshots/enterprise-nexai-attach.png) | ![NexAI Action Mode with a microphone button](docs/screenshots/enterprise-action-mode.png) | ![Recently deleted page](docs/screenshots/recovery-center.png) |
+
+*These screenshots were taken in guest mode with sample data, so NexAI shows its sign-in prompt instead of a saved conversation.*
 
 ---
 
 ## Features
+
+### Classic and Enterprise
+
+- Two experiences on one account and one set of data. **Classic** (`/` and `/classic`) is the simple, focused version. **Enterprise** (`/enterprise`, also `/redesign`) adds a timeblocking calendar, a focus studio with ambient sound, a richer Kanban board, analytics and a NexAI side panel.
+- Switch between them from the Classic | Enterprise control in the top bar or the quick appearance menu.
+- Enterprise has six themes: Apple Glass, Material, Apple Light, M3, Overgame (the default) and Cobalt Lime.
 
 ### Tasks
 
@@ -37,6 +67,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - Pomodoro timer with focus, short-break and long-break modes.
 - Adjustable durations, optional automatic break start and sound.
 - Daily focus minutes are logged and shown in analytics.
+- **Focus on a task:** each open task has a play button that moves it to In Progress and starts a focus session. When the session ends, NexOS asks whether the task is done.
 
 ### Habits
 
@@ -53,6 +84,11 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - Focus time over 7, 14 or 30 days, task status split, habit completion and daily productivity score.
 - Tasks completed per day and a weekly review comparing this week with last week.
 - Save the weekly review as a note.
+
+### Reminders and recovery
+
+- Task reminders for due and overdue tasks can be turned on or off. The daily reminder time is configurable (default 09:00, India Standard Time) and applies to in-app notifications and background Web Push alerts.
+- **Recently deleted:** deleted tasks, habits and notes (in Enterprise, tasks and habits) are kept in your account for 30 days, up to 30 items, and can be restored from any device. This is the Recovery Center page.
 
 ### NexAI (Google Gemini)
 
@@ -77,7 +113,10 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - Browser notifications for tasks due today or overdue (while the app is open; push reminders may also be configured separately).
 - Starter data and a Getting Started checklist for new users.
 - Two designs: **Google** (Material 3) and **Apple** (liquid glass), each with light, dark or match-device themes.
+- **Quick-start:** a new workspace asks once what you will use NexOS for (study and exams, projects and sprints, daily routine and habits, or just exploring). The answer sets the starter data, the default focus timer and the order of the dashboard cards.
 - Responsive layouts with bottom navigation on phones.
+- Installable web app: a service worker caches the app shell for faster startup. API responses are not cached as app-shell content.
+- A privacy page at `/privacy.html`.
 - Keyboard shortcuts: `Alt+1` to `Alt+7` switch Classic views, `Ctrl+K` opens search and commands, `Ctrl+S` saves a note, `?` lists shortcuts and `Esc` closes dialogs. Enterprise also supports `Alt+1` to `Alt+8` for its views and `Ctrl+\` to toggle the NexAI panel.
 
 ---
@@ -148,6 +187,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `GEMINI_MODEL` | No | Model name; defaults to the value configured by the server. |
 | `GEMINI_FALLBACK_MODEL` | No | Second model used when the primary model is unavailable or over quota. |
 | `PORT` | No | Defaults to `3000`. |
+| `NODE_ENV` | No | `development` for local use, `production` on a server. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | No | Needed only for push reminders. Create the pair with `node scripts/generate-vapid-keys.js`. |
+| `VAPID_SUBJECT` | No | Contact for push services, for example `mailto:you@example.com`. |
+| `LEGACY_REDIRECTS_JSON` | No | Exact-path redirects for old URLs; see Server notes below. |
 
 Setup notes:
 
@@ -165,6 +208,12 @@ Setup notes:
 4. After the first deploy, add the Render address to **Authorised JavaScript origins** in Google Cloud Console and to `ALLOWED_ORIGINS`.
 5. Before releasing, run `npm test` on the complete merged project and verify the deployed app in the target desktop and mobile browsers.
 
+### Other ways to deploy
+
+- **Docker:** `Dockerfile` builds the app on Node 20 Alpine. `docker-compose.yml` runs it on port 3000 with a health check at `/api/health`. It passes only the core variables, so add the `VAPID_*` variables to the file if you want push reminders.
+- **Nginx:** `docker-compose.yml` also defines an optional Nginx service, started with `docker-compose --profile production up` and configured by `nginx.docker.conf`. `nginx.conf` is an example production config for a server with Nginx and Certbot SSL.
+- **Vercel:** `vercel.json` sends every request to `server.js` through `@vercel/node` and includes the `public` folder.
+
 ---
 
 ## Project structure
@@ -173,26 +222,46 @@ Setup notes:
 .
 ├── public/
 │   ├── index.html              # Classic page structure and dialogs
+│   ├── index-redesign.html     # Enterprise experience (served at /enterprise)
 │   ├── style.css               # Classic base layout and component styles
 │   ├── design.css              # Google and Apple designs, light/dark tokens
-│   ├── index-redesign.html     # Enterprise experience
 │   ├── ui.js                   # Shared UI interactions and Classic controls
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
-│   ├── manifest.json
-│   └── favicon.svg
-├── lib/                        # Server-side file validation/processing helpers
-├── scripts/                    # Automated regression and performance checks
+│   ├── push-client.js          # Browser side of push reminders
+│   ├── sw.js                   # Service worker (app-shell cache)
+│   ├── recover.html            # Recovery Center (Recently deleted)
+│   ├── privacy.html            # Privacy page
+│   ├── manifest.json           # Web app manifest
+│   ├── favicon.svg
+│   ├── nexos-icon-192.png
+│   └── nexos-icon-512.png
+├── lib/
+│   └── attachments.js          # Server-side file validation for NexAI chat
+├── scripts/                    # generate-vapid-keys.js and the regression tests run by npm test
 ├── mds/
 │   ├── API.md                  # API reference
 │   ├── ARCHITECTURE.md         # Design and performance notes
-│   └── DEPLOY-NEXOS-3.0.0.md  # Original 3.0.0 deployment guide
+│   └── DEPLOY-NEXOS-3.0.0.md   # Original 3.0.0 deployment guide
+├── docs/
+│   └── screenshots/            # Images used in this README
 ├── RELEASE-NOTES/
+│   ├── RELEASE-NOTES NexOS 1.0/
+│   ├── RELEASE-NOTES NexOS 2.0/
 │   └── RELEASE-NOTES NexOS 3.0/
 ├── server.js                   # Express server: auth, state, chats and Gemini proxy
 ├── render.yaml                 # Render blueprint
+├── Dockerfile                  # Container image (Node 20 Alpine)
+├── docker-compose.yml          # App container, optional Nginx service
+├── nginx.conf                  # Example Nginx production config
+├── nginx.docker.conf           # Nginx config used by Docker Compose
+├── vercel.json                 # Vercel routing
+├── .env.example                # Template for environment variables
+├── .gitignore
+├── .dockerignore
 ├── package.json
 ├── package-lock.json
+├── LICENSE
 └── README.md
 ```
 
@@ -217,6 +286,10 @@ All routes start with `/api`. Authentication is required for workspace and chat 
 | GET | `/api/chats`, `/api/chats/:id` | List and open saved chats |
 | DELETE | `/api/chats/:id` | Delete a chat |
 | POST | `/api/complete` | One-off AI prompt (insights, summaries) |
+| GET | `/api/push/config` | Public key the browser needs to subscribe to push reminders |
+| GET, PUT | `/api/push/preferences` | Load and save reminder preferences (on/off, time, time zone) |
+| POST, DELETE | `/api/push/subscribe` | Subscribe or unsubscribe this browser from push reminders |
+| POST | `/api/push/test` | Send a test push notification |
 
 ---
 
@@ -239,17 +312,17 @@ NexOS does not use advertising or tracking scripts. In guest mode, workspace dat
 
 ---
 
-## License
+## Server notes
 
-Released under the MIT License.
+**Legacy URL redirects.** The server supports generic exact-path redirects configured through `LEGACY_REDIRECTS_JSON`. Configure redirects in Render environment variables when a legacy path needs to point elsewhere.
+
+The delete-workspace action removes NexOS chats, workspace state and NexOS push subscriptions. It intentionally retains the shared Google identity record so independently deployed apps using the same identity collection do not lose access to their own records.
 
 ---
 
-## Legacy URL redirects
+## License
 
-The server supports generic exact-path redirects configured through `LEGACY_REDIRECTS_JSON`. Configure redirects in Render environment variables when a legacy path needs to point elsewhere.
-
-The delete-workspace action removes NexOS chats, workspace state and NexOS push subscriptions. It intentionally retains the shared Google identity record so independently deployed apps using the same identity collection do not lose access to their own records.
+Released under the MIT License.
 
 ---
 
@@ -257,16 +330,36 @@ The delete-workspace action removes NexOS chats, workspace state and NexOS push 
 
 ### NexOS 1.x release series
 
-- **1.0 — Front-end only:** NexOS began in March 2026 from a simple HTML and CSS assignment, a "Daily Routine Timeline" web page. The first versions had no server. They were a front-end app with a Kanban board, a to-do list and a focus timer. The look and themes were changed several times during this phase. Per-version notes were not kept.
-- **1.1 — Google sign-in and NexAI:** By the end of the 1.1 series, Google sign-in and the NexAI assistant had been added. Per-version notes were not kept.
+- **1.0 — Front-end only:** NexOS began in March 2026 from a simple HTML and CSS assignment, a "Daily Routine Timeline" web page. The first versions had no server. They were a front-end app with a Kanban board, a to-do list and a focus timer. The look and themes were changed several times during this phase. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%201.0/RELEASE-NOTES-1.0.md)
+- **1.1 — Google sign-in and NexAI:** By the end of the 1.1 series, Google sign-in and the NexAI assistant had been added. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%201.0/RELEASE-NOTES-1.1.md)
+
+Per-version notes were not kept for the 1.x phase, so these two entries summarise the series.
 
 ### NexOS 2.x release series
 
 - **2.0.1 — Daily task reminder time:** Signed-in users can choose a daily reminder time from the clock control beside the notification bell. The preference is stored separately in MongoDB and applies to in-app due notifications and server push reminders, using India Standard Time (`Asia/Kolkata`). The default is 09:00. The background scheduler polls every five minutes, so delivery is approximate; a sleeping Render Free instance can delay reminders.
+- **2.0.2 — Task reminder on/off:** Added a saved on/off setting for due-date and overdue-task reminders. It controls both local browser notifications and background Web Push alerts. Turning reminders off does not delete tasks or revoke browser notification permission. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.0.2.md)
 - **2.1.0 — Editorial visual refresh:** Introduced the Ice Silver (`#DDE3E8`), Deep Aubergine (`#3A0F34`) and Marigold (`#FAA000`) design system across the dashboard, task board, habits, notes, analytics, focus timer and sign-in experience. Light and dark themes define their own surface, text, border, overlay and chart tokens.
 - **2.1.1 — Dashboard quick actions:** Added Plan My Day, Ask NexAI and NexAI Action Mode to the dashboard. Action Mode continues to require explicit review before proposed changes are applied.
-- **2.2.0 — Design, features and fixes:** Added switchable Google and Apple designs, a home screen with an Ask NexAI box, command palette (`Ctrl+K`), task list view, undo for deletes, autosaving notes, offline-friendly sign-in, per-user reminder time zones and server/app fixes. See `RELEASE-NOTES-2.2.0.md`.
-- **2.4.0 — Two experiences:** Introduced Classic (`/` or `/classic`) and Enterprise (`/enterprise`). Both use the same sign-in and workspace data. Enterprise adds calendar, focus studio, a richer board and a NexAI panel. See `RELEASE-NOTES-2.4.0.md`.
+- **2.2.0 — Design, features and fixes:** Added two switchable designs, Google (Material 3) and Microsoft (Fluent 2), each with light, dark and match-device themes, plus real SVG icons, a phone bottom navigation bar with a floating New button, a home screen with an Ask NexAI box, a command palette (`Ctrl+K`), a task list view, undo for deletes, autosaving notes, offline-friendly sign-in, per-user reminder time zones and server/app fixes. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.2.0.md)
+- **2.2.1 — Deep audit fixes:** Made NexAI Action Mode dismissible while it waits for a slow AI response (closing it or pressing Esc cancels the request), and corrected the Profile deletion text to explain that workspace data is deleted while the shared Google identity record is kept. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.2.1.md)
+- **2.3.0 — Dual experience:** Kept Classic at `/` and added Enterprise at `/enterprise` (also `/redesign`). Both use the same signed-in workspace, with a Classic/Enterprise switch in both interfaces. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.3.0.md)
+- **2.3.1 — Enterprise-first polish:** Made Enterprise the default home route with Classic at `/classic`, added a visible Classic/Enterprise switch, made Overgame the default Enterprise theme, and fixed the Enterprise profile card and mobile sidebar layering. Classic returned to `/` in 2.4.0. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.3.1.md)
+- **2.3.2 — Cloud reliability improvements:** Built on 2.3.1 and adopted the improved responsive Classic interface and per-user reminder time-zone storage from the Cloud 2.2.0 build, keeping Enterprise-first routing. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.3.2.md)
+- **2.4.0 — Two experiences:** Classic (`/` and `/classic`) stays the simple version. Enterprise (`/enterprise`) adds a timeblocking calendar, a focus studio with ambient sound, a richer Kanban board, analytics and a NexAI side panel. Both use the same account and data, and the assistant is called NexAI everywhere. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.4.0.md)
+- **2.4.1 — Chat and greeting fixes:** Fixed "Chat not found" in Enterprise when the remembered conversation had been deleted, stopped the Classic greeting wrapping onto two lines, and made Overgame the starting Enterprise theme for new accounts. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.4.1.md)
+- **2.4.2 — Experience switch in the appearance menu:** Added the Classic | Enterprise switch to the quick appearance menu, which matters most on phones, and fixed long note or task titles stretching the page sideways on a phone. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.4.2.md)
+- **2.5.0 — Apple design replaces Microsoft:** The second design is now Apple, a liquid-glass look with frosted panels, capsule buttons and iOS-style segmented switches. Screens and features stay the same. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.0.md)
+- **2.5.1 — Phone fixes for Enterprise:** Fixed the Classic | Enterprise switch being cut off at the bottom of the menu on Chrome and centred the menu button icon. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.1.md)
+- **2.5.2 — Safer habit deletes:** Deleting a habit now asks first and shows an Undo message for 9 seconds, and Enterprise habit rows no longer overlap on phones. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.2.md)
+- **2.5.3 — Recently deleted:** Deleted tasks, habits and notes (in Enterprise, tasks and habits) are kept in your account for 30 days, up to 30 items, and can be restored from any device. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.3.md)
+- **2.5.4 — Quick-start:** A new workspace asks once what you will use NexOS for (study and exams, projects and sprints, daily routine and habits, or exploring). The answer sets the starter data, the default focus timer and the card order. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.4.md)
+- **2.5.5 — Quick-start on Enterprise:** Enterprise dashboard cards follow your goal, and Enterprise Settings gets a "Your setup" goal picker. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.5.md)
+- **2.5.6 — Stale-tab guard:** Answering the quick-start on a second open screen no longer brings back deleted starter items. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.6.md)
+- **2.5.7 — Better first day:** "Get insight" now works in guest mode, and the Productivity score card shows first-day steps (check a habit, finish a task, complete a focus session). [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.7.md)
+- **2.5.8 — Focus on a task:** Each open task has a play button that moves it to In Progress and starts a focus session, with a "Done with it?" prompt when the session ends. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.8.md)
+- **2.5.9 — A shorter Settings page:** Settings opens as a short list of folded rows, with Your setup at the top. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.5.9.md)
+- **2.6.0 — Settings on laptops:** On screens 901 px and wider Settings shows every section open with the large Google and Apple preview cards. Phones keep the short list. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%202.0/RELEASE-NOTES-2.6.0.md)
 
 ### NexOS 3.x release series
 
@@ -278,7 +371,7 @@ The delete-workspace action removes NexOS chats, workspace state and NexOS push 
 - **3.1.1 — Faster PWA startup:** Updated the app-shell cache, improved cached shell and asset handling, deferred Classic scripts and corrected semantic-version asset cache headers. API responses are not cached as app-shell content. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.1.1.md)
 - **3.2.0 — Voice input:** Added browser speech input to NexAI chat, Action Mode and supported Add Task inputs in Classic and Enterprise. The user can dictate without automatically submitting a prompt or approving an action. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.2.0.md)
 - **3.3.0 — File upload for NexAI:** Added attachment support to the main NexAI chat in Classic and Enterprise, with a limit of 3 files and 6 MB combined per message. Supported PDFs, images and text/code files can be analysed or used for step-by-step assignment help. Files are validated by the server and are not retained as permanent workspace files. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.0.md)
-- **3.3.1 — NexAI mobile layout and voice reliability:** Refined the mobile NexAI controls so Action Mode, New Chat, Workspace Context and Past Conversations are accessible from a compact control row. Context and history open in sheets, giving the chat more screen space. Improved Classic mobile spacing and fixed the floating action button overlap/extra page scroll described in the release work. Fixed duplicated speech text caused by browsers returning progressively longer recognition results; the current recognition session is reconstructed instead of appending every event. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.1.md)
+- **3.3.1 — NexAI mobile layout and voice reliability:** Refined the mobile NexAI controls so Action Mode, New Chat, Workspace Context and Past Conversations are accessible from a compact control row. Context and history open in sheets, giving the chat more screen space. In Classic, fixed the floating Add button overlapping the send button and unwanted page scrolling in the Apple design. Fixed duplicated speech text caused by browsers returning progressively longer recognition results; the current recognition session is reconstructed instead of appending every event. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.1.md)
 - **3.3.2 — Mobile voice and send reliability:** Stopped dictation from forcing the keyboard open and blocked overlapping sends in the NexAI chat and floating Copilot. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.2.md)
 - **3.3.3 — NexAI fit and keyboard:** Made the phone Enterprise NexAI page fit the screen exactly and kept the keyboard closed after dictation until you tap the message box. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
 - **3.3.4 — Classic NexAI exact fit:** Sized the phone Classic NexAI page from the real space between the top bar and the bottom nav, so it no longer scrolls under the top bar in any design or theme. [Release notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.4.md)
