@@ -4,22 +4,51 @@ Base URL: `http://localhost:3000` (dev) · `https://yourdomain.com` (prod)
 
 All responses use `Content-Type: application/json`.
 
+## Conventions
+
+- **Requires login:** routes marked this way read the `token` cookie (set by `POST /api/auth/google`). Without a valid cookie they answer `401`.
+- **Errors** look like `{ "error": "<message safe to show the user>", "code": "..." }`. Some simple validation errors have no `code`.
+- **Origin check:** a request whose `Origin` is neither the app's own host nor listed in `ALLOWED_ORIGINS` gets `403` with `code: "ORIGIN_NOT_ALLOWED"`. Unknown `/api/*` paths get `404` with `code: "NOT_FOUND"`.
+- **Body size:** 2 MB for every route except `POST /api/chat`, which accepts up to 9 MB (only after login and rate limits) because it can carry attachments.
+- **Rate limits:** 600 requests per 15 minutes per IP on `/api`; `POST /api/chat` and `POST /api/complete` also share per-user limits of 30 per minute and 500 per day. Counters are kept in server memory.
+
 ---
 
 ## `GET /api/health`
 
-Returns server health status.
+Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{
-  "status": "ok",
-  "timestamp": "2025-01-15T10:30:00.000Z",
-  "version": "2.0.0",
-  "node": "v20.10.0",
-  "uptime": "3600s"
-}
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "3.3.4" }
 ```
+`db` is `connected` or `idle`; `version` is the `version` in `package.json`.
+
+## `GET /api/config`
+
+Public settings for the sign-in button: `{ "googleClientId": "..." }` (an empty string when `GOOGLE_CLIENT_ID` is not set).
+
+## `POST /api/auth/google`
+
+Signs in with the credential returned by Google Sign-In.
+
+**Request body:** `{ "credential": "<Google ID token>" }`
+
+**Response 200:** `{ "name", "email", "picture" }`, and sets the `token` cookie (JWT, 7 days, `httpOnly`, `SameSite=Lax`, `Secure` in production or on HTTPS).
+
+| Status | Meaning |
+|---|---|
+| 400 | `credential` is missing |
+| 401 | Google login failed, or the Google email is not verified |
+| 500 | `code: "AUTH_CONFIG"`: `JWT_SECRET` is not set |
+
+## `POST /api/auth/logout`
+
+Clears the cookie: `{ "ok": true }`.
+
+## `GET /api/me`
+
+Requires login. Returns `{ "_id", "name", "email", "picture" }`.
 
 ---
 
@@ -52,15 +81,21 @@ Sends one message to NexAI (Gemini). The server saves your message and the reply
 {
   "chatId": "66f0c0ffee...",
   "message": "Help me prioritize my tasks",
-  "system": "You are NexAI ... (the user's task context)"
+  "system": "You are NexAI ... (the user's task context)",
+  "attachments": [{ "name": "assignment.pdf", "data": "<base64>" }]
 }
 ```
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `chatId` | `string` | no | Omit to start a new chat |
-| `message` | `string` | yes | Max 4000 characters |
+| `message` | `string` | yes, unless `attachments` is sent | Max 4000 characters. With attachments and no text, the server asks the model to analyse the files. |
 | `system` | `string` | no | Context for the model, max 6000 characters |
+| `attachments` | `array` | no | Up to 3 files, 6 MB in total after decoding (see below) |
+
+**Attachments:** each item is `{ "name": string, "data": base64 string }`. The server checks the real content of every file, not its name or reported type. Accepted: PDF, PNG, JPEG and WEBP (by their file signature) and text or code files (`txt`, `md`, `csv`, `json`, `xml`, `html`, `css`, `js`, `ts`, `py`, `java`, `c`, `cpp`, `h`, `cs`, `go`, `rs`, `php`, `rb`, `sql`, `yml`, `yaml`, `log`, `tex`) with no binary bytes. Text from a file is cut at 60,000 characters. Files are sent to the model with that one message and are not stored; the saved chat keeps your message and the file names. With attachments the model call waits up to 80 seconds and is tried once.
+
+The model only receives the most recent 40 saved messages of a chat as context.
 
 **Response 200:**
 ```json
@@ -71,6 +106,7 @@ Sends one message to NexAI (Gemini). The server saves your message and the reply
 | Status | `code` | Meaning |
 |---|---|---|
 | 400 | `BAD_REQUEST`, `TOO_LONG`, `CHAT_FULL` | Invalid message, too long, or the chat is full |
+| 400, 413, 415 | `BAD_ATTACHMENT` | Invalid attachments, more than 3 files, more than 6 MB in total (413), or an unsupported file (415) |
 | 404 | `NOT_FOUND` | Chat does not exist |
 | 429 | `RATE_LIMIT`, `DAILY_LIMIT` | Too many messages |
 | 500 | `AI_CONFIG`, `SERVER_ERROR` | API key or server problem |
@@ -98,6 +134,22 @@ Changes the signed-in user's display name. Body: `{ "name": "..." }` (1 to 60 ch
 
 Deletes the signed-in user's account and everything stored for it (workspace data and NexAI chats). Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
 
+## Push reminders
+
+Browser push for task reminders. Routes marked login need the cookie; `GET /api/push/config` does not.
+
+### `GET /api/push/config`
+`{ "enabled": true | false, "publicKey": "<VAPID public key>" | "" }`. `enabled` is `false` until the `VAPID_*` variables are set.
+
+### `GET /api/push/preferences` and `PUT /api/push/preferences`
+Requires login. `GET` returns `{ "reminderTime": "09:00", "enabled": true, "timeZone": "Asia/Kolkata" }`. `PUT` accepts any of `reminderTime` (24-hour `HH:MM`), `enabled` (boolean) and `timeZone` (an IANA name), at least one of them, and returns `{ "ok": true, "reminderTime", "enabled", "timeZone" }`. Invalid values get `400`.
+
+### `POST /api/push/subscribe` and `DELETE /api/push/subscribe`
+Requires login. `POST` body: `{ "subscription": { "endpoint": "https://...", "keys": { "p256dh": "...", "auth": "..." } } }`, answering `{ "ok": true }`. The endpoint must be `https` on a known push service, and the keys must be valid, otherwise `400`. Without `VAPID_*` the server answers `503` with `code: "PUSH_NOT_CONFIGURED"`. `DELETE` body: `{ "endpoint": "https://..." }`, answering `{ "ok": true }`.
+
+### `POST /api/push/test`
+Requires login. Sends a test notification to the user's subscriptions: `{ "ok": true, "delivered": 1 }`. `404` when the user has no subscription, `503` with `PUSH_NOT_CONFIGURED`, and `502` when the push service rejects it.
+
 ---
 
 ## `POST /api/complete`
@@ -123,18 +175,6 @@ Single-shot prompt completion. Simpler than `/api/chat`.
 
 ---
 
-## `GET /api/version`
-
-Returns app name and version.
-
-**Response 200:**
-```json
-{
-  "name": "NexOS",
-  "version": "2.0.0"
-}
-```
-
 ---
 
 ## Frontend ↔ Backend Integration
@@ -157,3 +197,11 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 - Added `GET /api/bootstrap` to return user identity and saved workspace in one authenticated startup request.
 - Workspace reads now return lean MongoDB results and select only the stored data field.
 - Versioned static assets can be cached immutably; application HTML is briefly cached with stale-while-revalidate.
+
+## Changes in 3.3.0
+- `POST /api/chat` accepts `attachments` (up to 3 files, 6 MB in total) and uses a 9 MB body limit for that route only. Other routes keep the 2 MB limit.
+- New error code `BAD_ATTACHMENT` (400, 413, 415).
+
+## Corrections in this revision
+- `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.
+- Documented routes that were missing: `/api/config`, `/api/auth/google`, `/api/auth/logout`, `GET /api/me` and `/api/push/*`.

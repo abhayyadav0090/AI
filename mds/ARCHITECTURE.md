@@ -1,149 +1,124 @@
 # NexOS — Architecture & Design Decisions
 
-## System Overview
+Updated for NexOS 3.3.4. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser (Client)                         │
-│                                                                 │
-│  index.html ──► style.css ──► app.js                           │
-│                                                                 │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│  │  Kanban  │ │Pomodoro  │ │ Habits   │ │  Notes   │          │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐       │
-│  │Analytics │ │Dashboard │ │       NexAI            │       │
-│  └──────────┘ └──────────┘ └──────────────────────────┘       │
-│                                    │                            │
-│                            localStorage ◄── State Manager      │
-└────────────────────────────────────┼────────────────────────────┘
-                                     │ POST /api/chat
-                                     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Node.js / Express Backend                    │
-│                                                                 │
-│  server.js                                                      │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │ Rate Limiter│  │  CORS Guard  │  │  Helmet (Security)   │  │
-│  └─────────────┘  └──────────────┘  └──────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────┐ │
-│  │             POST /api/chat  ·  POST /api/complete         │ │
-│  │                  API Key injected server-side             │ │
-│  └───────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────┬────────────────────────────┘
-                                     │ HTTPS
-                                     ▼
-                          ┌─────────────────────┐
-                          │  Google Gemini     │
-                          │   (gemini flash)  │
-                          └─────────────────────┘
+## System overview
+
+```text
+Browser
+  Classic     index.html + style.css + design.css + ui.js + app.js + attach.js
+  Enterprise  index-redesign.html (own inline script) + attach.js
+  Shared      sw.js (service worker), push-client.js, recover.html, privacy.html
+        |
+        |  HTTPS, JSON, httpOnly cookie
+        v
+Express server (server.js, lib/attachments.js)
+        |                       |                        |
+        v                       v                        v
+MongoDB Atlas           Google Gemini API        Browser push services
+(users, workspace,      (key stays on the        (Web Push, VAPID keys)
+ chats, push data)       server)
 ```
 
-## Module Architecture
+There is no build step and no frontend framework. Classic and Enterprise are two interfaces over the same account and the same saved workspace.
 
-### State Management
-All application state lives in a single `state` object:
-```javascript
-{
-  tasks: Task[],
-  habits: Habit[],
-  notes: Note[],
-  pomodoroLog: PomLog[],
-  pomodoroStats: PomStats,
-  theme: 'dark' | 'light',
-  currentNoteId: string | null
-}
-```
-State is persisted to `localStorage` on every mutation via `saveState()`.
+## Frontend
 
-### Rendering Pattern
-Each module follows: **State → Render → Event**
-1. User action triggers an event handler
-2. Handler mutates `state` directly
-3. Handler calls `saveState()` then the relevant `render*()` function
-4. Render function reads from `state` and rewrites the relevant DOM subtree
+### Two experiences
+- **Classic** (`/`, `/classic`): `index.html`, with Google and Apple designs (tokens in `design.css`, each with light, dark and auto themes).
+- **Enterprise** (`/enterprise`): `index-redesign.html` with six themes chosen through `data-theme` and the `nexos_enterprise_theme` setting. It reads and writes the same saved workspace through a mapping layer (see `scripts/test-enterprise-bridge.js`).
 
-No virtual DOM, no framework — just direct, performant DOM manipulation.
+### State and rendering
+Classic keeps one `state` object: `tasks`, `habits`, `notes`, `pomodoroLog`, `pomodoroStats`, `dailyPlan`, `trash`, `dueNotificationsSeen`, `theme`, `design`, `currentNoteId`, `seeded`, `hideGuide`, `usedAI` and `profile`.
 
-### AI Integration
-The NexAI module:
-1. Builds a rich system prompt from current `state` (`buildSystemContext()`)
-2. Saves every chat on the server (MongoDB `Chat` collection) so history survives refreshes and new devices
-3. Sends history + system prompt to `/api/chat` (backend proxy to Google Gemini)
-4. Streams the response back and appends to the chat UI
+Every module follows **state → render → event**: an event handler changes `state`, calls `saveState()`, then calls the matching `render*()` function, which rewrites its part of the page.
 
-### Data Flow
-```
-User Action
-    │
-    ▼
-Event Handler (in app.js)
-    │
-    ├──► mutate state[]
-    ├──► saveState() → localStorage
-    └──► render*() → DOM update
-              │
-              └──► (if AI call) → /api/chat → Gemini → appendChatMsg()
-```
+Persistence:
+- **Guest:** the browser only (`localStorage`). NexAI is disabled.
+- **Signed in:** a local copy for fast first paint, synchronised to the server with `PUT /api/state`. Startup uses `GET /api/bootstrap` (identity and workspace in one request).
 
-## Security Model
+### Service worker and installability
+`sw.js` caches the Classic app shell (cache name `nexos-shell-vN`, bumped every release) so the installed app starts quickly. Versioned assets (`?v=x.y.z`) are cached immutably by the server; `/enterprise` and other pages are fetched from the network first; `/api/*` requests are never cached as app-shell content.
 
-### API Key Protection
-- In **backend mode**: API key lives in `.env`, never sent to the browser
-- In **standalone mode**: Key must be hardcoded (dev only, never commit)
-- Rate limiting: 20 AI requests/minute per IP
+### Voice and attachments
+- **Voice (3.2.0):** the browser's speech recognition fills the input. Results are merged without repeating, and nothing is submitted automatically.
+- **Attachments (3.3.0):** `attach.js` picks files, shrinks large photos on the device and sends base64 data with the chat message (see below).
 
-### Content Security
-- Helmet.js sets restrictive CSP headers
-- All user-generated content is escaped with `escHtml()` before DOM insertion
-- No `eval()`, no `innerHTML` with raw user input
+## Backend
 
-## Performance
+### Routes and limits
+See [API.md](API.md). Body limit: 2 MB for every route, 9 MB for `POST /api/chat` only, applied after login and rate limits. Rate limits: 600 requests per 15 minutes per IP on `/api`; AI routes also allow 30 per minute and 500 per day per signed-in user.
 
-- **No build step** — zero bundler overhead, instant dev iteration
-- **Single HTML file** — one network request for the shell
-- **Lazy rendering** — views only render their data when switched to
-- **Chart.js CDN** — loaded from jsDelivr with long cache headers
-- **CSS transitions** — GPU-composited `transform` and `opacity` only
-
-## Design System
-
-### Color Palette
-| Variable | Value | Usage |
+### Data model
+| Collection | Holds | Indexes |
 |---|---|---|
-| `--bg-void` | `#05050a` | Page background |
-| `--bg-surface` | `#0f0f1a` | Panel backgrounds |
-| `--accent-violet` | `#a78bfa` | Primary actions |
-| `--accent-cyan` | `#22d3ee` | Secondary highlights |
-| `--accent-emerald` | `#10b981` | Success / done |
-| `--accent-amber` | `#f59e0b` | Warning / medium priority |
-| `--accent-rose` | `#f43f5e` | Danger / high priority |
+| `User` | Google id, email, name, picture, session cut-off date | `googleId` (unique) |
+| `UserState` | The user's whole workspace as one document | `userId` (unique) |
+| `Chat` | Title and up to 200 messages (`role`, `content`, `ts`); up to 100 chats per user | `{ userId, updatedAt: -1 }` |
+| `PushSubscription` | Browser push subscription | `endpoint` (unique), `userId`, `{ userId, updatedAt: -1 }` |
+| `PushPreference` | Reminder time, on/off, time zone | `userId` (unique) |
 
-### Typography Scale
-- **Display**: Syne 700/800 — headings, logo, section titles
-- **Body**: Outfit 300/400/500 — UI text, descriptions
-- **Mono**: JetBrains Mono 300/400 — times, stats, code
+### NexAI flow
+1. The browser builds a context summary from the workspace and sends the message, with attachments if any, to `POST /api/chat`.
+2. The server loads the chat, takes the latest 40 messages as history and calls Gemini with the server-side key. It retries a temporary failure and can switch to `GEMINI_FALLBACK_MODEL`.
+3. Only if the call succeeds, the message and reply are saved. A failure leaves the chat unchanged.
+4. **Action Mode** asks for proposed changes and applies only the ones the user approves.
 
-## Future Enhancements
+### Attachments
+`lib/attachments.js` accepts up to 3 files and 6 MB in total. It identifies each file by its content (PDF, PNG, JPEG and WEBP signatures; text and code files by extension with no binary bytes), cuts text at 60,000 characters and sends the files to Gemini with that one message. File bytes are never saved; the chat keeps the message and file names. File text is treated as data, not as instructions.
 
-- [ ] WebSocket real-time sync across tabs
-- [ ] Calendar view with drag scheduling
-- [ ] Markdown export for notes
-- [ ] PWA with offline support + install prompt
-- [ ] Gemini streaming (SSE) for AI responses
-- [ ] Multi-user mode with JWT auth
-- [ ] PostgreSQL backend for data persistence
-- [ ] Mobile app via Capacitor
+### Reminders
+A timer inside the server process runs every five minutes, finds users whose reminder time has arrived in their own time zone and sends Web Push messages. Push needs the three `VAPID_*` variables.
 
+## Security model
 
-## NexOS 3.0.0 performance decisions
+- **API key:** the Gemini key lives only on the server.
+- **Sign-in:** the server verifies the Google credential and issues a 7-day JWT in an `httpOnly`, `SameSite=Lax` cookie, `Secure` in production or on HTTPS. Deleting a workspace invalidates earlier cookies.
+- **Origin check:** other origins get `403` unless listed in `ALLOWED_ORIGINS`.
+- **CSP:** set with Helmet; the full list is in the README's Security notes.
+- **Output escaping:** user and AI text is escaped (`escHtml`) before it is placed in the page.
+- **Attachments:** validated by content on the server, limited by count and size, never stored.
 
-- **Single startup bootstrap:** signed-in Classic and Enterprise pages use `GET /api/bootstrap` to fetch the public account identity and workspace snapshot in one HTTP request. The existing `/api/me` and `/api/state` endpoints remain available for compatibility and later sync operations.
-- **Lean read-only queries:** authentication and workspace reads use Mongoose `lean()` results; workspace reads select only `data`.
-- **On-demand charts:** Chart.js is fetched the first time Analytics is opened rather than during initial page loading. Enterprise celebration confetti is fetched only after the first completed task.
-- **No unused pointer work:** the former Enterprise mouse spotlight performed a document-wide card scan and layout reads on every mouse event, while its generated CSS variables were unused; that work has been removed.
-- **Scoped dialog observers:** mutation observers watch dialog roots rather than every class/style change across the full document.
-- **Static asset caching:** versioned CSS/JS assets use immutable caching, while HTML uses a short cache lifetime so deployments are picked up promptly.
-- **Reduced background updates:** Enterprise's visible clock refreshes every 15 seconds (the display shows minutes) and independent non-critical startup requests run concurrently.
+### Security hardening plan (planned, not implemented)
+The current CSP allows inline scripts and inline event handlers (`'unsafe-inline'`). A stricter policy would be shipped as its own release, so it can be reverted on its own:
+1. List every inline `<script>` block and inline event handler in `index.html`, `index-redesign.html` and `recover.html`.
+2. Move the handlers to `addEventListener`, and put each remaining inline script under a nonce or hash.
+3. Remove `'unsafe-inline'` from `script-src` and `script-src-attr`, then look at `style-src`.
+4. Remove the Gemini address from `connect-src` once nothing in the browser calls it, and review `img-src https:`.
+5. Check the effective header in browser DevTools and test Google sign-in, Chart.js loading, the service worker, push, attachments, both designs and both experiences.
+6. Add a regression test that fails if `'unsafe-inline'` comes back.
 
-These changes target identified avoidable work. Runtime improvements should still be measured in the deployed browser using DevTools Performance and Network panels, since this source-only environment cannot reproduce each user's device, browser extensions, network, or Render latency.
+## Performance decisions
+
+**3.0.0**
+- **One startup request:** `GET /api/bootstrap` returns identity and workspace together.
+- **Lean reads:** authentication and workspace reads use Mongoose `lean()`; workspace reads select only `data`.
+- **On-demand charts:** Chart.js loads the first time Analytics opens.
+- **Scoped observers:** mutation observers watch dialog roots, not the whole document.
+- **Asset caching:** versioned CSS and JS use immutable caching; HTML uses a short cache lifetime.
+- **Reduced background work:** the Enterprise clock refreshes every 15 seconds, and independent startup requests run concurrently.
+
+**Later**
+- **3.0.1:** account-scoped cache-first startup and lighter mobile effects.
+- **3.1.1:** cache-first app shell, deferred Classic scripts and correct semantic-version cache headers.
+- **3.3.3 and 3.3.4:** the phone NexAI page is sized from the real space between the top bar and the bottom nav, so the page itself does not scroll.
+
+No load tests or benchmarks have been run, so NexOS makes no throughput claims. Measure in the deployed browser with DevTools Performance and Network panels.
+
+## Scaling notes
+
+Current design: one server instance, one MongoDB database, no cache layer such as Redis (none is needed at this scale).
+
+- **Indexes:** every read is by `userId`, `googleId` or `endpoint`, and all three are indexed (table above). Listing chats uses the compound index.
+- **Workspace size:** each user's workspace is one document. A save request is limited to 2 MB, and a MongoDB document is limited to 16 MB. A very large workspace would need splitting into several documents.
+- **Chats:** capped at 200 messages per chat and 100 chats per user.
+- **Rate limits** use the default in-memory store: they reset on restart and are per instance. With more than one instance, use a shared store.
+- **Reminders** run from an in-process timer, and each sweep reads the distinct users with a subscription. With more than one instance, run the timer on one instance only (or move it to a separate worker) so reminders are not sent twice.
+- **Sessions** are stateless JWTs, so they work across instances.
+- **Render Free** sleeps when idle, so the first request can take up to a minute and reminders can be delayed.
+
+## Design system
+
+- **Classic:** two designs, **Google** (Material 3) and **Apple** (liquid glass), each with light, dark or match-device themes. Colours, spacing and shapes are tokens in `design.css`.
+- **Enterprise:** six themes: Apple Glass, Material, Apple Light, M3, Overgame (default) and Cobalt Lime.
+- **Motion:** transitions use `transform` and `opacity`, and heavy visual effects are reduced on phones.
