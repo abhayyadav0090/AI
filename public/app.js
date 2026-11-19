@@ -2323,22 +2323,44 @@ function sendSuggestedPrompt(text) {
 
 // Escapes the text first (so AI output can never inject HTML), then applies simple formatting.
 function formatChat(text) {
-  // Everything is escaped first, so model output can never inject HTML. Then a small markdown subset is applied.
+  // Escape model output before applying a deliberately small, safe Markdown subset.
   const blocks = [];
-  const withoutCode = String(text || '').replace(/```[a-zA-Z0-9_+-]*\n?([\s\S]*?)```/g, (_, code) => {
+  const withoutCode = String(text || '').replace(/```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g, (_, _lang, code) => {
     blocks.push(`<pre class="chat-code"><code>${escHtml(code.replace(/\n$/, ''))}</code></pre>`);
     return `\u0000${blocks.length - 1}\u0000`;
   });
-  const inline = (s) => s
-    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
-    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  const inline = (source) => {
+    const tokens = [];
+    const hold = (html) => {
+      tokens.push(html);
+      return `\u0001${tokens.length - 1}\u0001`;
+    };
+    let s = source
+      // Markdown links: allow web URLs, mailto links, and same-site absolute paths.
+      .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|\/(?!\/))[^\s)]*)\)/gi, (match, label, href) => {
+        const safeHref = href.replace(/&amp;/g, '&');
+        if (!/^(https?:\/\/|mailto:|\/(?!\/))/i.test(safeHref)) return match;
+        const external = /^https?:\/\//i.test(safeHref);
+        return hold(`<a href="${escHtml(safeHref)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`);
+      })
+      // Inline code is kept inert and is never auto-linked or formatted.
+      .replace(/`([^`\n]+)`/g, (_, code) => hold(`<code>${code}</code>`))
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+    // Also make bare URLs clickable; keep trailing sentence punctuation outside the link.
+    s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+)/gi, (match, prefix, rawUrl) => {
+      const trailing = (rawUrl.match(/[.,!?;:)\]]+$/) || [''])[0];
+      const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+      if (!url) return match;
+      return prefix + hold(`<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`) + trailing;
+    });
+    return s.replace(/\u0001(\d+)\u0001/g, (_, i) => tokens[Number(i)] || '');
+  };
   const out = [];
-  let list = null; // { tag, items }
+  let list = null;
   let para = [];
   const flushPara = () => { if (para.length) { out.push(`<p>${para.map(inline).join('<br>')}</p>`); para = []; } };
-  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`); list = null; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map(item => `<li>${inline(item)}</li>`).join('')}</${list.tag}>`); list = null; } };
   for (const line of escHtml(withoutCode).split('\n')) {
     let m;
     if ((m = /^\u0000(\d+)\u0000$/.exec(line.trim()))) { flushPara(); flushList(); out.push(blocks[Number(m[1])]); }

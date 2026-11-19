@@ -571,6 +571,9 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .chat-msg.user .msg-bubble { background: var(--accent-soft); border-color: var(--accent-line); border-top-right-radius: 4px; }
 .msg-bubble p { margin-bottom: 8px; }
 .msg-bubble p:last-child { margin-bottom: 0; }
+.msg-bubble a { color: var(--accent, #4f8cff); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; pointer-events: auto; overflow-wrap: anywhere; }
+.msg-bubble a:hover { text-decoration-thickness: 2px; }
+.msg-bubble a:focus-visible { outline: 2px solid var(--accent, #4f8cff); outline-offset: 3px; border-radius: 3px; }
 .chat-msg.error .msg-bubble { border-color: rgba(244, 63, 94, 0.5); background: rgba(244, 63, 94, 0.09); }
 .typing-indicator { display: flex; align-items: center; gap: 5px; height: 24px; }
 .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: typingBounce 1.2s infinite ease-in-out; }
