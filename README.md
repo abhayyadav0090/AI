@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.3.5.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.3.6.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -337,6 +337,10 @@ NexOS does not use advertising or tracking scripts. In guest mode, workspace dat
 
 ---
 
+## Creator & support
+
+NexOS and NexAI were created by Abhay Yadav. For the official portfolio, GitHub, LinkedIn, email and support links, visit the [NexOS About & Contact page](https://ai-aqit.onrender.com/contact.html).
+
 ## Known limits
 
 - The free Render server sleeps when idle, so the first request can be slow.
@@ -414,8 +418,9 @@ One line per release. The linked notes have the details.
 - **3.3.1** — NexAI mobile layout and repeated-word dictation fix. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.1.md)
 - **3.3.2** — Mobile voice and send reliability. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.2.md)
 - **3.3.3** — Enterprise NexAI page fits the phone screen; keyboard stays closed after dictation. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
-- **3.3.5** — NexAI identity, neutral theme names, Docker file refresh. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.5.md)
 - **3.3.4** — Classic NexAI page fits the phone screen. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.4.md)
+- **3.3.5** — NexAI identity, neutral theme names, Docker file refresh. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.5.md)
+- **3.3.6** — Creator identity safeguards and public About / Contact page. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.6.md)
 
 ---
 

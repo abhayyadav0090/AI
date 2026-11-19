@@ -17,9 +17,9 @@ for (const id of wanted) assert.strictEqual(html.split('id="' + id + '"').length
 // 2. Settings structure: six folded sections, each with a summary row, none open by default; dangerous ones included.
 const modal = html.slice(html.indexOf('id="profile-modal"'), html.indexOf('<!-- KEYBOARD SHORTCUTS -->'));
 const folds = [...modal.matchAll(/<details class="([^"]*)" id="([^"]+)"([^>]*)>\s*<summary>/g)];
-assert.deepStrictEqual(folds.map(f => f[2]), ['profile-appearance', 'profile-experience', 'profile-reminders-section', 'profile-data-section', 'profile-guest-section', 'profile-delete-section']);
+assert.deepStrictEqual(folds.map(f => f[2]), ['profile-appearance', 'profile-experience', 'profile-reminders-section', 'profile-data-section', 'profile-about-section', 'profile-guest-section', 'profile-delete-section']);
 assert.ok(folds.every(f => !/\bopen\b/.test(f[3])), 'no section starts open');
-assert.strictEqual((modal.match(/<\/details>/g) || []).length, 6, 'every details is closed');
+assert.strictEqual((modal.match(/<\/details>/g) || []).length, 7, 'every details is closed');
 assert.ok(modal.indexOf('id="profile-setup-section"') < modal.indexOf('id="profile-appearance"'), 'Your setup sits above the folded sections');
 assert.ok(modal.indexOf('id="profile-setup-section"') > modal.indexOf('id="profile-name-section"'), 'Your setup sits right under the name');
 assert.ok(/id="profile-name-save"[^>]*hidden/.test(modal), 'the Save name button stays hidden until the name changes');
