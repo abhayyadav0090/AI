@@ -2106,14 +2106,18 @@ let chatBusy = false;     // true while waiting for a reply
 let welcomeHtml = '';     // the welcome bubble, copied from the page on first load
 
 function buildSystemContext() {
-  const tasksActive = state.tasks.filter(t => t.col !== 'done');
+  const now = new Date();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const localNow = new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone }).format(now);
+  const tasksActive = state.tasks.filter(t => t.col !== 'done').slice(0, 24);
   const tasksDone = state.tasks.filter(t => t.col === 'done');
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
-  const doneHabits = state.habits.filter(h => h.checks[today()]);
+  const doneHabits = state.habits.filter(h => h.checks[today()]).slice(0, 12);
+  const pendingHabits = state.habits.filter(h => !h.checks[today()]).slice(0, 12);
   const recentNotes = state.notes.slice(0, 3);
   return `You are NexAI, the intelligent, empathetic assistant inside NexOS, created by Abhay Yadav. You have full context of the user's data.
 
-Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Current local date and time: ${localNow} (${timeZone}). Treat this as the authoritative current local time.
 
 TASKS:
 - Active tasks (${tasksActive.length}): ${tasksActive.map(t => `"${t.title}" [${t.priority}/${t.col}]`).join(', ') || 'None'}
@@ -2125,8 +2129,8 @@ FOCUS:
 
 HABITS (today):
 - Done: ${doneHabits.map(h => h.name).join(', ') || 'None yet'}
-- Pending: ${state.habits.filter(h => !h.checks[today()]).map(h => h.name).join(', ') || 'All done!'}
-- Active habit streaks: ${state.habits.map(h => `${h.name}: ${calcStreak(h)}d`).join(', ') || 'None'}
+- Pending: ${pendingHabits.map(h => h.name).join(', ') || 'All done!'}
+- Active habit streaks: ${state.habits.slice(0, 12).map(h => `${h.name}: ${calcStreak(h)}d`).join(', ') || 'None'}
 
 NOTES (recent titles):
 ${recentNotes.map(n => `- "${n.title}"`).join('\n') || 'None'}
@@ -2290,12 +2294,19 @@ async function sendMessage() {
   const shownMsg = files.length ? (msg ? msg + '\n\n' : '') + '\u{1F4CE} ' + chatAttach.names().join(', ') : msg;
   const userDiv = appendChatMsg('user', shownMsg);
   showTyping();
+  let streamedBubble = null;
   const sendBtn = document.getElementById('chat-send-btn');
   if (sendBtn) sendBtn.disabled = true;
   try {
-    const data = await callAIChat(activeChatId, msg, buildSystemContext(), files);
+    const data = await callAIChat(activeChatId, msg, buildSystemContext(), files, (partial) => {
+      removeTyping();
+      if (!streamedBubble) streamedBubble = appendChatMsg('assistant', '');
+      const bubble = streamedBubble?.querySelector('.msg-bubble');
+      if (bubble) bubble.innerHTML = formatChat(partial);
+      scrollChat();
+    });
     removeTyping();
-    appendChatMsg('assistant', data.text);
+    if (!streamedBubble) appendChatMsg('assistant', data.text);
     activeChatId = data.chatId;
     if (chatAttach) chatAttach.clear();
     upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
@@ -2303,6 +2314,7 @@ async function sendMessage() {
   } catch (e) {
     // Nothing was saved on the server, so undo the message and put the text back to retry.
     removeTyping();
+    streamedBubble?.remove();
     userDiv?.remove();
     input.value = msg;
     autoResizeTextarea(input);
@@ -3163,12 +3175,15 @@ async function generateAIPlan(force = true) {
   if (status) status.textContent = 'NexAI is arranging your day…';
 
   try {
-    const currentTime = new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit', minute: '2-digit', hour12: false
-    });
-    const prompt = `Create a realistic schedule for today between the current local time (${currentTime}) and 22:00. No overlaps. Every supplied item must appear exactly once; use its exact type and ID. Prioritize high-priority tasks and respect due dates. Return ONLY a JSON array of objects with fields type (task or habit), id, start (24-hour HH:MM), duration (minutes). Items: ${JSON.stringify(baseItems)}`;
+    const now = new Date();
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const currentDate = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    const currentTime = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
+    const utcOffset = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(now).find(part => part.type === 'timeZoneName')?.value || 'GMT';
+    const localNow = `${currentDate} ${currentTime} (${timeZone}, ${utcOffset})`;
+    const prompt = `Create a realistic schedule for the user's actual local date ${currentDate}. The user's current local date and time is ${localNow}. This timestamp is authoritative; do not guess the date, time, timezone, or day of week. Schedule only from the current local time forward; NEVER place an item in the past. Use the local timezone ${timeZone}. Keep today's plan within 22:00 local time. If the current local time is 22:00 or later, do not invent earlier slots: return an empty array and explain nothing (JSON only). No overlaps. Every supplied item must appear exactly once unless no time remains; if an item cannot fit, include it with start set to an empty string. Use exact type and ID. Prioritize high-priority tasks and respect due dates. Return ONLY a JSON array of objects with fields type (task or habit), id, start (24-hour HH:MM or empty string), duration (minutes). Items: ${JSON.stringify(baseItems)}`;
     const reply = await callAI(prompt,
-      'You are an expert productivity planner. Return valid JSON only, with no markdown fence or commentary. Use only provided IDs. Keep duration between 5 and 180 minutes. Prefer schedules between 08:00 and 22:00 without overlaps. The app validates every time and may mark items unscheduled.');
+      'You are an expert productivity planner. Return valid JSON only, with no markdown fence or commentary. The supplied current local date, time, IANA timezone and UTC offset are authoritative. Never schedule in the past or assume a default timezone. Use only provided IDs. Keep duration between 5 and 180 minutes. Never schedule beyond 22:00 local time. If no time remains today, return an empty array. The app validates every time and may mark items unscheduled.');
 
     const match = reply.match(/\[[\s\S]*\]/);
     let proposed = null;
@@ -3193,8 +3208,9 @@ async function generateAIPlan(force = true) {
       const requestedDuration = Number(entry.duration);
       const duration = Math.min(180, Math.max(5,
         Number.isFinite(requestedDuration) ? requestedDuration : original.duration));
-      const requestedTime = isValidClockTime(entry.start) ? parseTimeMinutes(entry.start) : Math.max(8 * 60, Math.ceil(clockMinutes() / 15) * 15);
-      requests.push({ type: original.type, id: original.id, duration, requestedTime });
+      const hasRequestedTime = isValidClockTime(entry.start);
+      const requestedTime = hasRequestedTime ? parseTimeMinutes(entry.start) : Math.max(8 * 60, Math.ceil(clockMinutes() / 15) * 15);
+      requests.push({ type: original.type, id: original.id, duration, requestedTime, forceUnscheduled: entry.start === '' });
       used.add(key);
     }
 
@@ -3221,7 +3237,7 @@ async function generateAIPlan(force = true) {
     let cursor = earliest;
     const plannedItems = requests.map(item => {
       const startAt = Math.max(cursor, item.requestedTime, earliest);
-      if (startAt + item.duration > 22 * 60 || startAt >= 22 * 60) {
+      if (item.forceUnscheduled || startAt + item.duration > 22 * 60 || startAt >= 22 * 60) {
         return { type: item.type, id: item.id, duration: item.duration, start: '', unscheduled: true };
       }
       cursor = startAt + item.duration + 5;
@@ -3326,8 +3342,49 @@ async function callAI(prompt, systemPrompt = 'You are a helpful productivity ass
 }
 
 // A chat message. The server saves it and the reply to the chat's history.
-function callAIChat(chatId, message, system, attachments) {
-  return postJSON('/api/chat', attachments && attachments.length ? { chatId, message, system, attachments } : { chatId, message, system });
+async function readChatStream(response, onText) {
+  if (!response.ok) {
+    const message = await apiErrorMessage(response);
+    const error = new Error('NexAI request failed'); error.userMessage = message; throw error;
+  }
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/event-stream')) return response.json(); // backward-compatible server response
+  if (!response.body) throw new Error('Streaming is not supported by this browser.');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '', meta = null, answer = '';
+  const consume = (raw) => {
+    const lines = raw.split(/\r?\n/);
+    let event = 'message'; const data = [];
+    for (const line of lines) {
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      else if (line.startsWith('data:')) data.push(line.slice(5).trim());
+    }
+    if (!data.length) return;
+    let payload; try { payload = JSON.parse(data.join('\n')); } catch (_) { return; }
+    if (event === 'delta' && payload.text) { answer += payload.text; onText(answer); }
+    else if (event === 'done') meta = payload;
+    else if (event === 'error') { const err = new Error(payload.error || 'NexAI could not respond.'); err.userMessage = err.message; throw err; }
+  };
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split(/\n\n/); buffer = chunks.pop() || '';
+      for (const chunk of chunks) consume(chunk);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) consume(buffer);
+  } finally { try { reader.releaseLock(); } catch (_) {} }
+  if (!meta) throw new Error('NexAI stream ended before the reply was saved. Please retry.');
+  return { ...meta, text: answer };
+}
+
+function callAIChat(chatId, message, system, attachments, onText) {
+  const body = attachments && attachments.length ? { chatId, message, system, attachments, stream: true } : { chatId, message, system, stream: true };
+  return fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(response => readChatStream(response, onText || (() => {})));
 }
 
 // ═══════════════════════════ HELPERS ═══════════════════════════

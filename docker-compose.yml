@@ -26,7 +26,7 @@ services:
       start_period: 10s
     labels:
       - "com.nexos.description=NexOS AI Productivity OS"
-      - "com.nexos.version=3.4.0"
+      - "com.nexos.version=3.4.1"
 
   # Optional: Nginx reverse proxy for production
   nginx:

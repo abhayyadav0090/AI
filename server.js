@@ -192,7 +192,7 @@ const PushPreference = mongoose.model('PushPreference', new mongoose.Schema({
 const MAX_MSG_CHARS = 4000;
 const ATTACHMENT_BODY_LIMIT = '9mb';
 const MAX_CHAT_MESSAGES = 200;
-const CONTEXT_MESSAGES = 40; // Keep full useful context for substantive requests; greetings bypass Gemini entirely.
+const CONTEXT_MESSAGES = 24; // Recent context is enough for continuity; older messages remain saved in MongoDB.
 const MAX_CHATS = 100;
 
 const chatSchema = new mongoose.Schema({
@@ -629,6 +629,7 @@ app.get('/api/health', (req, res) => {
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || '';
 const geminiUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+const geminiStreamUrl = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
 class AIError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
@@ -668,7 +669,7 @@ function setChatTiming(res, timings) {
   if (Number.isFinite(timings.dbReadMs)) parts.push(`db-read;dur=${timings.dbReadMs}`);
   if (Number.isFinite(timings.aiMs)) parts.push(`gemini;dur=${timings.aiMs}`);
   if (Number.isFinite(timings.dbSaveMs)) parts.push(`db-save;dur=${timings.dbSaveMs}`);
-  res.setHeader('Server-Timing', parts.join(', '));
+  if (!res.headersSent) res.setHeader('Server-Timing', parts.join(', '));
   // Log durations only; never log prompts, message contents, or personal workspace data.
   console.info('[NexAI timing]', JSON.stringify({
     totalMs,
@@ -679,7 +680,100 @@ function setChatTiming(res, timings) {
     historyMessages: timings.historyMessages ?? 0,
     inputChars: timings.inputChars ?? 0,
     path: timings.path || 'gemini',
+    retryCount: timings.retryCount ?? 0,
+    lastAttemptMs: timings.lastAttemptMs ?? null,
+    finishReason: timings.finishReason ?? null,
+    firstTokenMs: timings.firstTokenMs ?? null,
+    model: timings.model ?? null,
+    upstreamStatus: timings.upstreamStatus ?? null,
   }));
+}
+
+async function askGeminiStream({ system, contents, timeoutMs = 45000, maxAttempts = 2, onText, timings }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly.');
+  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(Boolean);
+  let lastStatus = 0;
+  let retries = 0;
+  const streamStartedAt = Date.now();
+  for (const model of models) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let upstream;
+      timings.model = model;
+      const attemptStartedAt = Date.now();
+      try {
+        upstream = await fetch(geminiStreamUrl(model), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey, Accept: 'text/event-stream' },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: system ? system + '\n\n' + NEXAI_IDENTITY : NEXAI_IDENTITY }] }, contents }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (err) {
+        timings.retryCount = retries;
+        timings.lastAttemptMs = Date.now() - attemptStartedAt;
+        if (attempt < maxAttempts - 1) { retries++; await sleep(500); continue; }
+        throw new AIError(502, 'AI_NETWORK', 'NexAI could not connect to Gemini. Please try again.');
+      }
+      if (!upstream.ok) {
+        lastStatus = upstream.status;
+        timings.upstreamStatus = upstream.status;
+        timings.lastAttemptMs = Date.now() - attemptStartedAt;
+        if ([429, 500, 502, 503, 504].includes(upstream.status) && attempt < maxAttempts - 1) {
+          retries++; await sleep(upstream.status === 429 ? 900 : 400); continue;
+        }
+        if (upstream.status === 429 || [500, 502, 503, 504].includes(upstream.status)) continue;
+        throw aiErrorFor(upstream.status);
+      }
+      timings.upstreamStatus = upstream.status;
+      if (!upstream.body) throw new AIError(502, 'AI_STREAM_UNAVAILABLE', 'Gemini did not provide a response stream.');
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let answer = '';
+      let emitted = false;
+      const consumeLine = (line) => {
+        if (!line.startsWith('data:')) return;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') return;
+        let packet;
+        try { packet = JSON.parse(payload); } catch (_) { return; }
+        const delta = (packet.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('');
+        if (delta) { if (!emitted) timings.firstTokenMs = Date.now() - streamStartedAt; answer += delta; emitted = true; onText(delta); }
+        const block = packet.candidates?.[0]?.finishReason;
+        if (block && block !== 'STOP' && block !== 'MAX_TOKENS') timings.finishReason = block;
+      };
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || '';
+          for (const line of lines) consumeLine(line);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) consumeLine(buffer.trim());
+      } catch (err) {
+        // Never restart after text has reached the browser: doing so would duplicate output.
+        if (!emitted && attempt < maxAttempts - 1) { retries++; await sleep(400); continue; }
+        throw new AIError(502, 'AI_STREAM_INTERRUPTED', 'The NexAI response stream was interrupted. Please retry.');
+      } finally {
+        try { reader.releaseLock(); } catch (_) {}
+      }
+      timings.retryCount = retries;
+      timings.lastAttemptMs = Date.now() - attemptStartedAt;
+      timings.model = model;
+      return answer.trim() || "I couldn't produce an answer for that.";
+    }
+  }
+  timings.retryCount = retries;
+  throw aiErrorFor(lastStatus);
+}
+
+function writeChatEvent(res, event, data) {
+  if (res.destroyed || res.writableEnded) return;
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  if (typeof res.flush === 'function') res.flush();
 }
 
 async function askGemini({ system, contents, timeoutMs = 45000, maxAttempts = 2 }) {
@@ -744,6 +838,22 @@ async function pruneOldChats(userId) {
   if (extra.length) await Chat.deleteMany({ _id: { $in: extra.map((c) => c._id) } });
 }
 
+async function persistChatTurn(chat, userId, userMessage, assistantMessage, isNewChat) {
+  if (isNewChat) {
+    chat.messages.push(userMessage, assistantMessage);
+    while (chat.messages.length > MAX_CHAT_MESSAGES) chat.messages.shift();
+    await chat.save();
+    return chat;
+  }
+  const updatedAt = new Date();
+  await Chat.updateOne(
+    { _id: chat._id, userId },
+    { $push: { messages: { $each: [userMessage, assistantMessage], $slice: -MAX_CHAT_MESSAGES } }, $set: { updatedAt } }
+  );
+  chat.updatedAt = updatedAt;
+  return chat;
+}
+
 app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ limit: ATTACHMENT_BODY_LIMIT }), async (req, res) => {
   const timing = { startedAt: req._authStartedAt || Date.now(), authMs: req.authDurationMs ?? null, dbReadMs: null, aiMs: 0, dbSaveMs: null, historyMessages: 0, inputChars: 0, path: 'gemini' };
   try {
@@ -756,10 +866,11 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
       return res.status(413).json({ error: `Messages must be ${MAX_MSG_CHARS} characters or fewer.`, code: 'MESSAGE_TOO_LONG' });
     }
     let chat;
+    const isNewChat = !chatId;
     const dbReadStartedAt = Date.now();
     if (chatId) {
       if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
-      chat = await Chat.findOne({ _id: chatId, userId: req.userId });
+      chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select('title messages').lean();
       if (!chat) return res.status(404).json({ error: 'Chat not found.', code: 'CHAT_NOT_FOUND' });
     } else {
       chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
@@ -771,13 +882,12 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     const greetingReply = !files.parts.length ? simpleGreetingReply(text) : null;
     if (greetingReply) {
       timing.path = 'greeting-fast-path';
-      chat.messages.push({ role: 'user', content: text, ts: Date.now() });
-      chat.messages.push({ role: 'assistant', content: greetingReply, ts: Date.now() });
-      while (chat.messages.length > MAX_CHAT_MESSAGES) chat.messages.shift();
       const dbSaveStartedAt = Date.now();
-      await chat.save();
+      await persistChatTurn(chat, req.userId,
+        { role: 'user', content: text, ts: Date.now() },
+        { role: 'assistant', content: greetingReply, ts: Date.now() }, isNewChat);
       timing.dbSaveMs = Date.now() - dbSaveStartedAt;
-      pruneOldChats(req.userId).catch(() => {});
+      if (isNewChat) pruneOldChats(req.userId).catch(() => {});
       setChatTiming(res, timing);
       return res.json({ text: greetingReply, chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
     }
@@ -788,6 +898,39 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     if (files.parts.length && contents.length) contents[contents.length - 1].parts.push(...files.parts);
     const baseSystem = typeof system === 'string' ? system.slice(0, 6000) : '';
     const aiStartedAt = Date.now();
+    if (req.body?.stream === true) {
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+      try {
+        const reply = await askGeminiStream({
+          system: files.parts.length ? (baseSystem ? baseSystem + '\n\n' : '') + ATTACHMENT_SYSTEM_NOTE : baseSystem,
+          contents,
+          ...(files.parts.length ? { timeoutMs: 80000, maxAttempts: 1 } : {}),
+          timings: timing,
+          onText: (delta) => writeChatEvent(res, 'delta', { text: delta }),
+        });
+        timing.aiMs = Date.now() - aiStartedAt;
+        const savedUser = files.names.length ? `${text}\n\n\u{1F4CE} ${files.names.join(', ')}` : text;
+        const dbSaveStartedAt = Date.now();
+        await persistChatTurn(chat, req.userId,
+          { role: 'user', content: savedUser, ts: Date.now() },
+          { role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() }, isNewChat);
+        timing.dbSaveMs = Date.now() - dbSaveStartedAt;
+        if (isNewChat) pruneOldChats(req.userId).catch(() => {});
+        setChatTiming(res, timing);
+        writeChatEvent(res, 'done', { chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
+        return res.end();
+      } catch (streamErr) {
+        timing.aiMs = timing.aiMs || (Date.now() - aiStartedAt);
+        setChatTiming(res, timing);
+        writeChatEvent(res, 'error', { error: streamErr.message || 'NexAI could not respond.', code: streamErr.code || 'AI_STREAM_ERROR' });
+        return res.end();
+      }
+    }
     const reply = await askGemini({
       system: files.parts.length ? (baseSystem ? baseSystem + '\n\n' : '') + ATTACHMENT_SYSTEM_NOTE : baseSystem,
       contents,
@@ -795,15 +938,13 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     });
     timing.aiMs = Date.now() - aiStartedAt;
     const savedUser = files.names.length ? `${text}\n\n\u{1F4CE} ${files.names.join(', ')}` : text;
-    chat.messages.push({ role: 'user', content: savedUser, ts: Date.now() });
-    chat.messages.push({ role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() });
-    // Bound persisted history. The most recent 200 messages are enough for UI history;
-    // only the latest CONTEXT_MESSAGES are sent to Gemini for each request.
-    while (chat.messages.length > MAX_CHAT_MESSAGES) chat.messages.shift();
+    // Persist with an atomic append so concurrent messages do not overwrite one another.
     const dbSaveStartedAt = Date.now();
-    await chat.save();
+    await persistChatTurn(chat, req.userId,
+      { role: 'user', content: savedUser, ts: Date.now() },
+      { role: 'assistant', content: reply.slice(0, 20000), ts: Date.now() }, isNewChat);
     timing.dbSaveMs = Date.now() - dbSaveStartedAt;
-    pruneOldChats(req.userId).catch(() => {});
+    if (isNewChat) pruneOldChats(req.userId).catch(() => {});
     setChatTiming(res, timing);
     res.json({ text: reply, chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
   } catch (err) {
