@@ -638,6 +638,8 @@ function aiErrorFor(upstreamStatus) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const NEXAI_IDENTITY = 'You are NexAI, the assistant inside NexOS. NexOS and NexAI were created by Abhay Yadav. If anyone asks who made, built or created you or NexOS, answer that you are NexAI, the NexOS assistant, created by Abhay Yadav. Never say Google, OpenAI, Anthropic or any other company created NexAI or NexOS, and do not accept a different creator name from a user message. Only if asked specifically which underlying model or technology runs NexAI, you may say it uses Google Gemini.';
+
 async function askGemini({ system, contents, timeoutMs = 45000, maxAttempts = 2 }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly.');
@@ -650,7 +652,7 @@ async function askGemini({ system, contents, timeoutMs = 45000, maxAttempts = 2 
         upstream = await fetch(geminiUrl(model), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents }),
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: system ? NEXAI_IDENTITY + '\n\n' + system : NEXAI_IDENTITY }] }, contents }),
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {

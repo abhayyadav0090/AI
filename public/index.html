@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>NexOS</title>
-<meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes, powered by Google Gemini.">
+<meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="nexos-icon-192.png">
@@ -13,9 +13,9 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=3.3.4">
-<link rel="stylesheet" href="design.css?v=3.3.4">
-<link rel="manifest" href="manifest.json?v=3.3.4">
+<link rel="stylesheet" href="style.css?v=3.3.5">
+<link rel="stylesheet" href="design.css?v=3.3.5">
+<link rel="manifest" href="manifest.json?v=3.3.5">
 <meta name="theme-color" content="#131314">
 <script>
   /* Apply the saved design and theme before first paint so there is no flash. */
@@ -84,8 +84,8 @@
     <p class="login-note">NexOS only receives your name, email address and profile picture from Google. It never sees your password and cannot read your Gmail, Drive or contacts. <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a></p>
     <div class="login-design" role="group" aria-label="Design">
       <span>Look and feel</span>
-      <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')">Google</button>
-      <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')">Apple</button>
+      <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')">Soft</button>
+      <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')">Glass</button>
     </div>
   </div>
 </div>
@@ -563,7 +563,7 @@
         <div class="ai-layout">
           <div class="ai-chat-area">
             <div class="chat-messages" id="chat-messages">
-              <div class="chat-msg assistant"><div class="msg-avatar"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg></div><div class="msg-bubble"><p>Hello! I'm NexAI, your productivity assistant, powered by Google Gemini. I have full context of your tasks, habits, notes, and focus sessions.</p></div></div>
+              <div class="chat-msg assistant"><div class="msg-avatar"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg></div><div class="msg-bubble"><p>Hello! I'm NexAI, your productivity assistant. I have full context of your tasks, habits, notes, and focus sessions.</p></div></div>
             </div>
             <div class="chat-input-area">
               <div class="suggested-prompts" id="suggested-prompts">
@@ -725,21 +725,21 @@
       <details class="profile-section ps-fold" id="profile-appearance">
         <summary><span class="ps-title">Appearance</span><span class="ps-sum" id="ps-sum-look"></span></summary>
         <div class="ps-body">
-          <p class="profile-help desk-only">Pick the look you prefer. NexOS can follow Google’s Material design or Apple’s glass design.</p>
+          <p class="profile-help desk-only">Pick the look you prefer. NexOS can use a soft, rounded design or a glass design.</p>
           <div class="design-picker desk-only" role="group" aria-label="Design">
             <button type="button" class="design-card" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">
               <span class="design-preview dp-google"><i></i><i></i><i></i></span>
-              <span class="design-name">Google</span><span class="design-sub">Material 3, rounded and tonal</span>
+              <span class="design-name">Soft</span><span class="design-sub">Rounded and tonal</span>
             </button>
             <button type="button" class="design-card" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">
               <span class="design-preview dp-apple"><i></i><i></i><i></i></span>
-              <span class="design-name">Apple</span><span class="design-sub">Liquid glass, soft and translucent</span>
+              <span class="design-name">Glass</span><span class="design-sub">Liquid glass, soft and translucent</span>
             </button>
           </div>
           <p class="profile-help mob-only">Google is rounded and tonal. Apple is soft and translucent.</p>
           <div class="seg seg-wide mob-only" role="group" aria-label="Design">
-            <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Google</button>
-            <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Apple</button>
+            <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Soft</button>
+            <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Glass</button>
           </div>
           <div class="seg seg-wide" role="group" aria-label="Theme">
             <button type="button" class="seg-btn" data-theme-pick="light" onclick="NexUI.setTheme('light')"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>Light</button>
@@ -841,8 +841,8 @@
   </div>
   <p class="ap-label">Design</p>
   <div class="ap-row">
-    <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Google</button>
-    <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Apple</button>
+    <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Soft</button>
+    <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Glass</button>
   </div>
   <p class="ap-label">Theme</p>
   <div class="ap-row">
@@ -869,9 +869,9 @@
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="push-client.js?v=3.3.4" defer></script>
-<script src="attach.js?v=3.3.4" defer></script>
-<script src="app.js?v=3.3.4" defer></script>
-<script src="ui.js?v=3.3.4" defer></script>
+<script src="push-client.js?v=3.3.5" defer></script>
+<script src="attach.js?v=3.3.5" defer></script>
+<script src="app.js?v=3.3.5" defer></script>
+<script src="ui.js?v=3.3.5" defer></script>
 </body>
 </html>

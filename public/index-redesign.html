@@ -15,15 +15,15 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.3.4" defer></script>
+<script src="/push-client.js?v=3.3.5" defer></script>
 
 <style>
 /* ==========================================================================
-   NEXUS OS ENTERPRISE — DESIGN SYSTEM (APPLE GLASS + MATERIAL YOU)
+   NEXUS OS ENTERPRISE — DESIGN SYSTEM (GLASS + TONAL)
    ========================================================================== */
 :root, [data-theme="apple-dark"] {
   color-scheme: dark;
-  --theme-name: "Apple Glass";
+  --theme-name: "Glass";
   --bg-app: #07070b;
   --bg-surface: #1c1c1e;
   --bg-surface-elevated: #2c2c2e;
@@ -76,7 +76,7 @@
 
 [data-theme="material-dark"] {
   color-scheme: dark;
-  --theme-name: "Material Dark";
+  --theme-name: "Midnight";
   --bg-app: #121212;
   --bg-surface: #1e1e1e;
   --bg-surface-elevated: #282828;
@@ -119,7 +119,7 @@
 
 [data-theme="apple-light"] {
   color-scheme: light;
-  --theme-name: "Apple Light";
+  --theme-name: "Daylight";
   --bg-app: #f2f2f7;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #ffffff;
@@ -162,7 +162,7 @@
 
 [data-theme="material-light"] {
   color-scheme: light;
-  --theme-name: "Material Light";
+  --theme-name: "Tonal";
   --bg-app: #f8fafd;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #f1f4f9;
@@ -1834,7 +1834,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.3.4">
+<link rel="manifest" href="/manifest.json?v=3.3.5">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1963,10 +1963,10 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
         </div></div>
       <div class="prefs-row"><label for="theme-selector">Theme</label>
         <select class="theme-dropdown" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch theme">
-          <option value="apple-dark">◐ Apple Glass</option>
-            <option value="material-dark">🔴 Material</option>
-            <option value="apple-light">☀️ Apple Light</option>
-            <option value="material-light">⚪ M3</option>
+          <option value="apple-dark">◐ Glass</option>
+            <option value="material-dark">🔴 Midnight</option>
+            <option value="apple-light">☀️ Daylight</option>
+            <option value="material-light">⚪ Tonal</option>
             <option value="cyber-aubergine">🟣 Overgame</option>
             <option value="cobalt-lime-dark">🔵 Cobalt Lime</option>
         </select></div>
@@ -2513,7 +2513,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
               <div class="chat-msg-row assistant">
                 <div class="chat-avatar-circle">✦</div>
                 <div class="chat-bubble-card">
-                  <p><strong>Hello! I'm NexAI</strong>, your productivity assistant, powered by Google Gemini.</p>
+                  <p><strong>Hello! I'm NexAI</strong>, your productivity assistant.</p>
                   <p style="margin-top:6px">I have full real-time awareness of your active Kanban tasks, habits, deep focus minutes, and notes. Ask me to prioritize your day, draft project plans, or invoke <strong>Action Mode</strong> to propose workspace changes!</p>
                 </div>
               </div>
@@ -4578,8 +4578,8 @@ function handleCommandPaletteSearch(q) {
   items.push({ icon: '⚡', label: 'Invoke Action Mode', category: 'AI', action: () => openActionPlanModal() });
   items.push({ icon: '+', label: 'Create New Task', category: 'Action', action: () => openNewTaskModal() });
   items.push({ icon: '+', label: 'Create New Note', category: 'Action', action: () => quickCreateNote() });
-  items.push({ icon: '☀️', label: 'Switch Theme to Apple Light', category: 'Settings', action: () => applyNexusTheme('apple-light') });
-  items.push({ icon: '◐', label: 'Switch Theme to Apple Glass', category: 'Settings', action: () => applyNexusTheme('apple-dark') });
+  items.push({ icon: '☀️', label: 'Switch Theme to Daylight', category: 'Settings', action: () => applyNexusTheme('apple-light') });
+  items.push({ icon: '◐', label: 'Switch Theme to Glass', category: 'Settings', action: () => applyNexusTheme('apple-dark') });
 
   // Tasks search
   state.tasks.forEach(t => {
@@ -4698,7 +4698,7 @@ function loadSampleWorkspaceData(showNotice = true) {
   ];
 
   state.notes = [
-    { id: uid(), title: 'Nexus OS Architecture & Design Principles', content: '# Core Philosophy\n- Fluid micro-interactions inspired by glass and Material You interfaces\n- Offline-first durability with seamless local caching\n- Direct DOM speed with zero heavy bundler overhead\n\n> [!NOTE]\n> All Web Audio soundscapes are synthesized client-side with 0 external network requests.\n\n## Immediate Milestones\n- [x] Subtask inline checklists\n- [ ] Voice dictation integration\n- [ ] Calendar day schedule', tags: ['architecture', 'design'], created: Date.now() },
+    { id: uid(), title: 'Nexus OS Architecture & Design Principles', content: '# Core Philosophy\n- Fluid micro-interactions inspired by glass and tonal interfaces\n- Offline-first durability with seamless local caching\n- Direct DOM speed with zero heavy bundler overhead\n\n> [!NOTE]\n> All Web Audio soundscapes are synthesized client-side with 0 external network requests.\n\n## Immediate Milestones\n- [x] Subtask inline checklists\n- [ ] Voice dictation integration\n- [ ] Calendar day schedule', tags: ['architecture', 'design'], created: Date.now() },
     { id: uid(), title: 'Sprint Backlog & API Contracts', content: '## Immediate Actions\n- Test Gemini 2.0 Flash integration\n- Verify chart dark/light reactivity', tags: ['sprint'], created: Date.now() }
   ];
 
@@ -4904,7 +4904,7 @@ function classicRootToEnterprise(root, localPrefs = {}) {
     currentNoteId: saved.currentNoteId || pref.currentNoteId || null,
     theme: (() => {
       const known = ['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine', 'cobalt-lime-dark'];
-      const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' };   // the blue Fluent themes became Apple Glass / Apple Light
+      const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' };   // the blue Fluent themes became Glass / Daylight
       const saved = renamed[pref.theme] || pref.theme;
       if (!known.includes(saved)) return 'cyber-aubergine';                              // nothing chosen yet: Overgame
       if (pref.themeVersion !== 2 && pref.theme === 'fluent-dark') return 'cyber-aubergine'; // still on the old default: move to Overgame once
@@ -5886,6 +5886,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.3.4" defer></script>
+<script src="attach.js?v=3.3.5" defer></script>
 </body>
 </html>

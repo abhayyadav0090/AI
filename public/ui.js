@@ -55,7 +55,7 @@
   function setDesign(design) {
     savePrefs({ design: design === 'apple' ? 'apple' : 'google' });
     refresh();
-    toast(design === 'apple' ? 'Apple design applied' : 'Google design applied');
+    toast(design === 'apple' ? 'Glass design applied' : 'Soft design applied');
   }
   function setTheme(theme) { savePrefs({ theme }); refresh(); }
   if (mq && mq.addEventListener) mq.addEventListener('change', () => { if (readPrefs().theme === 'system') refresh(); });

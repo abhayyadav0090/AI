@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.3.4.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.3.5.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -14,15 +14,15 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 
 **Classic**
 
-| Google design | Apple design |
+| Soft design | Glass design |
 |:---:|:---:|
-| ![Dashboard, Google design](docs/screenshots/dashboard.png) | ![Dashboard, Apple design](docs/screenshots/dashboard-apple.png) |
+| ![Dashboard, Soft design](docs/screenshots/dashboard.png) | ![Dashboard, Glass design](docs/screenshots/dashboard-apple.png) |
 
 **Enterprise**
 
-| Dashboard | Apple Glass theme |
+| Dashboard | Glass theme |
 |:---:|:---:|
-| ![Enterprise dashboard](docs/screenshots/enterprise-dashboard.png) | ![Enterprise dashboard, Apple Glass theme](docs/screenshots/enterprise-apple-glass.png) |
+| ![Enterprise dashboard](docs/screenshots/enterprise-dashboard.png) | ![Enterprise dashboard, Glass theme](docs/screenshots/enterprise-apple-glass.png) |
 
 **Tasks and NexAI**
 
@@ -32,9 +32,9 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 
 **On a phone**
 
-| Classic, Google design | Classic, Apple design | Enterprise |
+| Classic, Soft design | Classic, Glass design | Enterprise |
 |:---:|:---:|:---:|
-| ![Classic on a phone, Google design](docs/screenshots/mobile.png) | ![Classic on a phone, Apple design](docs/screenshots/mobile-apple.png) | ![Enterprise on a phone](docs/screenshots/enterprise-mobile.png) |
+| ![Classic on a phone, Soft design](docs/screenshots/mobile.png) | ![Classic on a phone, Glass design](docs/screenshots/mobile-apple.png) | ![Enterprise on a phone](docs/screenshots/enterprise-mobile.png) |
 
 **NexAI, voice and Recently deleted on a phone**
 
@@ -52,7 +52,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 
 - Two experiences on one account and one set of data. **Classic** (`/` and `/classic`) is the simple, focused version. **Enterprise** (`/enterprise`, also `/redesign`) adds a timeblocking calendar, a focus studio with ambient sound, a richer Kanban board, analytics and a NexAI side panel.
 - Switch between them from the Classic | Enterprise control in the top bar or the quick appearance menu.
-- Enterprise has six themes: Apple Glass, Material, Apple Light, M3, Overgame (the default) and Cobalt Lime.
+- Enterprise has six themes: Glass, Midnight, Daylight, Tonal, Overgame (the default) and Cobalt Lime.
 
 ### Tasks
 
@@ -112,7 +112,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - JSON backup and restore.
 - Browser notifications for tasks due today or overdue (while the app is open; push reminders may also be configured separately).
 - Starter data and a Getting Started checklist for new users.
-- Two designs: **Google** (Material 3) and **Apple** (liquid glass), each with light, dark or match-device themes.
+- Two designs: **Soft** (rounded and tonal) and **Glass** (liquid glass), each with light, dark or match-device themes.
 - **Quick-start:** a new workspace asks once what you will use NexOS for (study and exams, projects and sprints, daily routine and habits, or just exploring). The answer sets the starter data, the default focus timer and the order of the dashboard cards.
 - Responsive layouts with bottom navigation on phones.
 - Installable web app: a service worker caches the app shell for faster startup. API responses are not cached as app-shell content.
@@ -240,7 +240,7 @@ Setup notes:
 │   ├── index.html              # Classic page structure and dialogs
 │   ├── index-redesign.html     # Enterprise experience (served at /enterprise)
 │   ├── style.css               # Classic base layout and component styles
-│   ├── design.css              # Google and Apple designs, light/dark tokens
+│   ├── design.css              # Soft and Glass designs, light/dark tokens
 │   ├── ui.js                   # Shared UI interactions and Classic controls
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
@@ -257,8 +257,7 @@ Setup notes:
 ├── scripts/                    # generate-vapid-keys.js and the regression tests run by npm test
 ├── mds/
 │   ├── API.md                  # API reference
-│   ├── ARCHITECTURE.md         # Architecture, security and scaling notes
-│   └── DEPLOY-NEXOS-3.0.0.md   # Original 3.0.0 deployment guide
+│   └── ARCHITECTURE.md         # Architecture, security and scaling notes
 ├── docs/
 │   └── screenshots/            # Images used in this README
 ├── RELEASE-NOTES/
@@ -415,6 +414,7 @@ One line per release. The linked notes have the details.
 - **3.3.1** — NexAI mobile layout and repeated-word dictation fix. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.1.md)
 - **3.3.2** — Mobile voice and send reliability. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.2.md)
 - **3.3.3** — Enterprise NexAI page fits the phone screen; keyboard stays closed after dictation. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.3.md)
+- **3.3.5** — NexAI identity, neutral theme names, Docker file refresh. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.5.md)
 - **3.3.4** — Classic NexAI page fits the phone screen. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.4.md)
 
 ---
@@ -425,7 +425,7 @@ Before publishing a release:
 
 1. Keep the version consistent in `package.json`, `package-lock.json`, README, release notes, changelog and version-related tests.
 2. Run `npm test` on the complete merged project.
-3. Test Classic and Enterprise on desktop and mobile, including Google and Apple designs.
+3. Test Classic and Enterprise on desktop and mobile, including Soft and Glass designs.
 4. Test microphone permission, long dictation, multiple recognition results and language switching on supported browsers.
 5. Test attachments with valid and invalid file types, the 3-file/6-MB limits, failed uploads and image analysis.
 6. Confirm Recovery Center has not changed unless the release explicitly targets it.

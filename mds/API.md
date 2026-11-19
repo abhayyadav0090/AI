@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "3.3.4" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "3.3.5" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 

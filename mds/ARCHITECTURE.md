@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 3.3.4. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 3.3.5. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
@@ -25,7 +25,7 @@ There is no build step and no frontend framework. Classic and Enterprise are two
 ## Frontend
 
 ### Two experiences
-- **Classic** (`/`, `/classic`): `index.html`, with Google and Apple designs (tokens in `design.css`, each with light, dark and auto themes).
+- **Classic** (`/`, `/classic`): `index.html`, with Soft and Glass designs (tokens in `design.css`, each with light, dark and auto themes).
 - **Enterprise** (`/enterprise`): `index-redesign.html` with six themes chosen through `data-theme` and the `nexos_enterprise_theme` setting. It reads and writes the same saved workspace through a mapping layer (see `scripts/test-enterprise-bridge.js`).
 
 ### State and rendering
@@ -119,6 +119,6 @@ Current design: one server instance, one MongoDB database, no cache layer such a
 
 ## Design system
 
-- **Classic:** two designs, **Google** (Material 3) and **Apple** (liquid glass), each with light, dark or match-device themes. Colours, spacing and shapes are tokens in `design.css`.
-- **Enterprise:** six themes: Apple Glass, Material, Apple Light, M3, Overgame (default) and Cobalt Lime.
+- **Classic:** two designs, **Soft** (rounded and tonal) and **Glass** (liquid glass), each with light, dark or match-device themes. Colours, spacing and shapes are tokens in `design.css`.
+- **Enterprise:** six themes: Glass, Midnight, Daylight, Tonal, Overgame (default) and Cobalt Lime.
 - **Motion:** transitions use `transform` and `opacity`, and heavy visual effects are reduced on phones.

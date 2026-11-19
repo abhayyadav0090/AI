@@ -2111,7 +2111,7 @@ function buildSystemContext() {
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
   const doneHabits = state.habits.filter(h => h.checks[today()]);
   const recentNotes = state.notes.slice(0, 3);
-  return `You are NexAI, the intelligent, empathetic assistant inside NexOS, built on Google Gemini. You have full context of the user's data.
+  return `You are NexAI, the intelligent, empathetic assistant inside NexOS, created by Abhay Yadav. You have full context of the user's data.
 
 Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
@@ -2915,8 +2915,8 @@ function paletteActions(query) {
     { icon: 'timer', title: pomState.running ? 'Pause focus timer' : 'Start focus timer', kind: 'Action', run: () => { togglePomodoro(); switchView('pomodoro'); } },
     go('dashboard', 'Home'), go('kanban', 'Tasks'), go('pomodoro', 'Focus'), go('habits', 'Habits'), go('notes', 'Notes'), go('analytics', 'Insights'), go('ai', 'NexAI'),
     { icon: 'moon', title: 'Switch between light and dark', kind: 'Appearance', run: toggleTheme },
-    { icon: 'palette', title: 'Use Google design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('google') },
-    { icon: 'palette', title: 'Use Apple design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('apple') },
+    { icon: 'palette', title: 'Use Soft design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('google') },
+    { icon: 'palette', title: 'Use Glass design', kind: 'Appearance', run: () => window.NexUI && NexUI.setDesign('apple') },
     { icon: 'download', title: 'Download backup', kind: 'Data', run: exportData },
     { icon: 'keyboard', title: 'Keyboard shortcuts', kind: 'Help', run: () => window.NexUI && NexUI.openShortcuts() },
     { icon: 'sparkle', title: 'Open Enterprise mode', kind: 'Switch', run: () => { location.href = '/enterprise'; } },
