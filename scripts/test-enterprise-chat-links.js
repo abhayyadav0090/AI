@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const html = fs.readFileSync(require('node:path').join(__dirname, '..', 'public', 'index-redesign.html'), 'utf8');
+const start = html.indexOf('function renderSimpleMarkdown(md) {');
+const end = html.indexOf('\n}\n', start) + 2;
+assert(start >= 0 && end > start, 'Enterprise Markdown renderer must exist');
+const escapeHtml = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const context = { escapeHtml };
+vm.runInNewContext(html.slice(start, end) + '\nthis.render = renderSimpleMarkdown;', context);
+const render = context.render;
+const url = 'https://ai-aqit.onrender.com/contact.html';
+const normal = render(`Visit [Open Abhay's official Contact Page](${url})`);
+assert.match(normal, new RegExp(`<a href="${url}" target="_blank" rel="noopener noreferrer">Open Abhay&#39;s official Contact Page</a>`));
+const malformed = render(`Visit [Open Abhay's official Contact Page]\\([${url}](${url})).`);
+assert.match(malformed, new RegExp(`<a href="${url}" target="_blank" rel="noopener noreferrer">Open Abhay&#39;s official Contact Page</a>`));
+assert.doesNotMatch(malformed, /\]\\?\(/, 'Malformed nested Markdown wrapper should be removed');
+const bare = render(`Contact: ${url}.`);
+assert.match(bare, new RegExp(`<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>\\.`));
+const relative = render('Go to [Contact](/contact.html)');
+assert.match(relative, /<a href="\/contact\.html">Contact<\/a>/);
+const unsafe = render('[bad](javascript:alert(1)) <img src=x onerror=alert(1)>');
+assert.doesNotMatch(unsafe, /href="javascript:/i);
+assert.doesNotMatch(unsafe, /<img\b/i);
+assert.match(unsafe, /&lt;img/);
+console.log('Enterprise chat link rendering tests passed.');

@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.3.8" defer></script>
+<script src="/push-client.js?v=3.3.9" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1834,7 +1834,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.3.8">
+<link rel="manifest" href="/manifest.json?v=3.3.9">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -4060,7 +4060,23 @@ function updateMarkdownPreview() {
 }
 
 function renderSimpleMarkdown(md) {
-  return escapeHtml(md)
+  // Escape all source text first. Only the small, explicitly generated markup below is trusted.
+  let safe = escapeHtml(String(md || ''));
+  // Recover the malformed nested-link form occasionally returned in Enterprise chat:
+  // [label]\([url](url)) -> [label](url)
+  safe = safe.replace(/\]\s*\\?\(\s*\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)\s*\)/gi, ']($2)');
+  // Render safe Markdown links before emphasis/line-break formatting.
+  safe = safe.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|\/(?!\/))[^\s)]+)\)/gi, (match, label, href) => {
+    const external = /^https?:\/\//i.test(href);
+    return `<a href="${href}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`;
+  });
+  // Convert bare absolute URLs too, without linking URLs already inside generated anchors.
+  safe = safe.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+)/gi, (match, prefix, rawUrl) => {
+    const trailing = (rawUrl.match(/[.,!?;:)\]]+$/) || [''])[0];
+    const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+    return url ? `${prefix}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}` : match;
+  });
+  return safe
     .replace(/^# (.+)$/gm, '<h1 style="font-size:22px;font-weight:800;margin:14px 0">$1</h1>')
     .replace(/^## (.+)$/gm, '<h2 style="font-size:18px;font-weight:700;margin:12px 0">$1</h2>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -5887,6 +5903,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.3.8" defer></script>
+<script src="attach.js?v=3.3.9" defer></script>
 </body>
 </html>
