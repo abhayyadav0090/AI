@@ -17,6 +17,10 @@ for (const url of [
 assert.ok(index.includes('href="/contact.html"') && index.includes('>Contact</a>'), 'Classic login exposes Contact beside Privacy');
 assert.ok(index.includes('id="profile-about-section"') && index.includes('href="/contact.html"'), 'Classic Settings exposes About & Contact');
 assert.ok(enterprise.includes('href="/contact.html"') && enterprise.includes('About &amp; Contact'), 'Enterprise profile exposes About & Contact');
-assert.ok(server.includes('cannot verify a user') && server.includes('Never invent, guess, infer, or disclose the creator'), 'server identity policy protects creator contact details and identity claims');
+assert.ok(server.includes('cannot verify a user') && server.includes('Never invent, guess, infer, or disclose creator contact details'), 'server identity policy protects creator contact details and identity claims');
 assert.ok(server.includes('workspace notes') && server.includes('/contact.html'), 'server policy rejects workspace notes as contact authority and directs to Contact page');
+assert.ok(server.includes('https://ai-aqit.onrender.com/contact.html'), 'creator contact answers use the full official absolute URL');
+assert.ok(server.includes('[Open Abhay\'s official Contact Page](https://ai-aqit.onrender.com/contact.html)'), 'creator contact answers are instructed to provide a clickable Markdown link');
+assert.ok(server.includes('Never disclose a user\'s private profile details or contact information'), 'NexAI must not disclose the current user\'s private contact details');
+assert.ok(server.includes('only approved public creator contact channels'), 'only channels published on the official Contact page are approved');
 console.log('Creator Contact page and NexAI identity safeguards passed.');
