@@ -10,12 +10,12 @@ const root = path.join(__dirname, '..');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert.equal(pkg.version, '3.4.4');
-assert.equal(lock.version, '3.4.4');
-assert.equal(lock.packages[''].version, '3.4.4');
+assert.equal(pkg.version, '3.4.5');
+assert.equal(lock.version, '3.4.5');
+assert.equal(lock.packages[''].version, '3.4.5');
 
 assert.match(server, /AUTH_CACHE_TTL_MS = 60000/, 'sign-in cache should last 60 seconds');
-assert.match(server, /const recall = !isNewChat && \(askedForEarlier \|\| isRecallWindowOpen\(recallKey\)\)/, 'recall mode is only for existing chats');
+assert.match(server, /const recall = !isNewChat && \(askedForEarlier \|\| \(isRecallWindowOpen\(recallKey\) && isRecallFollowUp\(typed\)\)\)/, 'recall mode is only for existing chats');
 assert.match(server, /recall \? \{ title: 1, messages: 1 \} : \{ title: 1, messages: \{ \$slice: -CONTEXT_MESSAGES \} \}/, 'full chat is read only in recall mode');
 assert.match(server, /historyScopeNote\(\{ recall, shown: history\.length, complete \}\)/, 'every request must tell NexAI how much history it sees');
 assert.match(server, /Never blame a session reset, cache or memory failure/, 'NexAI must not invent reasons for missing history');
@@ -28,8 +28,8 @@ assert.ok(start > 0 && end > start, 'recall block must be found');
 let fakeNow = 1000000;
 const ctx = { CONTEXT_MESSAGES: 24, MAX_CHAT_MESSAGES: 200, String, Array, Math, Map, Date: { now: () => fakeNow } };
 vm.createContext(ctx);
-vm.runInContext(server.slice(start, end) + '\nthis.api = { wantsEarlierMessages, buildHistory, historyScopeNote, openRecallWindow, isRecallWindowOpen };', ctx);
-const { wantsEarlierMessages, buildHistory, historyScopeNote, openRecallWindow, isRecallWindowOpen } = ctx.api;
+vm.runInContext(server.slice(start, end) + '\nthis.api = { wantsEarlierMessages, buildHistory, historyScopeNote, openRecallWindow, isRecallWindowOpen, isRecallFollowUp };', ctx);
+const { wantsEarlierMessages, buildHistory, historyScopeNote, openRecallWindow, isRecallWindowOpen, isRecallFollowUp } = ctx.api;
 
 // Messages that should look back
 [
@@ -43,7 +43,7 @@ const { wantsEarlierMessages, buildHistory, historyScopeNote, openRecallWindow, 
   'kal raat humne kya baat ki thi',
   'show chat history',
   'what did I ask you before?',
-  // 3.4.4: follow-ups from a real session that carry no time word
+  // 3.4.5: follow-ups from a real session that carry no time word
   'correct, second messages',
   'hamne kiske baare ke discuss kiya tha',
   'you are missing one person about whom we discussed',
@@ -120,4 +120,10 @@ for (const note of [historyScopeNote({ recall: false, shown: 24, complete: false
   assert.match(note, /never claim to have checked logs, caches, deeper history or other sources/);
 }
 
-console.log('NexOS 3.4.4 NexAI recall, follow-up and history-scope checks passed.');
+// 3.4.5: window follow-ups vs keyboard smashes
+['wrong', 'try again', 'then why in previous response you mistaken', 'you are missing one person', 'check all messages', 'nope', 'kyun?', 'galat hai'].forEach((m) => assert.ok(isRecallFollowUp(m), `follow-up: ${m}`));
+['bfsdbfmgybb', 'sgsrgrgetrhr', 'rthhrgtgrtthtrhtrtr', 'grgt', 'xcvbnmxcvbn', 'Rahul gandhi essay', 'dimple bhabhi', 'asdfghjkl;sdfghjklxcvbhnm', ''].forEach((m) => assert.ok(!isRecallFollowUp(m), `not a follow-up: ${m}`));
+assert.match(server, /GEMINI_STREAM_IDLE_MS/, 'stream idle timeout must exist');
+assert.match(server, /STALLED_REPLY_NOTE/, 'stalled streams keep the partial reply');
+assert.match(server, /timings\.partialReply = true/, 'partial replies are logged');
+console.log('NexOS 3.4.5 NexAI recall, follow-up and history-scope checks passed.');

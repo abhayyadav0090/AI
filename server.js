@@ -725,6 +725,10 @@ function setChatTiming(res, timings) {
 // (one request took 48 s although the retry answered in 1.8 s). The first attempt now gets only
 // GEMINI_FIRST_TOKEN_TIMEOUT_MS to start answering; after that the request is retried, then the fallback model.
 const GEMINI_FIRST_TOKEN_TIMEOUT_MS = Math.min(60000, Math.max(3000, Number(process.env.GEMINI_FIRST_TOKEN_TIMEOUT_MS) || 15000));
+// 3.4.5: once text has started, a stream that goes silent for this long is treated as stalled (a real request hung
+// 45 s after its first token and the whole reply was lost). The text already received is kept and saved.
+const GEMINI_STREAM_IDLE_MS = Math.min(30000, Math.max(4000, Number(process.env.GEMINI_STREAM_IDLE_MS) || 12000));
+const STALLED_REPLY_NOTE = '\n\n_(The reply was cut off because the connection stalled. Say "continue" to get the rest.)_';
 
 async function askGeminiStream({ system, contents, timeoutMs = 45000, firstTokenTimeoutMs = GEMINI_FIRST_TOKEN_TIMEOUT_MS, maxAttempts = 2, onText, timings }) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -795,7 +799,14 @@ async function askGeminiStream({ system, contents, timeoutMs = 45000, firstToken
         };
         try {
           while (true) {
-            const { value, done } = await reader.read();
+            let idleTimer;
+            const readPromise = reader.read();
+            const { value, done } = emitted
+              ? await Promise.race([
+                  readPromise,
+                  new Promise((_, reject) => { idleTimer = setTimeout(() => { timings.streamIdleTimeouts = (timings.streamIdleTimeouts || 0) + 1; controller.abort(); reject(new Error('STREAM_IDLE')); }, GEMINI_STREAM_IDLE_MS); }),
+                ]).finally(() => clearTimeout(idleTimer))
+              : await readPromise;
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split(/\r?\n/);
@@ -811,8 +822,12 @@ async function askGeminiStream({ system, contents, timeoutMs = 45000, firstToken
             retries++;
             if (attempt < maxAttempts - 1) { await sleep(300); continue; }
             if (hasAnotherModel) continue;
+            throw new AIError(502, 'AI_STREAM_INTERRUPTED', 'The NexAI response stream was interrupted. Please retry.');
           }
-          throw new AIError(502, 'AI_STREAM_INTERRUPTED', 'The NexAI response stream was interrupted. Please retry.');
+          // Text was already shown: keep it, mark it as cut off and save it so the chat history stays consistent.
+          timings.partialReply = true;
+          answer += STALLED_REPLY_NOTE;
+          onText(STALLED_REPLY_NOTE);
         } finally {
           try { reader.releaseLock(); } catch (_) {}
         }
@@ -928,6 +943,13 @@ const RECALL_FIRST_PERSON = /\b(?:we|i)\s+(?:were\s+|had\s+|did\s+)?(?:discuss\w
 const RECALL_HINGLISH = /\b(?:ham|hum|humne|hamne|maine|mainey)\b[^.?!\n]{0,40}\b(?:discuss|baat|bola|bole|kaha|kahi|poocha|puchha|pucha|bataya|likha)\w*/i;
 const RECALL_ORDINAL = /\b(?:my|our|your|meri|mera|hamari|humari)\s+(?:\d+\s+)?(?:first|second|third|fourth|fifth|last|previous|\d+(?:st|nd|rd|th)|pehl[aei]|doosr[aei]|dusr[aei]|teesr[aei]|tisr[aei])\s+(?:\d+\s+)?(?:messages?|msgs?|questions?|prompts?|replies|answers?|sawaal)\b/i;
 const RECALL_NTH_MESSAGE = /\b(?:second|third|fourth|fifth|\d+(?:st|nd|rd|th)|doosra|dusra|teesra|tisra)\s+(?:messages?|msgs?)\b/i;
+// 3.4.5: the two-minute window only applies to messages that sound like a follow-up ("wrong", "try again", "why?",
+// "you missed one"). Keyboard smashes and new topics inside the window stay on the fast path.
+const RECALL_FOLLOWUP = /\b(?:wrong|galat|incorrect|correct|sahi|right|nope|nahi|nhi|no|again|retry|missing|missed|miss|why|kyun|kyu|kaise|then|and|aur|check|list|more|continue|full|exact(?:ly)?|but|lekin|phir|ek aur|baaki)\b/i;
+function isRecallFollowUp(text) {
+  const t = String(text || '').trim().slice(0, 300);
+  return t.length > 0 && (/\?\s*$/.test(t) || RECALL_FOLLOWUP.test(t));
+}
 function wantsEarlierMessages(text) {
   const t = String(text || '').slice(0, 600);
   return RECALL_PHRASES.test(t) || (RECALL_NOUNS.test(t) && RECALL_TIMES.test(t))
@@ -999,7 +1021,7 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     if (chatId && !mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
     const recallKey = isNewChat ? null : `${req.userId}:${chatId}`;
     const askedForEarlier = !isNewChat && wantsEarlierMessages(typed);
-    const recall = !isNewChat && (askedForEarlier || isRecallWindowOpen(recallKey));
+    const recall = !isNewChat && (askedForEarlier || (isRecallWindowOpen(recallKey) && isRecallFollowUp(typed)));
     if (askedForEarlier) openRecallWindow(recallKey);
     timing.recall = recall;
     const dbReadStartedAt = Date.now();
