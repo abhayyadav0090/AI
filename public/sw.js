@@ -1,14 +1,14 @@
 /* NexOS service worker: instant cached app-shell startup plus task-reminder push notifications. */
-const CACHE = 'nexos-shell-v19';
+const CACHE = 'nexos-shell-v20';
 const PRECACHE_URLS = [
   '/',
-  '/style.css?v=3.4.1',
-  '/design.css?v=3.4.1',
-  '/push-client.js?v=3.4.1',
-  '/attach.js?v=3.4.1',
-  '/app.js?v=3.4.1',
-  '/ui.js?v=3.4.1',
-  '/manifest.json?v=3.4.1',
+  '/style.css?v=3.4.2',
+  '/design.css?v=3.4.2',
+  '/push-client.js?v=3.4.2',
+  '/attach.js?v=3.4.2',
+  '/app.js?v=3.4.2',
+  '/ui.js?v=3.4.2',
+  '/manifest.json?v=3.4.2',
   '/favicon.svg',
   '/nexos-icon-192.png',
   '/nexos-icon-512.png',

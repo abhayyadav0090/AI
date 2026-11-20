@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.4.1.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.4.2.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -426,6 +426,7 @@ One line per release. The linked notes have the details.
 - **3.3.9** — Fixes Enterprise NexAI Markdown link rendering, including malformed nested links, while preserving safe URL handling. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.3.9.md)
 - **3.4.0** — Speeds up exact greetings with a local fast path, adds privacy-safe chat timing diagnostics, removes unnecessary final retry waits, and reinforces creator-identity safeguards. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.0.md)
 - **3.4.1** — Adds streamed NexAI replies in Classic and Enterprise, Gemini first-token/retry diagnostics, leaner chat context, fewer background chat-pruning queries, and timezone-aware schedule generation. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.1.md)
+- **3.4.2** — Retries stuck Gemini requests after 15 seconds and falls back to the second model, remembers the sign-in check for 20 seconds, reads only recent messages from long chats, and adds `streamed`, `authCached` and `firstTokenTimeouts` to the NexAI timing log. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.2.md)
 
 ---
 

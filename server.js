@@ -212,6 +212,25 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// 3.4.2: a successful user lookup is remembered for a few seconds. The database is far from the server
+// (about 230 ms per round trip), so repeating the same lookup on every request was a large share of each
+// chat's wait. The cache is dropped whenever this server changes the account (sign-in, rename, deletion),
+// and it expires on its own, so a sign-out of other devices is still honoured within AUTH_CACHE_TTL_MS.
+const AUTH_CACHE_TTL_MS = 20000;
+const AUTH_CACHE_MAX = 500;
+const authCache = new Map();
+function invalidateAuthCache(userId) { authCache.delete(String(userId)); }
+function readAuthCache(userId) {
+  const entry = authCache.get(String(userId));
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) { authCache.delete(String(userId)); return null; }
+  return entry.user;
+}
+function writeAuthCache(userId, user) {
+  if (authCache.size >= AUTH_CACHE_MAX) authCache.delete(authCache.keys().next().value);
+  authCache.set(String(userId), { user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
 // Checks the login cookie, that the account still exists, and that the cookie was not issued before the
 // user deleted their data, so an old cookie on another device cannot bring deleted data back.
 async function requireAuth(req, res, next) {
@@ -227,8 +246,14 @@ async function requireAuth(req, res, next) {
   try {
     // Keep the small public identity fields from this same lookup so the initial
     // bootstrap does not need a second User query just to display the account.
-    const user = await User.findById(id).select('sessionsValidAfter name email picture').lean();
+    let user = readAuthCache(id);
+    req.authCached = !!user;
+    if (!user) {
+      user = await User.findById(id).select('sessionsValidAfter name email picture').lean();
+      if (user) writeAuthCache(id, user);
+    }
     if (!user || (user.sessionsValidAfter && issuedAt < user.sessionsValidAfter.getTime())) {
+      invalidateAuthCache(id);
       res.clearCookie('token');
       return res.status(401).json({ error: 'Not logged in' });
     }
@@ -263,6 +288,7 @@ app.post('/api/auth/google', async (req, res) => {
     user.picture = p.picture;
     if (!user.nameCustom) user.name = p.name; // a name the user chose is never overwritten by Google's
     await user.save();
+    invalidateAuthCache(user._id);
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.cookie('token', token, { httpOnly: true, secure: isProd || req.secure, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
     res.json({ name: user.name, email: user.email, picture: user.picture });
@@ -305,6 +331,7 @@ app.put('/api/me', requireAuth, wrap(async (req, res) => {
     { name, nameCustom: true },
     { new: true }
   ).select('name email picture');
+  invalidateAuthCache(req.userId);
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json({ name: user.name, email: user.email, picture: user.picture });
 }));
@@ -321,6 +348,7 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   // Keep the shared Google identity record (other independently deployed apps may use it), but sign out
   // every device so none of them can write the deleted data back.
   await User.updateOne({ _id: req.userId }, { sessionsValidAfter: new Date() });
+  invalidateAuthCache(req.userId);
   res.clearCookie('token');
   res.json({ ok: true });
 }));
@@ -686,84 +714,115 @@ function setChatTiming(res, timings) {
     firstTokenMs: timings.firstTokenMs ?? null,
     model: timings.model ?? null,
     upstreamStatus: timings.upstreamStatus ?? null,
+    streamed: timings.streamed === true,
+    authCached: timings.authCached === true,
+    firstTokenTimeouts: timings.firstTokenTimeouts ?? 0,
   }));
 }
 
-async function askGeminiStream({ system, contents, timeoutMs = 45000, maxAttempts = 2, onText, timings }) {
+// A stuck Gemini connection used to hold a chat for the full 45 s timeout before the retry ran
+// (one request took 48 s although the retry answered in 1.8 s). The first attempt now gets only
+// GEMINI_FIRST_TOKEN_TIMEOUT_MS to start answering; after that the request is retried, then the fallback model.
+const GEMINI_FIRST_TOKEN_TIMEOUT_MS = Math.min(60000, Math.max(3000, Number(process.env.GEMINI_FIRST_TOKEN_TIMEOUT_MS) || 15000));
+
+async function askGeminiStream({ system, contents, timeoutMs = 45000, firstTokenTimeoutMs = GEMINI_FIRST_TOKEN_TIMEOUT_MS, maxAttempts = 2, onText, timings }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AIError(500, 'AI_CONFIG', 'The AI service is not set up correctly.');
   const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter(Boolean);
   let lastStatus = 0;
   let retries = 0;
   const streamStartedAt = Date.now();
-  for (const model of models) {
+  for (let m = 0; m < models.length; m++) {
+    const model = models[m];
+    const hasAnotherModel = m < models.length - 1;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       let upstream;
       timings.model = model;
       const attemptStartedAt = Date.now();
+      const controller = new AbortController();
+      const overallTimer = setTimeout(() => controller.abort(), timeoutMs);
+      const firstTokenTimer = setTimeout(() => {
+        timings.firstTokenTimeouts = (timings.firstTokenTimeouts || 0) + 1;
+        controller.abort();
+      }, firstTokenTimeoutMs);
       try {
-        upstream = await fetch(geminiStreamUrl(model), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey, Accept: 'text/event-stream' },
-          body: JSON.stringify({ systemInstruction: { parts: [{ text: system ? system + '\n\n' + NEXAI_IDENTITY : NEXAI_IDENTITY }] }, contents }),
-          signal: AbortSignal.timeout(timeoutMs),
-        });
-      } catch (err) {
+        try {
+          upstream = await fetch(geminiStreamUrl(model), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey, Accept: 'text/event-stream' },
+            body: JSON.stringify({ systemInstruction: { parts: [{ text: system ? system + '\n\n' + NEXAI_IDENTITY : NEXAI_IDENTITY }] }, contents }),
+            signal: controller.signal,
+          });
+        } catch (err) {
+          timings.retryCount = retries;
+          timings.lastAttemptMs = Date.now() - attemptStartedAt;
+          retries++;
+          if (attempt < maxAttempts - 1) { await sleep(300); continue; }
+          if (hasAnotherModel) continue;
+          throw new AIError(502, 'AI_NETWORK', 'NexAI could not connect to Gemini. Please try again.');
+        }
+        if (!upstream.ok) {
+          lastStatus = upstream.status;
+          timings.upstreamStatus = upstream.status;
+          timings.lastAttemptMs = Date.now() - attemptStartedAt;
+          if ([429, 500, 502, 503, 504].includes(upstream.status) && attempt < maxAttempts - 1) {
+            retries++; await sleep(upstream.status === 429 ? 900 : 400); continue;
+          }
+          if (upstream.status === 429 || [500, 502, 503, 504].includes(upstream.status)) continue;
+          throw aiErrorFor(upstream.status);
+        }
+        timings.upstreamStatus = upstream.status;
+        if (!upstream.body) throw new AIError(502, 'AI_STREAM_UNAVAILABLE', 'Gemini did not provide a response stream.');
+        const reader = upstream.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let answer = '';
+        let emitted = false;
+        const consumeLine = (line) => {
+          if (!line.startsWith('data:')) return;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') return;
+          let packet;
+          try { packet = JSON.parse(payload); } catch (_) { return; }
+          const delta = (packet.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('');
+          if (delta) {
+            if (!emitted) { timings.firstTokenMs = Date.now() - streamStartedAt; clearTimeout(firstTokenTimer); }
+            answer += delta; emitted = true; onText(delta);
+          }
+          const block = packet.candidates?.[0]?.finishReason;
+          if (block && block !== 'STOP' && block !== 'MAX_TOKENS') timings.finishReason = block;
+        };
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() || '';
+            for (const line of lines) consumeLine(line);
+          }
+          buffer += decoder.decode();
+          if (buffer.trim()) consumeLine(buffer.trim());
+        } catch (err) {
+          // Never restart after text has reached the browser: doing so would duplicate output.
+          if (!emitted) {
+            timings.lastAttemptMs = Date.now() - attemptStartedAt;
+            retries++;
+            if (attempt < maxAttempts - 1) { await sleep(300); continue; }
+            if (hasAnotherModel) continue;
+          }
+          throw new AIError(502, 'AI_STREAM_INTERRUPTED', 'The NexAI response stream was interrupted. Please retry.');
+        } finally {
+          try { reader.releaseLock(); } catch (_) {}
+        }
         timings.retryCount = retries;
         timings.lastAttemptMs = Date.now() - attemptStartedAt;
-        if (attempt < maxAttempts - 1) { retries++; await sleep(500); continue; }
-        throw new AIError(502, 'AI_NETWORK', 'NexAI could not connect to Gemini. Please try again.');
-      }
-      if (!upstream.ok) {
-        lastStatus = upstream.status;
-        timings.upstreamStatus = upstream.status;
-        timings.lastAttemptMs = Date.now() - attemptStartedAt;
-        if ([429, 500, 502, 503, 504].includes(upstream.status) && attempt < maxAttempts - 1) {
-          retries++; await sleep(upstream.status === 429 ? 900 : 400); continue;
-        }
-        if (upstream.status === 429 || [500, 502, 503, 504].includes(upstream.status)) continue;
-        throw aiErrorFor(upstream.status);
-      }
-      timings.upstreamStatus = upstream.status;
-      if (!upstream.body) throw new AIError(502, 'AI_STREAM_UNAVAILABLE', 'Gemini did not provide a response stream.');
-      const reader = upstream.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let answer = '';
-      let emitted = false;
-      const consumeLine = (line) => {
-        if (!line.startsWith('data:')) return;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') return;
-        let packet;
-        try { packet = JSON.parse(payload); } catch (_) { return; }
-        const delta = (packet.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('');
-        if (delta) { if (!emitted) timings.firstTokenMs = Date.now() - streamStartedAt; answer += delta; emitted = true; onText(delta); }
-        const block = packet.candidates?.[0]?.finishReason;
-        if (block && block !== 'STOP' && block !== 'MAX_TOKENS') timings.finishReason = block;
-      };
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || '';
-          for (const line of lines) consumeLine(line);
-        }
-        buffer += decoder.decode();
-        if (buffer.trim()) consumeLine(buffer.trim());
-      } catch (err) {
-        // Never restart after text has reached the browser: doing so would duplicate output.
-        if (!emitted && attempt < maxAttempts - 1) { retries++; await sleep(400); continue; }
-        throw new AIError(502, 'AI_STREAM_INTERRUPTED', 'The NexAI response stream was interrupted. Please retry.');
+        timings.model = model;
+        return answer.trim() || "I couldn't produce an answer for that.";
       } finally {
-        try { reader.releaseLock(); } catch (_) {}
+        clearTimeout(overallTimer);
+        clearTimeout(firstTokenTimer);
       }
-      timings.retryCount = retries;
-      timings.lastAttemptMs = Date.now() - attemptStartedAt;
-      timings.model = model;
-      return answer.trim() || "I couldn't produce an answer for that.";
     }
   }
   timings.retryCount = retries;
@@ -855,7 +914,7 @@ async function persistChatTurn(chat, userId, userMessage, assistantMessage, isNe
 }
 
 app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ limit: ATTACHMENT_BODY_LIMIT }), async (req, res) => {
-  const timing = { startedAt: req._authStartedAt || Date.now(), authMs: req.authDurationMs ?? null, dbReadMs: null, aiMs: 0, dbSaveMs: null, historyMessages: 0, inputChars: 0, path: 'gemini' };
+  const timing = { startedAt: req._authStartedAt || Date.now(), authMs: req.authDurationMs ?? null, dbReadMs: null, aiMs: 0, dbSaveMs: null, historyMessages: 0, inputChars: 0, path: 'gemini', streamed: false, authCached: req.authCached === true };
   try {
     const { chatId, message, system, attachments } = req.body || {};
     const typed = typeof message === 'string' ? message.trim() : '';
@@ -870,7 +929,8 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     const dbReadStartedAt = Date.now();
     if (chatId) {
       if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
-      chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select('title messages').lean();
+      // Only the recent messages that are sent to Gemini are read; a long chat no longer pays to download its whole history.
+      chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select({ title: 1, messages: { $slice: -CONTEXT_MESSAGES } }).lean();
       if (!chat) return res.status(404).json({ error: 'Chat not found.', code: 'CHAT_NOT_FOUND' });
     } else {
       chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
@@ -899,6 +959,7 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     const baseSystem = typeof system === 'string' ? system.slice(0, 6000) : '';
     const aiStartedAt = Date.now();
     if (req.body?.stream === true) {
+      timing.streamed = true;
       res.status(200);
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -909,7 +970,7 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
         const reply = await askGeminiStream({
           system: files.parts.length ? (baseSystem ? baseSystem + '\n\n' : '') + ATTACHMENT_SYSTEM_NOTE : baseSystem,
           contents,
-          ...(files.parts.length ? { timeoutMs: 80000, maxAttempts: 1 } : {}),
+          ...(files.parts.length ? { timeoutMs: 80000, firstTokenTimeoutMs: 40000, maxAttempts: 1 } : {}),
           timings: timing,
           onText: (delta) => writeChatEvent(res, 'delta', { text: delta }),
         });
