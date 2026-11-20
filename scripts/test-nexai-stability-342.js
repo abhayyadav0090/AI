@@ -11,13 +11,13 @@ const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 
-assert.equal(pkg.version, '3.4.2');
-assert.equal(lock.version, '3.4.2');
-assert.equal(lock.packages[''].version, '3.4.2');
+assert.equal(pkg.version, '3.4.3');
+assert.equal(lock.version, '3.4.3');
+assert.equal(lock.packages[''].version, '3.4.3');
 
 // Source checks
 assert.match(server, /GEMINI_FIRST_TOKEN_TIMEOUT_MS/, 'a first-token timeout must exist');
-assert.match(server, /select\(\{ title: 1, messages: \{ \$slice: -CONTEXT_MESSAGES \} \}\)/, 'existing chats must read only recent messages');
+assert.match(server, /\{ title: 1, messages: \{ \$slice: -CONTEXT_MESSAGES \} \}/, 'existing chats must read only recent messages unless recall mode is on');
 assert.match(server, /invalidateAuthCache\(user\._id\)/, 'sign-in must clear the auth cache');
 assert.match(server, /invalidateAuthCache\(req\.userId\)/, 'rename and deletion must clear the auth cache');
 assert.match(server, /readAuthCache\(id\)/, 'requireAuth must use the short auth cache');

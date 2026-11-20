@@ -212,11 +212,11 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-// 3.4.2: a successful user lookup is remembered for a few seconds. The database is far from the server
+// 3.4.2: a successful user lookup is remembered for a short time (60 s since 3.4.3, because messages are usually more than 20 s apart). The database is far from the server
 // (about 230 ms per round trip), so repeating the same lookup on every request was a large share of each
 // chat's wait. The cache is dropped whenever this server changes the account (sign-in, rename, deletion),
 // and it expires on its own, so a sign-out of other devices is still honoured within AUTH_CACHE_TTL_MS.
-const AUTH_CACHE_TTL_MS = 20000;
+const AUTH_CACHE_TTL_MS = 60000;
 const AUTH_CACHE_MAX = 500;
 const authCache = new Map();
 function invalidateAuthCache(userId) { authCache.delete(String(userId)); }
@@ -717,6 +717,7 @@ function setChatTiming(res, timings) {
     streamed: timings.streamed === true,
     authCached: timings.authCached === true,
     firstTokenTimeouts: timings.firstTokenTimeouts ?? 0,
+    recall: timings.recall === true,
   }));
 }
 
@@ -913,8 +914,51 @@ async function persistChatTurn(chat, userId, userMessage, assistantMessage, isNe
   return chat;
 }
 
+// 3.4.3 recall mode: normal messages send only the last CONTEXT_MESSAGES to Gemini (fast). When the user asks
+// about earlier messages ("first message", "yesterday", "what did we discuss"), the saved chat is read in full
+// for that one request, within a size limit, so NexAI can answer from what was really said.
+const RECALL_HISTORY_CHARS = 60000;
+const RECALL_MESSAGE_CHARS = 3000;
+const RECALL_NOUNS = /\b(?:messages?|msgs?|chats?|conversations?|discuss\w*|said|asked|told|baat(?:ein|cheet)?|puch\w*|poocha|bola|bole|kaha)\b/i;
+const RECALL_TIMES = /\b(?:first|earlier|previous(?:ly)?|before|yesterday|last (?:night|time|session)|old(?:er)?|all|every|whole|entire|beginning|ago|remember|recall|pehl[aei]|pehle|pur(?:ana|ani|aane)|kal|pichh?le|shuru(?:at)?|saare|saari|sabhi|poora|poori|yaad)\b/i;
+const RECALL_PHRASES = /(?:what (?:did|were) (?:we|i)\b|do you remember|chat history|scroll (?:up|back)|ham kya (?:discuss|baat)|humne kya)/i;
+function wantsEarlierMessages(text) {
+  const t = String(text || '').slice(0, 600);
+  return RECALL_PHRASES.test(t) || (RECALL_NOUNS.test(t) && RECALL_TIMES.test(t));
+}
+
+function buildHistory(messages, recall) {
+  const all = Array.isArray(messages) ? messages : [];
+  if (!recall) {
+    const recent = all.slice(-CONTEXT_MESSAGES);
+    return { history: recent.map((m) => ({ role: m.role, content: m.content })), complete: recent.length === all.length };
+  }
+  let used = 0;
+  const picked = [];
+  for (let i = all.length - 1; i >= 0; i--) {
+    let content = String(all[i].content || '');
+    if (content.length > RECALL_MESSAGE_CHARS) content = content.slice(0, RECALL_MESSAGE_CHARS) + ' ...[trimmed]';
+    if (picked.length >= CONTEXT_MESSAGES && used + content.length > RECALL_HISTORY_CHARS) break;
+    used += content.length;
+    picked.push({ role: all[i].role, content });
+  }
+  picked.reverse();
+  return { history: picked, complete: picked.length === all.length };
+}
+
+function historyScopeNote({ recall, shown, complete }) {
+  const limits = `A chat keeps at most ${MAX_CHAT_MESSAGES} messages. You cannot see the user's other chats.`;
+  if (recall && complete) {
+    return `CHAT HISTORY SCOPE: The complete saved history of this chat (${shown} messages) is included in this request. Answer questions about earlier messages only from what is actually shown. ${limits} Never invent a message that is not shown.`;
+  }
+  if (recall) {
+    return `CHAT HISTORY SCOPE: The most recent ${shown} messages of this chat are included; older messages were left out because they are too many or too long. If the user asks about something older than what is shown, say that plainly and never guess. ${limits}`;
+  }
+  return `CHAT HISTORY SCOPE: You can see only up to the last ${CONTEXT_MESSAGES} messages of this chat, plus the workspace context. Older messages are still saved in the user's chat history, so a message you cannot see may still exist. If the user asks about earlier messages that you cannot see, say plainly that you can only see the recent part of the chat in this reply, and suggest they ask again with a phrase like "what was my first message in this chat?" (which lets you look back) or scroll up in the chat. Never blame a session reset, cache or memory failure, and never guess what unseen messages said. ${limits}`;
+}
+
 app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ limit: ATTACHMENT_BODY_LIMIT }), async (req, res) => {
-  const timing = { startedAt: req._authStartedAt || Date.now(), authMs: req.authDurationMs ?? null, dbReadMs: null, aiMs: 0, dbSaveMs: null, historyMessages: 0, inputChars: 0, path: 'gemini', streamed: false, authCached: req.authCached === true };
+  const timing = { startedAt: req._authStartedAt || Date.now(), authMs: req.authDurationMs ?? null, dbReadMs: null, aiMs: 0, dbSaveMs: null, historyMessages: 0, inputChars: 0, path: 'gemini', streamed: false, authCached: req.authCached === true, recall: false };
   try {
     const { chatId, message, system, attachments } = req.body || {};
     const typed = typeof message === 'string' ? message.trim() : '';
@@ -926,11 +970,14 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     }
     let chat;
     const isNewChat = !chatId;
+    const recall = !isNewChat && wantsEarlierMessages(typed);
+    timing.recall = recall;
     const dbReadStartedAt = Date.now();
     if (chatId) {
       if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
-      // Only the recent messages that are sent to Gemini are read; a long chat no longer pays to download its whole history.
-      chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select({ title: 1, messages: { $slice: -CONTEXT_MESSAGES } }).lean();
+      // Normally only the recent messages that are sent to Gemini are read; the whole saved chat is read only in recall mode.
+      const projection = recall ? { title: 1, messages: 1 } : { title: 1, messages: { $slice: -CONTEXT_MESSAGES } };
+      chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select(projection).lean();
       if (!chat) return res.status(404).json({ error: 'Chat not found.', code: 'CHAT_NOT_FOUND' });
     } else {
       chat = new Chat({ userId: req.userId, title: makeTitle(text), messages: [] });
@@ -952,11 +999,12 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
       return res.json({ text: greetingReply, chatId: chat._id, title: chat.title, updatedAt: chat.updatedAt });
     }
 
-    const history = chat.messages.slice(-CONTEXT_MESSAGES).map((m) => ({ role: m.role, content: m.content }));
+    const { history, complete } = buildHistory(chat.messages, recall);
     timing.historyMessages = history.length;
     const contents = toGeminiContents([...history, { role: 'user', content: text }]);
     if (files.parts.length && contents.length) contents[contents.length - 1].parts.push(...files.parts);
-    const baseSystem = typeof system === 'string' ? system.slice(0, 6000) : '';
+    const clientSystem = typeof system === 'string' ? system.slice(0, 6000) : '';
+    const baseSystem = (clientSystem ? clientSystem + '\n\n' : '') + historyScopeNote({ recall, shown: history.length, complete });
     const aiStartedAt = Date.now();
     if (req.body?.stream === true) {
       timing.streamed = true;
