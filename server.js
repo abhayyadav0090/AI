@@ -922,9 +922,35 @@ const RECALL_MESSAGE_CHARS = 3000;
 const RECALL_NOUNS = /\b(?:messages?|msgs?|chats?|conversations?|discuss\w*|said|asked|told|baat(?:ein|cheet)?|puch\w*|poocha|bola|bole|kaha)\b/i;
 const RECALL_TIMES = /\b(?:first|earlier|previous(?:ly)?|before|yesterday|last (?:night|time|session)|old(?:er)?|all|every|whole|entire|beginning|ago|remember|recall|pehl[aei]|pehle|pur(?:ana|ani|aane)|kal|pichh?le|shuru(?:at)?|saare|saari|sabhi|poora|poori|yaad)\b/i;
 const RECALL_PHRASES = /(?:what (?:did|were) (?:we|i)\b|do you remember|chat history|scroll (?:up|back)|ham kya (?:discuss|baat)|humne kya)/i;
+// 3.4.4: follow-ups such as "second messages", "we discussed" or "hamne kiske baare mein discuss kiya" carry no
+// time word, so they are matched by who is speaking (we / I / hamne) or by an ordinal before "message".
+const RECALL_FIRST_PERSON = /\b(?:we|i)\s+(?:were\s+|had\s+|did\s+)?(?:discuss\w*|talk\w*|chat\w*|mention\w*|spoke|said|asked|told)\b/i;
+const RECALL_HINGLISH = /\b(?:ham|hum|humne|hamne|maine|mainey)\b[^.?!\n]{0,40}\b(?:discuss|baat|bola|bole|kaha|kahi|poocha|puchha|pucha|bataya|likha)\w*/i;
+const RECALL_ORDINAL = /\b(?:my|our|your|meri|mera|hamari|humari)\s+(?:\d+\s+)?(?:first|second|third|fourth|fifth|last|previous|\d+(?:st|nd|rd|th)|pehl[aei]|doosr[aei]|dusr[aei]|teesr[aei]|tisr[aei])\s+(?:\d+\s+)?(?:messages?|msgs?|questions?|prompts?|replies|answers?|sawaal)\b/i;
+const RECALL_NTH_MESSAGE = /\b(?:second|third|fourth|fifth|\d+(?:st|nd|rd|th)|doosra|dusra|teesra|tisra)\s+(?:messages?|msgs?)\b/i;
 function wantsEarlierMessages(text) {
   const t = String(text || '').slice(0, 600);
-  return RECALL_PHRASES.test(t) || (RECALL_NOUNS.test(t) && RECALL_TIMES.test(t));
+  return RECALL_PHRASES.test(t) || (RECALL_NOUNS.test(t) && RECALL_TIMES.test(t))
+    || RECALL_FIRST_PERSON.test(t) || RECALL_HINGLISH.test(t) || RECALL_ORDINAL.test(t) || RECALL_NTH_MESSAGE.test(t);
+}
+
+// After an explicit look-back request, the next messages of the same chat within a short window also look back,
+// because people follow up with "wrong", "try again" or "you missed one". Only an explicit request opens or
+// extends the window, so a burst of unrelated messages returns to the fast path when it ends.
+const RECALL_STICKY_MS = 120000;
+const RECALL_STICKY_MAX = 500;
+const recallWindows = new Map();
+function openRecallWindow(key) {
+  if (!key) return;
+  if (recallWindows.size >= RECALL_STICKY_MAX) recallWindows.delete(recallWindows.keys().next().value);
+  recallWindows.set(key, Date.now() + RECALL_STICKY_MS);
+}
+function isRecallWindowOpen(key) {
+  if (!key) return false;
+  const until = recallWindows.get(key);
+  if (!until) return false;
+  if (until <= Date.now()) { recallWindows.delete(key); return false; }
+  return true;
 }
 
 function buildHistory(messages, recall) {
@@ -949,12 +975,12 @@ function buildHistory(messages, recall) {
 function historyScopeNote({ recall, shown, complete }) {
   const limits = `A chat keeps at most ${MAX_CHAT_MESSAGES} messages. You cannot see the user's other chats.`;
   if (recall && complete) {
-    return `CHAT HISTORY SCOPE: The complete saved history of this chat (${shown} messages) is included in this request. Answer questions about earlier messages only from what is actually shown. ${limits} Never invent a message that is not shown.`;
+    return `CHAT HISTORY SCOPE: The complete saved history of this chat (${shown} messages) is included in this request. Answer questions about earlier messages only from what is actually shown. ${limits} Never invent a message that is not shown. If the user asks why an earlier answer was wrong, say honestly that it was based only on the messages visible at that time; never claim to have checked logs, caches, deeper history or other sources.`;
   }
   if (recall) {
-    return `CHAT HISTORY SCOPE: The most recent ${shown} messages of this chat are included; older messages were left out because they are too many or too long. If the user asks about something older than what is shown, say that plainly and never guess. ${limits}`;
+    return `CHAT HISTORY SCOPE: The most recent ${shown} messages of this chat are included; older messages were left out because they are too many or too long. If the user asks about something older than what is shown, say that plainly and never guess. If the user asks why an earlier answer was wrong, say honestly that it was based only on the messages visible at that time; never claim to have checked logs, caches, deeper history or other sources. ${limits}`;
   }
-  return `CHAT HISTORY SCOPE: You can see only up to the last ${CONTEXT_MESSAGES} messages of this chat, plus the workspace context. Older messages are still saved in the user's chat history, so a message you cannot see may still exist. If the user asks about earlier messages that you cannot see, say plainly that you can only see the recent part of the chat in this reply, and suggest they ask again with a phrase like "what was my first message in this chat?" (which lets you look back) or scroll up in the chat. Never blame a session reset, cache or memory failure, and never guess what unseen messages said. ${limits}`;
+  return `CHAT HISTORY SCOPE: You can see only up to the last ${CONTEXT_MESSAGES} messages of this chat, plus the workspace context. Older messages are still saved in the user's chat history, so a message you cannot see may still exist. If the user asks about earlier messages that you cannot see, say plainly that you can only see the recent part of the chat in this reply, and suggest they ask again with a phrase like "what was my first message in this chat?" (which lets you look back) or scroll up in the chat. Never blame a session reset, cache or memory failure, and never guess what unseen messages said. If the user asks why an earlier answer was wrong, say honestly that it was based only on the messages you could see at that time; never claim to have checked logs, caches, deeper history or other sources. ${limits}`;
 }
 
 app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ limit: ATTACHMENT_BODY_LIMIT }), async (req, res) => {
@@ -970,11 +996,14 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     }
     let chat;
     const isNewChat = !chatId;
-    const recall = !isNewChat && wantsEarlierMessages(typed);
+    if (chatId && !mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
+    const recallKey = isNewChat ? null : `${req.userId}:${chatId}`;
+    const askedForEarlier = !isNewChat && wantsEarlierMessages(typed);
+    const recall = !isNewChat && (askedForEarlier || isRecallWindowOpen(recallKey));
+    if (askedForEarlier) openRecallWindow(recallKey);
     timing.recall = recall;
     const dbReadStartedAt = Date.now();
     if (chatId) {
-      if (!mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
       // Normally only the recent messages that are sent to Gemini are read; the whole saved chat is read only in recall mode.
       const projection = recall ? { title: 1, messages: 1 } : { title: 1, messages: { $slice: -CONTEXT_MESSAGES } };
       chat = await Chat.findOne({ _id: chatId, userId: req.userId }).select(projection).lean();

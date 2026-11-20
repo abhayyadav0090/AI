@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.4.3.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.4.4.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -428,6 +428,7 @@ One line per release. The linked notes have the details.
 - **3.4.1** — Adds streamed NexAI replies in Classic and Enterprise, Gemini first-token/retry diagnostics, leaner chat context, fewer background chat-pruning queries, and timezone-aware schedule generation. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.1.md)
 - **3.4.2** — Retries stuck Gemini requests after 15 seconds and falls back to the second model, remembers the sign-in check for 20 seconds, reads only recent messages from long chats, and adds `streamed`, `authCached` and `firstTokenTimeouts` to the NexAI timing log. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.2.md)
 - **3.4.3** — Lets NexAI look back through the whole saved chat when you ask about earlier messages, tells NexAI honestly how much of the chat it can see, and keeps the sign-in check for 60 seconds. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.3.md)
+- **3.4.4** — Makes NexAI's look-back catch follow-ups such as "second messages" or "we discussed", keeps look-back on for two minutes after you ask, and stops NexAI from inventing reasons for earlier mistakes. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.4.md)
 
 ---
 
