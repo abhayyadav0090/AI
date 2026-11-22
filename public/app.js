@@ -505,6 +505,8 @@ function showUser(user) {
   };
   paint(document.getElementById('user-avatar'));
   paint(document.getElementById('top-avatar'));
+  // 3.4.8: guests get a Sign in pill in the phone top bar (see design.css); the guest sync dot is hidden there
+  document.querySelector('.topbar')?.classList.toggle('has-signin', !!user.guest);
   const first = user.guest ? '' : String(user.name || '').trim().split(/\s+/)[0];
   const greetName = document.getElementById('greeting-name');
   if (greetName) greetName.textContent = first ? ', ' + first : '';

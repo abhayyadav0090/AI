@@ -673,3 +673,12 @@ html[data-design="apple"] .editor-toolbar, html[data-design="apple"] .note-foote
   html[data-design="apple"][data-theme="light"] body { --g-bg: rgba(255, 255, 255, .96); --g-bg-strong: #FFFFFF; --g-blur: none; }
   html[data-design="apple"][data-theme="dark"] body { --g-bg: rgba(40, 40, 42, .97); --g-bg-strong: #2C2C2E; --g-blur: none; }
 }
+
+/* 3.4.8: guests get a Sign in pill between the page title and search on phones; signed-in users never see it */
+.topbar-signin { display: none; }
+@media (max-width: 900px) {
+  html[data-design] .topbar.has-signin { grid-template-columns: minmax(0, 1fr) auto auto; }
+  html[data-design] .topbar.has-signin .breadcrumb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html[data-design] .topbar.has-signin .topbar-signin { display: inline-flex; align-items: center; flex: none; height: 30px; padding: 0 12px; margin-left: 4px; border: 0; border-radius: 999px; background: var(--accent-fill); color: var(--on-accent); font-family: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  html[data-design] .sync-chip[data-state="local"] { display: none; }
+}

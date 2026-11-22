@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.4.7.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.4.8.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -432,6 +432,7 @@ One line per release. The linked notes have the details.
 - **3.4.5** — Keeps the text already received when a NexAI stream stalls (saved with a short "cut off" note instead of an error), and limits the two-minute look-back window to real follow-ups so keyboard smashes and new topics stay fast.
 - **3.4.6** — Fixes the Enterprise theme icons (Glass, Midnight, Overgame) so each matches its colours, and adds the Violet Orchid theme (black, charcoal, violet and orchid). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.6.md)
 - **3.4.7** — Replaces the Enterprise theme dropdown with preview cards that show each theme's real colours, renames Overgame to Ember, and retires Midnight and Tonal (near-duplicates of Glass and Daylight; saved choices open as Glass and Daylight). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.7.md)
+- **3.4.8** — Classic on phones: guests get a Sign in button in the top bar (between the page title and search) and the guest sync dot is hidden. Enterprise: Glass now uses blue and cyan so it no longer looks like Violet Orchid. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.8.md)
 
 ---
 

@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.4.7" defer></script>
+<script src="/push-client.js?v=3.4.8" defer></script>
 
 <style>
 /* ==========================================================================
@@ -40,9 +40,9 @@
 
   --accent-primary: #0A84FF;
   --accent-primary-hover: #409CFF;
-  --accent-secondary: #BF5AF2;
-  --accent-gradient: linear-gradient(135deg, #0A84FF, #5E5CE6);
-  --accent-sparkle: linear-gradient(135deg, #64D2FF, #BF5AF2, #FF375F);
+  --accent-secondary: #64D2FF;
+  --accent-gradient: linear-gradient(135deg, #0A84FF, #40C8E0);
+  --accent-sparkle: linear-gradient(135deg, #64D2FF, #0A84FF, #5AC8FA);
 
   --status-todo: #98989f;
   --status-progress: #64D2FF;
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.4.7">
+<link rel="manifest" href="/manifest.json?v=3.4.8">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1933,7 +1933,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
         </div></div>
       <div class="prefs-row theme-row"><span id="theme-label">Theme</span>
         <div class="theme-cards" id="theme-selector" role="radiogroup" aria-labelledby="theme-label">
-          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="apple-dark" title="Frosted dark grey with a blue accent" onclick="applyNexusTheme('apple-dark')" style="--sw-bg:#07070b;--sw-surface:#2c2c2e;--sw-accent:#0A84FF;--sw-accent2:#BF5AF2"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Glass</span></button>
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="apple-dark" title="Frosted dark grey with a blue accent" onclick="applyNexusTheme('apple-dark')" style="--sw-bg:#07070b;--sw-surface:#2c2c2e;--sw-accent:#0A84FF;--sw-accent2:#64D2FF"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Glass</span></button>
           <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="apple-light" title="Bright white with a blue accent" onclick="applyNexusTheme('apple-light')" style="--sw-bg:#f2f2f7;--sw-surface:#ffffff;--sw-accent:#007AFF;--sw-accent2:#AF52DE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Daylight</span></button>
           <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="cyber-aubergine" title="Deep aubergine with an orange accent" onclick="applyNexusTheme('cyber-aubergine')" style="--sw-bg:#150f16;--sw-surface:#301b34;--sw-accent:#FAA000;--sw-accent2:#D4A1BE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Ember</span></button>
           <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="cobalt-lime-dark" title="Black with cobalt blue and acid lime" onclick="applyNexusTheme('cobalt-lime-dark')" style="--sw-bg:#030407;--sw-surface:#0b1530;--sw-accent:#D4FF24;--sw-accent2:#1558C9"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Cobalt Lime</span></button>
@@ -5897,6 +5897,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.4.7" defer></script>
+<script src="attach.js?v=3.4.8" defer></script>
 </body>
 </html>
