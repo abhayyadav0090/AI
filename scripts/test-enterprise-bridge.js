@@ -81,15 +81,28 @@ assert.strictEqual(legacy.theme, 'apple-light', 'old Fluent light theme was not 
 const legacyDark = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark', themeVersion: 2 } }, {});
 assert.strictEqual(legacyDark.theme, 'apple-dark', 'old Fluent dark theme was not renamed');
 const untouched = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'fluent-dark' } }, {});
-assert.strictEqual(untouched.theme, 'cyber-aubergine', 'old default theme should move to Overgame once');
+assert.strictEqual(untouched.theme, 'cyber-aubergine', 'old default theme should move to Ember once');
 const cobalt = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'cobalt-lime-dark', themeVersion: 2 } }, {});
 assert.strictEqual(cobalt.theme, 'cobalt-lime-dark', 'Cobalt Lime theme was not kept after reload');
 const bogus = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'not-a-theme', themeVersion: 2 } }, {});
-assert.strictEqual(bogus.theme, 'cyber-aubergine', 'unknown theme should fall back to Overgame');
+assert.strictEqual(bogus.theme, 'cyber-aubergine', 'unknown theme should fall back to Ember');
 const themeHtml = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'index-redesign.html'), 'utf8');
-assert.ok(themeHtml.includes('<option value="cobalt-lime-dark">'), 'Cobalt Lime missing from the theme dropdown');
+assert.ok(themeHtml.includes('data-theme-key="cobalt-lime-dark"'), 'Cobalt Lime missing from the theme cards');
 assert.ok(themeHtml.includes('[data-theme="cobalt-lime-dark"] {'), 'Cobalt Lime colours are missing');
 assert.strictEqual((themeHtml.match(/'cyber-aubergine', 'cobalt-lime-dark'/g) || []).length, 2, 'Cobalt Lime must be in both saved-theme allowlists');
+// 3.4.6: Violet Orchid theme and matching theme icons
+const orchid = context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'violet-orchid-dark', themeVersion: 2 } }, {});
+assert.strictEqual(orchid.theme, 'violet-orchid-dark', 'Violet Orchid theme was not kept after reload');
+assert.ok(themeHtml.includes('data-theme-key="violet-orchid-dark"') && themeHtml.includes('[data-theme="violet-orchid-dark"] {'), 'Violet Orchid missing from cards or colours');
+assert.strictEqual((themeHtml.match(/'cobalt-lime-dark', 'violet-orchid-dark'/g) || []).length, 2, 'Violet Orchid must be in both saved-theme allowlists');
+// 3.4.7: preview cards, Ember rename, Midnight/Tonal retired
+assert.ok(!themeHtml.includes('<select class="theme-dropdown"'), 'theme dropdown should be replaced by preview cards');
+['apple-dark', 'apple-light', 'cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'].forEach(k => assert.ok(themeHtml.includes('data-theme-key="' + k + '"'), 'missing theme card ' + k));
+assert.strictEqual((themeHtml.match(/class="theme-card"/g) || []).length, 5, 'exactly five theme cards expected');
+assert.ok(themeHtml.includes('--theme-name: "Ember"') && !themeHtml.includes('Overgame') && !themeHtml.includes('Midnight') && !themeHtml.includes('Tonal"'), 'Ember rename / retired theme names');
+assert.ok(!themeHtml.includes('[data-theme="material-dark"]') && !themeHtml.includes('[data-theme="material-light"]'), 'retired theme colours should be removed');
+assert.strictEqual(context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'material-dark', themeVersion: 2 } }, {}).theme, 'apple-dark', 'old Midnight should open as Glass');
+assert.strictEqual(context.classicRootToEnterprise({ enterpriseWorkspace: { theme: 'material-light', themeVersion: 2 } }, {}).theme, 'apple-light', 'old Tonal should open as Daylight');
 console.log('Theme renaming checks passed.');
 
 // ---- 2.5.3: Recently deleted keeps 30 days, 30 entries, and drops bad data ----

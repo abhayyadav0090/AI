@@ -10,9 +10,9 @@ const root = path.join(__dirname, '..');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-assert.equal(pkg.version, '3.4.5');
-assert.equal(lock.version, '3.4.5');
-assert.equal(lock.packages[''].version, '3.4.5');
+assert.equal(pkg.version, '3.4.7');
+assert.equal(lock.version, '3.4.7');
+assert.equal(lock.packages[''].version, '3.4.7');
 
 assert.match(server, /AUTH_CACHE_TTL_MS = 60000/, 'sign-in cache should last 60 seconds');
 assert.match(server, /const recall = !isNewChat && \(askedForEarlier \|\| \(isRecallWindowOpen\(recallKey\) && isRecallFollowUp\(typed\)\)\)/, 'recall mode is only for existing chats');

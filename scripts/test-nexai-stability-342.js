@@ -11,9 +11,9 @@ const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 
-assert.equal(pkg.version, '3.4.5');
-assert.equal(lock.version, '3.4.5');
-assert.equal(lock.packages[''].version, '3.4.5');
+assert.equal(pkg.version, '3.4.7');
+assert.equal(lock.version, '3.4.7');
+assert.equal(lock.packages[''].version, '3.4.7');
 
 // Source checks
 assert.match(server, /GEMINI_FIRST_TOKEN_TIMEOUT_MS/, 'a first-token timeout must exist');

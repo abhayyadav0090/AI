@@ -120,5 +120,5 @@ Current design: one server instance, one MongoDB database, no cache layer such a
 ## Design system
 
 - **Classic:** two designs, **Soft** (rounded and tonal) and **Glass** (liquid glass), each with light, dark or match-device themes. Colours, spacing and shapes are tokens in `design.css`.
-- **Enterprise:** six themes: Glass, Midnight, Daylight, Tonal, Overgame (default) and Cobalt Lime.
+- **Enterprise:** five themes: Glass, Daylight, Ember (default), Cobalt Lime and Violet Orchid, chosen from preview cards. Older Midnight and Tonal saves open as Glass and Daylight.
 - **Motion:** transitions use `transform` and `opacity`, and heavy visual effects are reduced on phones.

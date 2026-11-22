@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.4.5" defer></script>
+<script src="/push-client.js?v=3.4.7" defer></script>
 
 <style>
 /* ==========================================================================
@@ -74,48 +74,6 @@
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 }
 
-[data-theme="material-dark"] {
-  color-scheme: dark;
-  --theme-name: "Midnight";
-  --bg-app: #121212;
-  --bg-surface: #1e1e1e;
-  --bg-surface-elevated: #282828;
-  --bg-card: rgba(40, 40, 40, 0.75);
-  --bg-card-hover: rgba(55, 55, 55, 0.9);
-  --bg-card-active: rgba(70, 70, 70, 0.95);
-  --bg-glass: rgba(30, 30, 30, 0.85);
-  --bg-sidebar: rgba(22, 22, 22, 0.95);
-  --bg-topbar: rgba(18, 18, 18, 0.9);
-
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.16);
-  --border-focus: #8ab4f8;
-
-  --accent-primary: #8ab4f8;
-  --accent-primary-hover: #a8c7fa;
-  --accent-secondary: #c58af9;
-  --accent-gradient: linear-gradient(135deg, #8ab4f8, #c58af9);
-  --accent-sparkle: linear-gradient(135deg, #4285F4, #EA4335, #FBBC05, #34A853);
-
-  --status-todo: #9aa0a6;
-  --status-progress: #8ab4f8;
-  --status-review: #fdd663;
-  --status-done: #81c995;
-
-  --priority-low: #81c995;
-  --priority-medium: #fdd663;
-  --priority-high: #f28b82;
-
-  --text-main: #e8eaed;
-  --text-secondary: #9aa0a6;
-  --text-muted: #5f6368;
-  --text-on-accent: #202124;
-
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 6px 18px rgba(0,0,0,0.45);
-  --shadow-lg: 0 14px 40px rgba(0,0,0,0.55);
-  --shadow-glow: 0 0 24px rgba(138, 180, 248, 0.35);
-}
 
 [data-theme="apple-light"] {
   color-scheme: light;
@@ -160,52 +118,10 @@
   --shadow-glow: 0 0 24px rgba(0, 122, 255, 0.25);
 }
 
-[data-theme="material-light"] {
-  color-scheme: light;
-  --theme-name: "Tonal";
-  --bg-app: #f8fafd;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #f1f4f9;
-  --bg-card: rgba(255, 255, 255, 0.95);
-  --bg-card-hover: #f1f4f9;
-  --bg-card-active: #e3e8f0;
-  --bg-glass: rgba(255, 255, 255, 0.92);
-  --bg-sidebar: #ffffff;
-  --bg-topbar: rgba(248, 250, 253, 0.92);
-
-  --border-subtle: rgba(32, 33, 36, 0.08);
-  --border-medium: rgba(32, 33, 36, 0.16);
-  --border-focus: #1a73e8;
-
-  --accent-primary: #1a73e8;
-  --accent-primary-hover: #1557b0;
-  --accent-secondary: #9334e6;
-  --accent-gradient: linear-gradient(135deg, #1a73e8, #9334e6);
-  --accent-sparkle: linear-gradient(135deg, #4285F4, #EA4335, #FBBC05, #34A853);
-
-  --status-todo: #5f6368;
-  --status-progress: #1a73e8;
-  --status-review: #e37400;
-  --status-done: #188038;
-
-  --priority-low: #188038;
-  --priority-medium: #e37400;
-  --priority-high: #d93025;
-
-  --text-main: #202124;
-  --text-secondary: #5f6368;
-  --text-muted: #80868b;
-  --text-on-accent: #ffffff;
-
-  --shadow-sm: 0 1px 3px rgba(60,64,67,0.12);
-  --shadow-md: 0 4px 14px rgba(60,64,67,0.15);
-  --shadow-lg: 0 12px 32px rgba(60,64,67,0.18);
-  --shadow-glow: 0 0 20px rgba(26, 115, 232, 0.28);
-}
 
 [data-theme="cyber-aubergine"] {
   color-scheme: dark;
-  --theme-name: "Editorial Aubergine";
+  --theme-name: "Ember";
   --bg-app: #150f16;
   --bg-surface: #221625;
   --bg-surface-elevated: #301b34;
@@ -293,6 +209,50 @@
 [data-theme="cobalt-lime-dark"] .pomo-play-hero,
 [data-theme="cobalt-lime-dark"] .nexos-experience-switch .active { color: var(--text-on-accent); }
 [data-theme="cobalt-lime-dark"] .chat-msg-row.assistant .chat-avatar-circle { background: linear-gradient(135deg, #1558C9, #3D7BEF); color: #fff; }
+
+[data-theme="violet-orchid-dark"] {
+  color-scheme: dark;
+  --theme-name: "Violet Orchid";
+  /* 60% black, 30% charcoal, 7% violet, 3% orchid */
+  --bg-app: #000000;
+  --bg-surface: #111113;
+  --bg-surface-elevated: #1a1a1d;
+  --bg-card: rgba(26, 26, 29, 0.78);
+  --bg-card-hover: rgba(139, 92, 246, 0.14);
+  --bg-card-active: rgba(139, 92, 246, 0.26);
+  --bg-glass: rgba(17, 17, 19, 0.86);
+  --bg-sidebar: rgba(0, 0, 0, 0.96);
+  --bg-topbar: rgba(0, 0, 0, 0.9);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-focus: #8B5CF6;
+
+  --accent-primary: #8B5CF6;
+  --accent-primary-hover: #A07BF8;
+  --accent-secondary: #DA70D6;
+  --accent-gradient: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  --accent-sparkle: linear-gradient(135deg, #8B5CF6, #DA70D6);
+
+  --status-todo: #8A8A93;
+  --status-progress: #8B5CF6;
+  --status-review: #DA70D6;
+  --status-done: #4ADE80;
+
+  --priority-low: #4ADE80;
+  --priority-medium: #DA70D6;
+  --priority-high: #FF6B7A;
+
+  --text-main: #F5F3FA;
+  --text-secondary: #BDB8C9;
+  --text-muted: #85808F;
+  --text-on-accent: #ffffff;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 8px 26px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.75);
+  --shadow-glow: 0 0 28px rgba(139, 92, 246, 0.35);
+}
 
 /* Density Profiles */
 [data-density="compact"] {
@@ -508,12 +468,22 @@ body {
   font-size: 14px; padding: 0 4px;
 }
 
-.theme-dropdown, .density-dropdown {
+.prefs-row.theme-row { flex-direction: column; align-items: stretch; }
+.theme-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.theme-card { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; cursor: pointer; text-align: left; min-width: 0; }
+.theme-card[aria-checked="true"] { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary); color: var(--text-main); }
+.theme-swatch { position: relative; width: 38px; height: 28px; flex: none; border-radius: 8px; overflow: hidden; background: var(--sw-bg); border: 1px solid rgba(128, 128, 128, 0.35); }
+.theme-swatch::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 11px; background: var(--sw-surface); }
+.theme-swatch i { position: absolute; top: 5px; width: 8px; height: 8px; border-radius: 50%; }
+.theme-swatch i:nth-child(1) { left: 5px; background: var(--sw-accent); }
+.theme-swatch i:nth-child(2) { left: 17px; background: var(--sw-accent2); }
+.theme-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.density-dropdown {
   padding: 6px 10px; border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle); background: var(--bg-card);
   color: var(--text-secondary); font-size: 12px; cursor: pointer; outline: none;
 }
-.theme-dropdown option, .density-dropdown option { background: var(--bg-surface); color: var(--text-main); }
+.density-dropdown option { background: var(--bg-surface); color: var(--text-main); }
 
 .topbar-clock {
   font-family: var(--font-mono); font-size: 12.5px; color: var(--text-muted);
@@ -1829,12 +1799,12 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
   (function () {
     try {
       var t = localStorage.getItem('nexos_enterprise_theme');
-      t = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' })[t] || t; /* old theme names */
-      if (['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine', 'cobalt-lime-dark'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
+      t = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light', 'material-dark': 'apple-dark', 'material-light': 'apple-light' })[t] || t; /* old theme names */
+      if (['apple-dark', 'apple-light', 'cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'].indexOf(t) > -1) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.4.5">
+<link rel="manifest" href="/manifest.json?v=3.4.7">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1961,15 +1931,14 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <a href="/classic" title="Switch to Classic NexOS">Classic</a>
           <span class="active" aria-current="page">Enterprise</span>
         </div></div>
-      <div class="prefs-row"><label for="theme-selector">Theme</label>
-        <select class="theme-dropdown" onchange="applyNexusTheme(this.value)" id="theme-selector" title="Switch theme">
-          <option value="apple-dark">◐ Glass</option>
-            <option value="material-dark">🔴 Midnight</option>
-            <option value="apple-light">☀️ Daylight</option>
-            <option value="material-light">⚪ Tonal</option>
-            <option value="cyber-aubergine">🟣 Overgame</option>
-            <option value="cobalt-lime-dark">🔵 Cobalt Lime</option>
-        </select></div>
+      <div class="prefs-row theme-row"><span id="theme-label">Theme</span>
+        <div class="theme-cards" id="theme-selector" role="radiogroup" aria-labelledby="theme-label">
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="apple-dark" title="Frosted dark grey with a blue accent" onclick="applyNexusTheme('apple-dark')" style="--sw-bg:#07070b;--sw-surface:#2c2c2e;--sw-accent:#0A84FF;--sw-accent2:#BF5AF2"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Glass</span></button>
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="apple-light" title="Bright white with a blue accent" onclick="applyNexusTheme('apple-light')" style="--sw-bg:#f2f2f7;--sw-surface:#ffffff;--sw-accent:#007AFF;--sw-accent2:#AF52DE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Daylight</span></button>
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="cyber-aubergine" title="Deep aubergine with an orange accent" onclick="applyNexusTheme('cyber-aubergine')" style="--sw-bg:#150f16;--sw-surface:#301b34;--sw-accent:#FAA000;--sw-accent2:#D4A1BE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Ember</span></button>
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="cobalt-lime-dark" title="Black with cobalt blue and acid lime" onclick="applyNexusTheme('cobalt-lime-dark')" style="--sw-bg:#030407;--sw-surface:#0b1530;--sw-accent:#D4FF24;--sw-accent2:#1558C9"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Cobalt Lime</span></button>
+          <button type="button" class="theme-card" role="radio" aria-checked="false" data-theme-key="violet-orchid-dark" title="Black and charcoal with violet and orchid" onclick="applyNexusTheme('violet-orchid-dark')" style="--sw-bg:#000000;--sw-surface:#1a1a1d;--sw-accent:#8B5CF6;--sw-accent2:#DA70D6"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span class="theme-card-name">Violet Orchid</span></button>
+        </div></div>
       <div class="prefs-row"><label for="density-selector">Density</label>
         <select class="density-dropdown" onchange="applyDensity(this.value)" id="density-selector" title="View density">
           <option value="comfortable">Comfortable</option>
@@ -2833,7 +2802,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Apply persisted presentation state without scheduling a redundant workspace save.
     if (state.theme) document.documentElement.setAttribute('data-theme', state.theme);
     if (state.density) document.documentElement.setAttribute('data-density', state.density);
-    const themeSelect = document.getElementById('theme-selector'); if (themeSelect) themeSelect.value = state.theme;
+    syncThemeCards(state.theme);
     const densitySelect = document.getElementById('density-selector'); if (densitySelect) densitySelect.value = state.density || 'comfortable';
     // The greeting, date and KPI counters are updated before rendering the lower widgets.
     updateEnterpriseConnectionBadge();
@@ -2974,13 +2943,15 @@ function closeSidebarDrawer() {
 }
 
 // Themes & Density
+function syncThemeCards(theme) {
+  document.querySelectorAll('#theme-selector .theme-card').forEach(b => b.setAttribute('aria-checked', String(b.dataset.themeKey === theme)));
+}
 function applyNexusTheme(theme) {
-  theme = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' })[theme] || theme;
+  theme = ({ 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light', 'material-dark': 'apple-dark', 'material-light': 'apple-light' })[theme] || theme;
   state.theme = theme;
   try { localStorage.setItem('nexos_enterprise_theme', theme); } catch (_) {}
   document.documentElement.setAttribute('data-theme', theme);
-  const sel = document.getElementById('theme-selector');
-  if (sel) sel.value = theme;
+  syncThemeCards(theme);
   saveWorkspaceState();
   if (document.getElementById('pane-analytics')?.classList.contains('active')) {
     renderAnalyticsCharts();
@@ -4596,7 +4567,7 @@ function handleCommandPaletteSearch(q) {
   items.push({ icon: '+', label: 'Create New Task', category: 'Action', action: () => openNewTaskModal() });
   items.push({ icon: '+', label: 'Create New Note', category: 'Action', action: () => quickCreateNote() });
   items.push({ icon: '☀️', label: 'Switch Theme to Daylight', category: 'Settings', action: () => applyNexusTheme('apple-light') });
-  items.push({ icon: '◐', label: 'Switch Theme to Glass', category: 'Settings', action: () => applyNexusTheme('apple-dark') });
+  items.push({ icon: '🧊', label: 'Switch Theme to Glass', category: 'Settings', action: () => applyNexusTheme('apple-dark') });
 
   // Tasks search
   state.tasks.forEach(t => {
@@ -4920,11 +4891,11 @@ function classicRootToEnterprise(root, localPrefs = {}) {
     },
     currentNoteId: saved.currentNoteId || pref.currentNoteId || null,
     theme: (() => {
-      const known = ['apple-dark', 'material-dark', 'apple-light', 'material-light', 'cyber-aubergine', 'cobalt-lime-dark'];
-      const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light' };   // the blue Fluent themes became Glass / Daylight
+      const known = ['apple-dark', 'apple-light', 'cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'];
+      const renamed = { 'fluent-dark': 'apple-dark', 'fluent-light': 'apple-light', 'material-dark': 'apple-dark', 'material-light': 'apple-light' };   // retired themes open as Glass / Daylight
       const saved = renamed[pref.theme] || pref.theme;
-      if (!known.includes(saved)) return 'cyber-aubergine';                              // nothing chosen yet: Overgame
-      if (pref.themeVersion !== 2 && pref.theme === 'fluent-dark') return 'cyber-aubergine'; // still on the old default: move to Overgame once
+      if (!known.includes(saved)) return 'cyber-aubergine';                              // nothing chosen yet: Ember
+      if (pref.themeVersion !== 2 && pref.theme === 'fluent-dark') return 'cyber-aubergine'; // still on the old default: move to Ember once
       return saved;
     })(),
     density: ['comfortable', 'compact', 'spacious'].includes(pref.density) ? pref.density : 'comfortable',
@@ -5113,7 +5084,7 @@ function hydrateEnterpriseFromLocalCache() {
   // has been checked; cache hydration itself must not create a pending cloud write.
   if (state.theme) document.documentElement.setAttribute('data-theme', state.theme);
   if (state.density) document.documentElement.setAttribute('data-density', state.density);
-  const themeSelect = document.getElementById('theme-selector'); if (themeSelect) themeSelect.value = state.theme;
+  syncThemeCards(state.theme);
   const densitySelect = document.getElementById('density-selector'); if (densitySelect) densitySelect.value = state.density || 'comfortable';
   updateEnterpriseConnectionBadge();
   return true;
@@ -5926,6 +5897,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.4.5" defer></script>
+<script src="attach.js?v=3.4.7" defer></script>
 </body>
 </html>

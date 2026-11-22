@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.4.5.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.4.7.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -52,7 +52,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 
 - Two experiences on one account and one set of data. **Classic** (`/` and `/classic`) is the simple, focused version. **Enterprise** (`/enterprise`, also `/redesign`) adds a timeblocking calendar, a focus studio with ambient sound, a richer Kanban board, analytics and a NexAI side panel.
 - Switch between them from the Classic | Enterprise control in the top bar or the quick appearance menu.
-- Enterprise has six themes: Glass, Midnight, Daylight, Tonal, Overgame (the default) and Cobalt Lime.
+- Enterprise has five themes, picked from preview cards: Glass, Daylight, Ember (the default), Cobalt Lime and Violet Orchid.
 
 ### Tasks
 
@@ -430,6 +430,8 @@ One line per release. The linked notes have the details.
 - **3.4.3** — Lets NexAI look back through the whole saved chat when you ask about earlier messages, tells NexAI honestly how much of the chat it can see, and keeps the sign-in check for 60 seconds. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.3.md)
 - **3.4.4** — Makes NexAI's look-back catch follow-ups such as "second messages" or "we discussed", keeps look-back on for two minutes after you ask, and stops NexAI from inventing reasons for earlier mistakes. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.4.md)
 - **3.4.5** — Keeps the text already received when a NexAI stream stalls (saved with a short "cut off" note instead of an error), and limits the two-minute look-back window to real follow-ups so keyboard smashes and new topics stay fast.
+- **3.4.6** — Fixes the Enterprise theme icons (Glass, Midnight, Overgame) so each matches its colours, and adds the Violet Orchid theme (black, charcoal, violet and orchid). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.6.md)
+- **3.4.7** — Replaces the Enterprise theme dropdown with preview cards that show each theme's real colours, renames Overgame to Ember, and retires Midnight and Tonal (near-duplicates of Glass and Daylight; saved choices open as Glass and Daylight). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.7.md)
 
 ---
 
