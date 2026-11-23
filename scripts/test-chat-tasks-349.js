@@ -12,7 +12,8 @@ assert.strictEqual(items[1].priority, 'low'); assert.ok(items[1].description.inc
 assert.strictEqual(items[2].due, '2026-11-24', 'tomorrow resolves from today');
 assert.ok(T.looksLikeTasks(reply, 'plan my week'), 'a task list shows the button');
 assert.ok(!T.looksLikeTasks('Photosynthesis has two stages:\n- Light reactions\n- Calvin cycle', 'explain photosynthesis') || true);
-assert.ok(!T.looksLikeTasks('One thing:\n- Only one item', 'tasks'), 'one item is not a list');
+assert.ok(!T.looksLikeTasks('One thing:\n- Only one item', 'explain'), 'a plain one-item list gets no button');
+assert.ok(T.looksLikeTasks('Do this:\n- Only one item', 'add a task'), 'one item is enough when the context says tasks (3.5.0)');
 ['add these tasks', 'ye tasks add kar do', 'inhe add karo', 'add them', 'tasks add karo'].forEach(s => assert.ok(T.wantsAdd(s), 'should add: ' + s));
 ['create 3 tasks for my portfolio launch', 'how do I add tasks', 'add', 'add tasks: gym, study', 'what is a task'].forEach(s => assert.ok(!T.wantsAdd(s), 'must go to NexAI: ' + s));
 assert.ok(T.canDirectAdd('add these', reply) && !T.canDirectAdd('add these', 'No list here.'), 'direct add needs a list');

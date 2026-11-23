@@ -2200,7 +2200,7 @@ function setChips(visible) {
   if (chips) chips.style.display = visible ? '' : 'none';
 }
 
-// ───────── NexAI chat → tasks (3.4.9) ─────────
+// ───────── NexAI chat → tasks, habits, notes (3.4.9 / 3.5.0) ─────────
 function nexChatAddTasks(items) {
   const have = new Set(state.tasks.filter(t => t.col !== 'done').map(t => String(t.title || '').trim().toLowerCase()));
   const ids = [];
@@ -2217,12 +2217,46 @@ function nexChatAddTasks(items) {
   if (ids.length) refresh();
   return { added: ids.length, skipped, undo() { state.tasks = state.tasks.filter(t => !ids.includes(t.id)); refresh(); } };
 }
+function nexChatAddHabits(items) {
+  const have = new Set(state.habits.map(h => String(h.name || '').trim().toLowerCase()));
+  const color = document.getElementById('new-habit-color')?.value || '#34d399';
+  const ids = [];
+  let skipped = 0;
+  items.forEach(item => {
+    const name = item.title.slice(0, 60).trim();
+    const key = name.toLowerCase();
+    if (!name || have.has(key)) { skipped++; return; }
+    have.add(key);
+    const habit = { id: uid(), name, color, checks: {}, streak: 0 };
+    state.habits.push(habit);
+    ids.push(habit.id);
+  });
+  const refresh = () => { saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); };
+  if (ids.length) refresh();
+  return { added: ids.length, skipped, undo() { state.habits = state.habits.filter(h => !ids.includes(h.id)); refresh(); } };
+}
+function nexChatAddNote(draft) {
+  if (state.notes.some(n => n.content === draft.content)) return { added: 0, skipped: 1 };
+  const note = { id: uid(), title: draft.title, content: draft.content, tags: draft.tags || ['nexai'], pinned: false, created: Date.now() };
+  const previous = state.currentNoteId;
+  state.notes.unshift(note);
+  state.currentNoteId = note.id;
+  const refresh = () => { saveState(); renderNotes(); renderDashboard(); updateStats(); updateContextPanel(); };
+  refresh();
+  return { added: 1, skipped: 0, undo() {
+    state.notes = state.notes.filter(n => n.id !== note.id);
+    state.currentNoteId = state.notes.some(n => n.id === previous) ? previous : (state.notes[0] ? state.notes[0].id : null);
+    refresh();
+  } };
+}
 function nexChatTasksCtx() {
   return {
     today: () => today(),
     toast: (m, o) => { if (window.NexUI) NexUI.toast(m, o); },
-    say: (t) => { appendChatMsg('assistant', t); scrollChat(); },
-    addTasks: nexChatAddTasks
+    say: (t) => { const div = appendChatMsg('assistant', t); scrollChat(); return div ? div.querySelector('.msg-bubble') : null; },
+    addTasks: nexChatAddTasks,
+    addHabits: nexChatAddHabits,
+    addNote: nexChatAddNote
   };
 }
 function attachNexChatTasks(msgDiv, text, userMsg) {

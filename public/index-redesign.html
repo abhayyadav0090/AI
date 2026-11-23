@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.4.9" defer></script>
+<script src="/push-client.js?v=3.5.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.4.9">
+<link rel="manifest" href="/manifest.json?v=3.5.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -5484,7 +5484,7 @@ function appendEnterpriseChatBubble(box, role, content) {
   row.append(avatar, bubble); box.appendChild(row); box.scrollTop = box.scrollHeight;
   return bubble;
 }
-// ───────── NexAI chat → tasks (3.4.9): Enterprise chat page and the side dock share this ─────────
+// ───────── NexAI chat → tasks, habits, notes (3.5.0 / 3.5.0): Enterprise chat page and the side dock share this ─────────
 function nexChatAddTasks(items) {
   const have = new Set(state.tasks.filter(t => t.stage !== 'done').map(t => String(t.title || '').trim().toLowerCase()));
   const ids = [];
@@ -5501,8 +5501,39 @@ function nexChatAddTasks(items) {
   if (ids.length) refresh();
   return { added: ids.length, skipped, undo() { state.tasks = state.tasks.filter(t => !ids.includes(t.id)); refresh(); } };
 }
+function nexChatAddHabits(items) {
+  const have = new Set(state.habits.map(h => String(h.name || '').trim().toLowerCase()));
+  const ids = [];
+  let skipped = 0;
+  items.forEach(item => {
+    const name = item.title.slice(0, 60).trim();
+    const key = name.toLowerCase();
+    if (!name || have.has(key)) { skipped++; return; }
+    have.add(key);
+    const habit = { id: uid(), name, color: 'var(--accent-primary)', streak: 0, checks: {} };
+    state.habits.push(habit);
+    ids.push(habit.id);
+  });
+  const refresh = () => { saveWorkspaceState(); renderHabits(); renderDashboard(); };
+  if (ids.length) refresh();
+  return { added: ids.length, skipped, undo() { state.habits = state.habits.filter(h => !ids.includes(h.id)); refresh(); } };
+}
+function nexChatAddNote(draft) {
+  if (state.notes.some(n => n.content === draft.content)) return { added: 0, skipped: 1 };
+  const note = { id: uid(), title: draft.title, content: draft.content, tags: draft.tags || ['nexai'], pinned: false, created: Date.now() };
+  const previous = state.currentNoteId;
+  state.notes.unshift(note);
+  state.currentNoteId = note.id;
+  const refresh = () => { saveWorkspaceState(); renderAllViews(); };
+  refresh();
+  return { added: 1, skipped: 0, undo() {
+    state.notes = state.notes.filter(n => n.id !== note.id);
+    state.currentNoteId = state.notes.some(n => n.id === previous) ? previous : (state.notes[0] ? state.notes[0].id : null);
+    refresh();
+  } };
+}
 function nexChatTasksCtx(box) {
-  return { today: () => today(), toast: (m, o) => showToast(m, o), say: (t) => appendEnterpriseChatBubble(box, 'assistant', t), addTasks: nexChatAddTasks };
+  return { today: () => today(), toast: (m, o) => showToast(m, o), say: (t) => appendEnterpriseChatBubble(box, 'assistant', t), addTasks: nexChatAddTasks, addHabits: nexChatAddHabits, addNote: nexChatAddNote };
 }
 function attachNexChatTasks(bubble, text, userMsg, box) {
   try { if (window.NexChatTasks && bubble) NexChatTasks.attach(bubble, text, userMsg, nexChatTasksCtx(box)); }
@@ -5948,7 +5979,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.4.9" defer></script>
-<script src="chat-tasks.js?v=3.4.9" defer></script>
+<script src="attach.js?v=3.5.0" defer></script>
+<script src="chat-tasks.js?v=3.5.0" defer></script>
 </body>
 </html>

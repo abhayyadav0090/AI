@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.4.9.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 3.5.0.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -434,6 +434,7 @@ One line per release. The linked notes have the details.
 - **3.4.7** — Replaces the Enterprise theme dropdown with preview cards that show each theme's real colours, renames Overgame to Ember, and retires Midnight and Tonal (near-duplicates of Glass and Daylight; saved choices open as Glass and Daylight). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.7.md)
 - **3.4.8** — Classic on phones: guests get a Sign in button in the top bar (between the page title and search) and the guest sync dot is hidden. Enterprise: Glass now uses blue and cyan so it no longer looks like Violet Orchid. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.8.md)
 - **3.4.9** — NexAI chat tasks: when NexAI suggests a list of tasks, an "Add N tasks" button appears under the reply, and typing "add these tasks" adds them directly. Works in Classic, the Enterprise NexAI page and the Enterprise side dock, with Undo. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.9.md)
+- **3.5.0** — NexAI chat can now also add habits and save a reply as a note, with the same one-tap buttons and "add these habits" / "save as a note" commands. Tasks vs habits is detected from the reply; when unclear you choose. One item is enough. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.5.0.md)
 
 ---
 
