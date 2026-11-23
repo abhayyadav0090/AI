@@ -18,17 +18,37 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|
 | ![Dashboard, Soft design](docs/screenshots/dashboard.png) | ![Dashboard, Glass design](docs/screenshots/dashboard-apple.png) |
 
+| Focus | Habits |
+|:---:|:---:|
+| ![Focus timer](docs/screenshots/focus.png) | ![Habit tracker with streaks and heatmap](docs/screenshots/habits.png) |
+
+| Notes | Insights |
+|:---:|:---:|
+| ![Notes with tags and pinning](docs/screenshots/notes.png) | ![Insights: focus time, task status and habit completion](docs/screenshots/insights.png) |
+
 **Enterprise**
 
 | Dashboard | Glass theme |
 |:---:|:---:|
 | ![Enterprise dashboard](docs/screenshots/enterprise-dashboard.png) | ![Enterprise dashboard, Glass theme](docs/screenshots/enterprise-apple-glass.png) |
 
+| Theme picker with previews | Kanban sprint board |
+|:---:|:---:|
+| ![Enterprise theme picker](docs/screenshots/enterprise-themes.png) | ![Enterprise Kanban board](docs/screenshots/enterprise-kanban.png) |
+
+| Timeblocking |
+|:---:|
+| ![Enterprise timeblocking studio](docs/screenshots/enterprise-timeblocking.png) |
+
 **Tasks and NexAI**
 
 | Kanban | NexAI |
 |:---:|:---:|
 | ![Kanban board](docs/screenshots/kanban.png) | ![NexAI chat](docs/screenshots/nexai.png) |
+
+| NexAI: Add habits and Save as note (3.5.0) |
+|:---:|
+| ![NexAI reply with Add 3 habits and Save as note buttons](docs/screenshots/nexai-actions.png) |
 
 **On a phone**
 
@@ -42,7 +62,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|:---:|:---:|
 | ![Classic NexAI on a phone](docs/screenshots/classic-nexai.png) | ![Enterprise NexAI on a phone with an attached file and a microphone button](docs/screenshots/enterprise-nexai-attach.png) | ![NexAI Action Mode with a microphone button](docs/screenshots/enterprise-action-mode.png) | ![Recently deleted page](docs/screenshots/recovery-center.png) |
 
-*All screenshots were taken in guest mode with sample data, not a real account. The NexAI conversation in the Classic desktop screenshot is an example written for this README, and the phone NexAI screenshots show the guest sign-in prompt.*
+*All screenshots were taken with sample data, not a real account, and show NexOS 3.5.0. Classic screenshots are in guest mode; Enterprise screenshots are in its local preview mode. The NexAI conversations in the Classic desktop screenshots are examples written for this README, the phone NexAI screenshots show the guest sign-in prompt, and the Recently deleted items are sample entries.*
 
 ---
 
