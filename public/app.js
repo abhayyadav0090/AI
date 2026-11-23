@@ -2200,12 +2200,49 @@ function setChips(visible) {
   if (chips) chips.style.display = visible ? '' : 'none';
 }
 
+// ───────── NexAI chat → tasks (3.4.9) ─────────
+function nexChatAddTasks(items) {
+  const have = new Set(state.tasks.filter(t => t.col !== 'done').map(t => String(t.title || '').trim().toLowerCase()));
+  const ids = [];
+  let skipped = 0;
+  items.forEach(item => {
+    const key = item.title.toLowerCase();
+    if (have.has(key)) { skipped++; return; }
+    have.add(key);
+    const task = { id: uid(), title: item.title, desc: item.description || '', col: 'todo', priority: item.priority || 'medium', due: item.due || '', created: Date.now() };
+    state.tasks.push(task);
+    ids.push(task.id);
+  });
+  const refresh = () => { saveState(); renderDashboard(); renderKanban(); updateStats(); updateContextPanel(); };
+  if (ids.length) refresh();
+  return { added: ids.length, skipped, undo() { state.tasks = state.tasks.filter(t => !ids.includes(t.id)); refresh(); } };
+}
+function nexChatTasksCtx() {
+  return {
+    today: () => today(),
+    toast: (m, o) => { if (window.NexUI) NexUI.toast(m, o); },
+    say: (t) => { appendChatMsg('assistant', t); scrollChat(); },
+    addTasks: nexChatAddTasks
+  };
+}
+function attachNexChatTasks(msgDiv, text, userMsg) {
+  try { if (window.NexChatTasks && msgDiv) NexChatTasks.attach(msgDiv.querySelector('.msg-bubble'), text, userMsg, nexChatTasksCtx()); }
+  catch (e) { console.warn('Add-tasks button failed.', e); }
+}
+
 function renderMessages(messages) {
   const box = document.getElementById('chat-messages');
   if (!box) return;
   box.innerHTML = '';
   if (!messages.length) box.innerHTML = welcomeHtml;
-  else messages.forEach(m => appendChatMsg(m.role, m.content));
+  else {
+    let lastAssistant = null, lastText = '', lastUser = '';
+    messages.forEach(m => {
+      const div = appendChatMsg(m.role, m.content);
+      if (m.role === 'assistant') { lastAssistant = div; lastText = m.content; } else lastUser = m.content;
+    });
+    attachNexChatTasks(lastAssistant, lastText, lastUser);
+  }
   setChips(!messages.length);
   scrollChat();
 }
@@ -2288,6 +2325,16 @@ async function sendMessage() {
   if (chatAttach && chatAttach.busy()) { if (window.NexUI) NexUI.toast('Still preparing your file…'); return; }
   const files = chatAttach ? chatAttach.list() : [];
   if (!msg && !files.length) return;
+  // 3.4.9: "add these tasks" right after NexAI listed some adds them directly (no AI call).
+  const priorReply = window.NexChatTasks ? NexChatTasks.lastReply(document.getElementById('chat-messages'), '.chat-msg.assistant', '.msg-bubble') : '';
+  if (!files.length && window.NexChatTasks && NexChatTasks.canDirectAdd(msg, priorReply)) {
+    input.value = '';
+    autoResizeTextarea(input);
+    appendChatMsg('user', msg);
+    NexChatTasks.tryDirectAdd(msg, priorReply, nexChatTasksCtx());
+    scrollChat();
+    return;
+  }
   chatBusy = true;
   document.querySelectorAll('#chat-messages .chat-msg.error').forEach(n => n.remove());
   input.value = '';
@@ -2308,7 +2355,8 @@ async function sendMessage() {
       scrollChat();
     });
     removeTyping();
-    if (!streamedBubble) appendChatMsg('assistant', data.text);
+    const replyDiv = streamedBubble || appendChatMsg('assistant', data.text);
+    attachNexChatTasks(replyDiv, data.text, msg);
     activeChatId = data.chatId;
     if (chatAttach) chatAttach.clear();
     upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });

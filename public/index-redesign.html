@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.4.8" defer></script>
+<script src="/push-client.js?v=3.4.9" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.4.8">
+<link rel="manifest" href="/manifest.json?v=3.4.9">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -5484,6 +5484,46 @@ function appendEnterpriseChatBubble(box, role, content) {
   row.append(avatar, bubble); box.appendChild(row); box.scrollTop = box.scrollHeight;
   return bubble;
 }
+// ───────── NexAI chat → tasks (3.4.9): Enterprise chat page and the side dock share this ─────────
+function nexChatAddTasks(items) {
+  const have = new Set(state.tasks.filter(t => t.stage !== 'done').map(t => String(t.title || '').trim().toLowerCase()));
+  const ids = [];
+  let skipped = 0;
+  items.forEach(item => {
+    const key = item.title.toLowerCase();
+    if (have.has(key)) { skipped++; return; }
+    have.add(key);
+    const task = { id: uid(), title: item.title, desc: item.description || '', stage: 'todo', priority: item.priority || 'medium', due: item.due || '', created: Date.now(), subtasks: [], tags: [] };
+    state.tasks.push(task);
+    ids.push(task.id);
+  });
+  const refresh = () => { saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline(); };
+  if (ids.length) refresh();
+  return { added: ids.length, skipped, undo() { state.tasks = state.tasks.filter(t => !ids.includes(t.id)); refresh(); } };
+}
+function nexChatTasksCtx(box) {
+  return { today: () => today(), toast: (m, o) => showToast(m, o), say: (t) => appendEnterpriseChatBubble(box, 'assistant', t), addTasks: nexChatAddTasks };
+}
+function attachNexChatTasks(bubble, text, userMsg, box) {
+  try { if (window.NexChatTasks && bubble) NexChatTasks.attach(bubble, text, userMsg, nexChatTasksCtx(box)); }
+  catch (e) { console.warn('Add-tasks button failed.', e); }
+}
+function enterpriseDirectAddTasks(message, box) {
+  if (!window.NexChatTasks || !box) return false;
+  const prior = NexChatTasks.lastReply(box, '.chat-msg-row.assistant', '.chat-bubble-card');
+  if (!NexChatTasks.canDirectAdd(message, prior)) return false;
+  appendEnterpriseChatBubble(box, 'user', message);
+  NexChatTasks.tryDirectAdd(message, prior, nexChatTasksCtx(box));
+  return true;
+}
+function renderEnterpriseHistory(box, messages) {
+  let last = null, lastText = '', lastUser = '';
+  messages.forEach(m => {
+    const bubble = appendEnterpriseChatBubble(box, m.role, m.content);
+    if (m.role === 'assistant') { last = bubble; lastText = m.content; } else lastUser = m.content;
+  });
+  attachNexChatTasks(last, lastText, lastUser, box);
+}
 async function postEnterpriseChat(message, box, files = []) {
   if (enterpriseSession.mode !== 'account') {
     appendEnterpriseChatBubble(box, 'assistant', 'Live NexAI requires a signed-in NexOS account. Your workspace remains local in guest/preview mode. Open Classic NexOS and sign in with Google to enable AI chat and Action Mode.');
@@ -5533,6 +5573,7 @@ async function postEnterpriseChat(message, box, files = []) {
     state.activeChatId = String(payload.chatId || state.activeChatId || '');
     if (files.length && enterpriseAttach) enterpriseAttach.clear();
     if (pending) pending.innerHTML = renderSimpleMarkdown(payload.text || 'No response received.');
+    attachNexChatTasks(pending, payload.text || '', message, box);
     saveWorkspaceState();
     await refreshEnterpriseChatList();
     return true;
@@ -5560,6 +5601,11 @@ async function sendAIChatMessage() {
   if (!message && !files.length) return;
   const box = document.getElementById('ai-messages-scroll-area');
   if (!box) return;
+  if (!files.length && enterpriseDirectAddTasks(message, box)) {   // "add these tasks" after NexAI listed some: no AI call
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
   if (box.querySelector('.welcome-message')) box.innerHTML = '';
   else if (box.querySelector('.chat-msg-row.assistant') && box.children.length === 1 && !state.activeChatId) box.innerHTML = '';
   enterpriseChatSending = true;
@@ -5583,6 +5629,11 @@ async function sendFloatingChatMessage() {
   const message = input?.value.trim();
   const box = document.getElementById('floating-copilot-messages');
   if (!message || !box) return;
+  if (enterpriseDirectAddTasks(message, box)) {
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
   enterpriseChatSending = true;
   appendEnterpriseChatBubble(box, 'user', message);
   input.value = '';
@@ -5648,7 +5699,7 @@ async function openEnterpriseChat(id) {
     if (!response.ok) throw new Error(payload.error || 'Could not open this conversation');
     state.activeChatId = String(payload.chat?.id || id);
     const box = document.getElementById('ai-messages-scroll-area');
-    if (box) { box.innerHTML = ''; (payload.chat?.messages || []).forEach(m => appendEnterpriseChatBubble(box, m.role, m.content)); }
+    if (box) { box.innerHTML = ''; renderEnterpriseHistory(box, payload.chat?.messages || []); }
     saveWorkspaceState();
     switchNexusView('ai');
   } catch (err) { showToast(err.message || 'Could not open conversation'); }
@@ -5667,7 +5718,7 @@ async function loadEnterpriseChatHistory() {
     const box = document.getElementById('ai-messages-scroll-area');
     if (box && payload.chat?.messages?.length) {
       box.innerHTML = '';
-      payload.chat.messages.forEach(m => appendEnterpriseChatBubble(box, m.role, m.content));
+      renderEnterpriseHistory(box, payload.chat.messages);
     }
   } catch (_) {}
 }
@@ -5897,6 +5948,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.4.8" defer></script>
+<script src="attach.js?v=3.4.9" defer></script>
+<script src="chat-tasks.js?v=3.4.9" defer></script>
 </body>
 </html>
