@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.1.3" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.2.0" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 
@@ -287,6 +287,9 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 
 ## Changes in 4.1.3
 - No API changes. Only two Enterprise sidebar icons changed (browser only).
+
+## Changes in 4.2.0
+- No API changes. Habit editing and the new habit statistics run in the browser and use the normal workspace save. A habit may now carry an optional `goal` (integer 1 to 7, days per week; missing means every day) inside the workspace document. The stored `streak` field is unchanged.
 
 ## Corrections in this revision
 - `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.

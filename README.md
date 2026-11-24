@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 4.1.3.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
+**Current source release: 4.2.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -93,6 +93,10 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 
 - Daily check-ins on a 7-day grid with streak counters.
 - 12-week completion heatmap.
+- Edit a habit (4.2.0): the ✎ button next to a habit opens an edit bar for its name, colour and goal. Enter saves, Esc cancels, and check-ins are kept.
+- Per-habit stats (4.2.0): current streak, best streak (with a "personal best" mark), completion rate over the last 30 days, total check-ins, and milestone badges (7, 14, 30, 60, 100, 200 and 365 days).
+- Flexible goals (4.2.0): choose "Every day" or 1 to 6 days a week. Weekly-goal habits count weeks in a row (Monday to Sunday) that reached the goal and show "n/goal this week", so rest days do not break the streak.
+- Habit summary strip (4.2.0): done today, longest current streak, 30-day rate and total check-ins across all habits.
 
 ### Notes
 
@@ -269,6 +273,7 @@ Setup notes:
 │   ├── ui.js                   # Shared UI interactions and Classic controls
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
+│   ├── habits.js               # Habit statistics: streaks, best streak, rates, goals (shared by Classic and Enterprise)
 │   ├── derail.js               # Day derailed dialog and guest sample (shared by Classic and Enterprise)
 │   ├── study.js                # Study Studio dialog: upload, library and tutor (shared by Classic and Enterprise)
 │   ├── push-client.js          # Browser side of push reminders
@@ -478,6 +483,7 @@ One line per release. The linked notes have the details.
 - **4.1.1** — Day derailed and Study Studio dialogs redesigned: they now follow the Classic design (Soft and Glass, light and dark) and the Enterprise theme instead of a fixed dark style; Classic chips get icons; Day derailed shows live selection counts and priority labels; Study Studio gets Tutor and Library tabs, drag-and-drop upload, starter prompts and source chips. No server or API changes. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.1.md)
 - **4.1.2** — Study Studio in the Classic sidebar. Enterprise sidebar and shortcuts now follow one order: `Alt+7` Timeblocking, `Alt+8` Study Studio, `Alt+9` NexAI. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.2.md)
 - **4.1.3** — Enterprise sidebar: the Timeblocking and Study Studio icons now use the same plain symbols as the other items. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.3.md)
+- **4.2.0** — Better habits: edit a habit's name, colour and goal (✎ button); current and best streak, 30-day rate, total check-ins and milestone badges on every habit; weekly goals (1 to 7 days a week, counted in weeks); a summary strip above the list. Classic and Enterprise. New `public/habits.js`. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.2.0.md)
 - **4.1.0** — Study Studio: upload a text PDF, TXT or Markdown file and ask NexAI to tutor you from it, with page references and an honest "not found in your material". Sections are stored in new `StudyDocument` and `StudyChunk` collections (the original file is not kept); upload and tutor routes under `/api/study`; new `lib/study.js` and `public/study.js`; new dependency `pdfjs-dist`. Deleting your workspace data also deletes your study data. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.0.md)
 - **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 

@@ -1630,6 +1630,59 @@ function addHabit() {
   saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel();
 }
 
+// Edit a habit's name and colour (4.2.0). The edit bar opens under the habit's row; Enter saves, Esc cancels.
+var editingHabitId = null;
+// Streaks and stats per habit come from habits.js; the old streak line is the fallback if it has not loaded.
+function habitStatsHtml(h, fallbackStreak) {
+  if (!window.NexHabits) return `<div class="habit-streak">${fallbackStreak > 0 ? `🔥 ${fallbackStreak} day streak` : 'No streak yet'}</div>`;
+  const L = NexHabits.labels(NexHabits.stats(h, today()));
+  return `<div class="habit-streak" title="${escHtml(L.title)}">${escHtml(L.streak)}</div><div class="habit-meta">${escHtml(L.meta)}${L.milestone ? ' · ' + escHtml(L.milestone) : ''}</div>`;
+}
+function habitEditBar(h) {
+  const colors = [...document.querySelectorAll('#new-habit-color option')].map(o => ({ value: o.value, label: o.textContent }));
+  const current = habitColor(h);
+  const options = colors.map(c => `<option value="${escHtml(c.value)}"${c.value.toLowerCase() === String(current).toLowerCase() ? ' selected' : ''}>${escHtml(c.label)}</option>`).join('');
+  return `<div class="habit-edit-bar">
+    <input type="text" id="habit-edit-name" class="input-inline" maxlength="80" value="${escHtml(h.name)}" aria-label="Habit name" onkeydown="habitEditKey(event,'${h.id}')">
+    <select id="habit-edit-color" class="select-inline" aria-label="Habit colour" onkeydown="habitEditKey(event,'${h.id}')">${options}</select>
+    ${habitGoalSelect(h)}
+    <button class="btn-primary" onclick="saveEditHabit('${h.id}')">Save</button>
+    <button class="btn-secondary" onclick="cancelEditHabit()">Cancel</button>
+  </div>`;
+}
+function habitGoalSelect(h) {
+  if (typeof NexHabits === 'undefined') return '';
+  const goal = NexHabits.goalOf(h);
+  return `<select id="habit-edit-goal" class="select-inline" aria-label="Habit goal" title="How often you want to do this habit" onkeydown="habitEditKey(event,'${h.id}')">${NexHabits.GOAL_OPTIONS.map(o => `<option value="${o.value}"${o.value === goal ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`;
+}
+function startEditHabit(id) {
+  if (!state.habits.some(h => h.id === id)) return;
+  editingHabitId = id;
+  renderHabits();
+  const input = document.getElementById('habit-edit-name');
+  if (input) { input.focus(); input.select(); }
+}
+function cancelEditHabit() { editingHabitId = null; renderHabits(); }
+function habitEditKey(e, id) {
+  if (e.key === 'Enter') { e.preventDefault(); saveEditHabit(id); }
+  else if (e.key === 'Escape') { e.preventDefault(); cancelEditHabit(); }
+}
+function saveEditHabit(id) {
+  const habit = state.habits.find(h => h.id === id);
+  const input = document.getElementById('habit-edit-name');
+  if (!habit || !input) { cancelEditHabit(); return; }
+  const name = input.value.trim().slice(0, 80);
+  if (!name) { input.focus(); notify('Give the habit a name.'); return; }
+  const color = document.getElementById('habit-edit-color')?.value;
+  habit.name = name;
+  if (/^#[0-9a-f]{6}$/i.test(color || '')) habit.color = color;
+  const goal = Math.round(Number(document.getElementById('habit-edit-goal')?.value));
+  if (goal >= 1 && goal <= 7) habit.goal = goal;
+  editingHabitId = null;
+  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
+  notify('Habit updated');
+}
+
 function renderHabits() {
   const header = document.getElementById('habits-week-header');
   const list = document.getElementById('habits-list');
@@ -1643,6 +1696,7 @@ function renderHabits() {
         ${d.label}<br><span style="font-size:13px;font-weight:600">${d.day}</span>
       </div>`).join('');
   }
+  if (window.NexHabits) NexHabits.renderSummary(state.habits, today(), header);
   if (!state.habits.length) {
     if (list) list.innerHTML = '<div class="empty-state-lg">Add your first habit above to start tracking!</div>';
     renderHeatmap(); return;
@@ -1654,10 +1708,11 @@ function renderHabits() {
       return `<div class="habit-row">
         <div class="habit-name-cell">
           <div class="habit-color-dot" style="background:${habitColor(h)}"></div>
-          <div>
+          <div style="min-width:0">
             <div class="habit-name">${escHtml(h.name)}</div>
-            <div class="habit-streak">${streak > 0 ? `🔥 ${streak} day streak` : 'No streak yet'}</div>
+            ${habitStatsHtml(h, streak)}
           </div>
+          <button class="habit-edit-btn" onclick="startEditHabit('${h.id}')" title="Edit habit" aria-label="Edit habit ${escHtml(h.name)}">✎</button>
         </div>
         ${days.map(d => `
           <div class="habit-day-cell">
@@ -1669,6 +1724,7 @@ function renderHabits() {
             </button>
           </div>`).join('')}
         <button class="habit-delete-btn" onclick="deleteHabit('${h.id}')" title="Delete">✕</button>
+        ${editingHabitId === h.id ? habitEditBar(h) : ''}
       </div>`;
     }).join('');
   }
@@ -1695,6 +1751,7 @@ function calcStreak(h) {
 function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
+  if (editingHabitId === id) editingHabitId = null;
   const [removed] = state.habits.splice(index, 1);
   const trashId = addToTrash('habit', removed);
   const planItems = state.dailyPlan?.items ? state.dailyPlan.items.filter(item => item.type === 'habit' && item.id === id) : [];

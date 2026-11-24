@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=4.1.3" defer></script>
+<script src="/push-client.js?v=4.2.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -986,6 +986,14 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
   border-radius: var(--radius-md); transition: border-color 0.16s ease;
 }
 .habit-row-card:hover { border-color: var(--border-medium); }
+.habit-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.habit-stat { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: var(--radius-md); background: var(--bg-surface); border: 1px solid var(--border-subtle); }
+.habit-stat b { font-size: 22px; line-height: 1.1; color: var(--text-main); }
+.habit-stat span { font-size: 11.5px; color: var(--text-muted); }
+.habit-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habit-edit-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.habit-edit-bar .inline-add-input { flex: 1 1 200px; min-width: 0; }
+.habit-edit-bar input[type="color"] { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
 .habit-info-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .habit-color-indicator { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 .habit-name-text { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1804,7 +1812,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=4.1.3">
+<link rel="manifest" href="/manifest.json?v=4.2.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -3788,11 +3796,67 @@ function startProceduralSoundscape(type) {
 }
 
 // ---------------- HABITS & HEATMAP ----------------
+// Edit a habit's name and colour (4.2.0). The edit bar opens under the habit's row; Enter saves, Esc cancels.
+var editingHabitId = null;
+// Streaks and stats per habit come from habits.js; the stored streak is the fallback if it has not loaded.
+function habitStatsHtml(h) {
+  if (!window.NexHabits) return `<div class="habit-streak-count">🔥 ${h.streak || 0} day streak</div>`;
+  const L = NexHabits.labels(NexHabits.stats(h, localDateKey()));
+  return `<div class="habit-streak-count" title="${escapeHtml(L.title)}">${escapeHtml(L.streak)}</div><div class="habit-meta">${escapeHtml(L.meta)}${L.milestone ? ' · ' + escapeHtml(L.milestone) : ''}</div>`;
+}
+function habitGoalSelect(h) {
+  if (typeof NexHabits === 'undefined') return '';
+  const goal = NexHabits.goalOf(h);
+  return `<select id="habit-edit-goal" class="inline-add-input" style="flex:0 0 auto" aria-label="Habit goal" title="How often you want to do this habit" onkeydown="habitEditKey(event,'${h.id}')">${NexHabits.GOAL_OPTIONS.map(o => `<option value="${o.value}"${o.value === goal ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`;
+}
+function habitHexColor(h) { return /^#[0-9a-f]{6}$/i.test(String(h.color || '')) ? h.color : '#4285F4'; }
+function habitEditBar(h) {
+  const color = habitHexColor(h);
+  return `<div class="habit-edit-bar">
+    <input type="text" id="habit-edit-name" class="inline-add-input" maxlength="80" value="${escapeHtml(h.name)}" aria-label="Habit name" onkeydown="habitEditKey(event,'${h.id}')">
+    <input type="color" id="habit-edit-color" value="${color}" data-initial="${escapeHtml(String(h.color || ''))}" aria-label="Habit colour" onkeydown="habitEditKey(event,'${h.id}')">
+    ${habitGoalSelect(h)}
+    <button class="btn-primary" onclick="saveEditHabit('${h.id}')">Save</button>
+    <button class="btn-secondary" onclick="cancelEditHabit()">Cancel</button>
+  </div>`;
+}
+function startEditHabit(id) {
+  if (!state.habits.some(h => h.id === id)) return;
+  editingHabitId = id;
+  renderHabits();
+  const input = document.getElementById('habit-edit-name');
+  if (input) { input.focus(); input.select(); }
+}
+function cancelEditHabit() { editingHabitId = null; renderHabits(); }
+function habitEditKey(e, id) {
+  if (e.key === 'Enter') { e.preventDefault(); saveEditHabit(id); }
+  else if (e.key === 'Escape') { e.preventDefault(); cancelEditHabit(); }
+}
+function saveEditHabit(id) {
+  const habit = state.habits.find(h => h.id === id);
+  const input = document.getElementById('habit-edit-name');
+  if (!habit || !input) { cancelEditHabit(); return; }
+  const name = input.value.trim().slice(0, 80);
+  if (!name) { input.focus(); showToast('Give the habit a name.'); return; }
+  const colorEl = document.getElementById('habit-edit-color');
+  habit.name = name;
+  // keep a theme colour (var(--accent-primary)) unless the user actually picked a new one
+  if (colorEl && colorEl.value.toLowerCase() !== habitHexColor({ color: colorEl.dataset.initial }).toLowerCase()) habit.color = colorEl.value;
+  const goal = Math.round(Number(document.getElementById('habit-edit-goal')?.value));
+  if (goal >= 1 && goal <= 7) habit.goal = goal;
+  editingHabitId = null;
+  saveWorkspaceState();
+  renderHabits();
+  renderDashboard();
+  showToast('Habit updated');
+}
+
 function renderHabits() {
   const container = document.getElementById('habits-list-container');
   if (!container) return;
 
   const dates = getPast7Dates();
+  if (window.NexHabits) NexHabits.renderSummary(state.habits, localDateKey(), container);
 
   if (!state.habits.length) {
     container.innerHTML = '<div style="color:var(--text-muted);padding:24px;text-align:center">No habits added. Click Track New Habit to build consistency!</div>';
@@ -3804,8 +3868,9 @@ function renderHabits() {
             <span class="habit-color-indicator" style="background:${h.color || 'var(--accent-primary)'}"></span>
             <div style="min-width:0">
               <div class="habit-name-text">${escapeHtml(h.name)}</div>
-              <div class="habit-streak-count">🔥 ${h.streak || 0} day streak</div>
+              ${habitStatsHtml(h)}
             </div>
+            <button class="task-action-icon-btn" onclick="startEditHabit('${h.id}')" title="Edit habit" aria-label="Edit habit ${escapeHtml(h.name)}">✎</button>
           </div>
           ${dates.map(d => {
             const checked = h.checks && h.checks[d];
@@ -3816,6 +3881,7 @@ function renderHabits() {
             `;
           }).join('')}
           <button class="task-action-icon-btn" onclick="deleteHabit('${h.id}')" title="Delete habit" aria-label="Delete habit ${escapeHtml(h.name)}">✕</button>
+          ${editingHabitId === h.id ? habitEditBar(h) : ''}
         </div>
       `;
     }).join('');
@@ -3881,6 +3947,7 @@ function untrash(id) {
 function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
+  if (editingHabitId === id) editingHabitId = null;
   const habit = state.habits[index];
   const days = Object.values(habit.checks || {}).filter(Boolean).length;
   const detail = days ? ` Its ${days} check-in${days === 1 ? '' : 's'} will be removed too.` : '';
@@ -6032,9 +6099,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=4.1.3" defer></script>
-<script src="chat-tasks.js?v=4.1.3" defer></script>
-<script src="derail.js?v=4.1.3" defer></script>
-<script src="study.js?v=4.1.3" defer></script>
+<script src="attach.js?v=4.2.0" defer></script>
+<script src="chat-tasks.js?v=4.2.0" defer></script>
+<script src="habits.js?v=4.2.0" defer></script>
+<script src="derail.js?v=4.2.0" defer></script>
+<script src="study.js?v=4.2.0" defer></script>
 </body>
 </html>
