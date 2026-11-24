@@ -14,6 +14,11 @@ const side = ent.slice(ent.indexOf('aria-label="Workspace views"'), ent.indexOf(
 const items = [...side.matchAll(/<button class="nav-btn[^>]*?(?:data-view="(\w+)"|id="(nav-study)")[\s\S]*?data-key="(\d)">Alt\+\d/g)].map((m) => [m[1] || 'study', m[3]]);
 assert.deepStrictEqual(items, [['dashboard', '1'], ['kanban', '2'], ['focus', '3'], ['habits', '4'], ['notes', '5'], ['analytics', '6'], ['calendar', '7'], ['study', '8'], ['ai', '9']], 'sidebar order and Alt labels agree');
 
+// every sidebar icon is a plain symbol like the others (emoji would render in colour)
+const icons = [...side.matchAll(/<span class="nav-icon">([^<]*)<\/span>/g)].map((m) => m[1]);
+assert.strictEqual(icons.length, 9);
+assert.ok(icons.every((c) => !/\p{Extended_Pictographic}/u.test(c) || /^[\u2726\u2756]$/.test(c)), 'sidebar icons are not colour emoji');
+
 // keyboard map matches the labels, and Alt+8 opens the dialog instead of a view
 const map = /const VIEW_KEYS = \{([^}]*)\}/.exec(ent)[1];
 const keys = Object.fromEntries([...map.matchAll(/Digit(\d): '(\w+)'/g)].map((m) => [m[1], m[2]]));

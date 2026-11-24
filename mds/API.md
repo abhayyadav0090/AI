@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.1.2" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.1.3" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 
@@ -284,6 +284,9 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 
 ## Changes in 4.1.2
 - No API changes. Study Studio got a Classic sidebar entry and Enterprise sidebar/shortcut order changed (browser only).
+
+## Changes in 4.1.3
+- No API changes. Only two Enterprise sidebar icons changed (browser only).
 
 ## Corrections in this revision
 - `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.

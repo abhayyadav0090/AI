@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 4.1.2. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 4.1.3. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
