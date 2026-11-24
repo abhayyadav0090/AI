@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 4.1.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
+**Current source release: 4.1.1.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -475,6 +475,7 @@ One line per release. The linked notes have the details.
 
 ### NexOS 4.x
 
+- **4.1.1** — Day derailed and Study Studio dialogs redesigned: they now follow the Classic design (Soft and Glass, light and dark) and the Enterprise theme instead of a fixed dark style; Classic chips get icons; Day derailed shows live selection counts and priority labels; Study Studio gets Tutor and Library tabs, drag-and-drop upload, starter prompts and source chips. No server or API changes. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.1.md)
 - **4.1.0** — Study Studio: upload a text PDF, TXT or Markdown file and ask NexAI to tutor you from it, with page references and an honest "not found in your material". Sections are stored in new `StudyDocument` and `StudyChunk` collections (the original file is not kept); upload and tutor routes under `/api/study`; new `lib/study.js` and `public/study.js`; new dependency `pdfjs-dist`. Deleting your workspace data also deletes your study data. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.0.md)
 - **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 

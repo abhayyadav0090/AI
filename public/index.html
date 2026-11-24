@@ -13,9 +13,9 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=4.1.0">
-<link rel="stylesheet" href="design.css?v=4.1.0">
-<link rel="manifest" href="manifest.json?v=4.1.0">
+<link rel="stylesheet" href="style.css?v=4.1.1">
+<link rel="stylesheet" href="design.css?v=4.1.1">
+<link rel="manifest" href="manifest.json?v=4.1.1">
 <meta name="theme-color" content="#131314">
 <script>
   /* Apply the saved design and theme before first paint so there is no flash. */
@@ -66,6 +66,7 @@
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
   <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 12.5V5a1 1 0 0 1 1-1h7.5l7.5 7.5-8.5 8.5z"/><path d="M8.5 8.5h.01"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5zM12 6.5v13"/></symbol>
   <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4M4 4v4h4M4 13a8 8 0 0 0 14 4M20 20v-4h-4"/></symbol>
   <symbol id="i-waffle" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.7"/><circle cx="12" cy="5" r="1.7"/><circle cx="19" cy="5" r="1.7"/><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/><circle cx="5" cy="19" r="1.7"/><circle cx="12" cy="19" r="1.7"/><circle cx="19" cy="19" r="1.7"/></g></symbol>
 </svg>
@@ -173,8 +174,8 @@
           <div class="chip-row">
             <button class="chip" type="button" onclick="openPlanModal()"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Plan my day</button>
             <button type="button" class="chip nexos-action-entry" id="nexos-action-mode-btn" title="Ask NexAI to propose changes for your review" aria-label="Open NexAI Action Mode" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Action Mode</button>
-            <button type="button" class="chip nexos-action-entry" id="nexos-derail-btn" title="Lost time today? NexAI proposes what to drop or move" aria-label="Day derailed" aria-haspopup="dialog">Day derailed</button>
-            <button type="button" class="chip nexos-action-entry" id="nexos-study-btn" title="Upload your notes and let NexAI tutor you from them" aria-label="Study Studio" aria-haspopup="dialog">Study Studio</button>
+            <button type="button" class="chip nexos-action-entry" id="nexos-derail-btn" title="Lost time today? NexAI proposes what to drop or move" aria-label="Day derailed" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-sync"/></svg>Day derailed</button>
+            <button type="button" class="chip nexos-action-entry" id="nexos-study-btn" title="Upload your notes and let NexAI tutor you from them" aria-label="Study Studio" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-book"/></svg>Study Studio</button>
             <button class="chip" type="button" onclick="sendSuggestedPrompt('Analyze my productivity this week and give me 3 actionable tips')"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Analyze my week</button>
             <button class="chip" type="button" onclick="sendSuggestedPrompt('Help me prioritize my current tasks using the Eisenhower matrix')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg>Prioritize tasks</button>
           </div>
@@ -880,12 +881,12 @@
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="push-client.js?v=4.1.0" defer></script>
-<script src="attach.js?v=4.1.0" defer></script>
-<script src="chat-tasks.js?v=4.1.0" defer></script>
-<script src="derail.js?v=4.1.0" defer></script>
-<script src="study.js?v=4.1.0" defer></script>
-<script src="app.js?v=4.1.0" defer></script>
-<script src="ui.js?v=4.1.0" defer></script>
+<script src="push-client.js?v=4.1.1" defer></script>
+<script src="attach.js?v=4.1.1" defer></script>
+<script src="chat-tasks.js?v=4.1.1" defer></script>
+<script src="derail.js?v=4.1.1" defer></script>
+<script src="study.js?v=4.1.1" defer></script>
+<script src="app.js?v=4.1.1" defer></script>
+<script src="ui.js?v=4.1.1" defer></script>
 </body>
 </html>

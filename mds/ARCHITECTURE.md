@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 4.1.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 4.1.1. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
@@ -134,7 +134,7 @@ The current CSP allows inline scripts and inline event handlers (`'unsafe-inline
 - **3.0.1:** account-scoped cache-first startup and lighter mobile effects.
 - **3.1.1:** cache-first app shell, deferred Classic scripts and correct semantic-version cache headers.
 - **3.3.3 and 3.3.4:** the phone NexAI page is sized from the real space between the top bar and the bottom nav, so the page itself does not scroll.
-- **4.1.0:** Study Studio adds `study.js`, which the service worker precaches (cache `nexos-shell-v30`). Uploads are read in one request without a queue, and the search is a text-index query filtered by user, so asking costs one database search plus one Gemini call.
+- **4.1.0:** Study Studio adds `study.js`, which the service worker precaches (cache `nexos-shell-v31`). Uploads are read in one request without a queue, and the search is a text-index query filtered by user, so asking costs one database search plus one Gemini call.
 - **3.4.x to 4.0.0:** streaming chat replies, retry then fallback model, look-back through the whole chat on request, Enterprise theme cards, chat buttons that add tasks, habits and notes, and `derail.js` (see the release notes). The service worker now precaches `derail.js`.
 
 No load tests or benchmarks have been run, so NexOS makes no throughput claims. Measure in the deployed browser with DevTools Performance and Network panels.
