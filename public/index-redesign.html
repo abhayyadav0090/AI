@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=4.1.1" defer></script>
+<script src="/push-client.js?v=4.1.2" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=4.1.1">
+<link rel="manifest" href="/manifest.json?v=4.1.2">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1839,11 +1839,6 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <span>Kanban Board</span>
           <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
         </button>
-        <button class="nav-btn" data-view="calendar" onclick="switchNexusView('calendar')">
-          <span class="nav-icon">📅</span>
-          <span>Timeblocking</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
-        </button>
         <button class="nav-btn" data-view="focus" onclick="switchNexusView('focus')">
           <span class="nav-icon">◎</span>
           <span>Deep Focus</span>
@@ -1864,10 +1859,20 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <span>Analytics</span>
           <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
         </button>
+        <button class="nav-btn" data-view="calendar" onclick="switchNexusView('calendar')">
+          <span class="nav-icon">📅</span>
+          <span>Timeblocking</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
+        </button>
+        <button class="nav-btn" id="nav-study" onclick="closeSidebarDrawer();openStudyStudio()">
+          <span class="nav-icon">📚</span>
+          <span>Study Studio</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
+        </button>
         <button class="nav-btn" data-view="ai" onclick="switchNexusView('ai')">
           <span class="nav-icon">✦</span>
           <span>NexAI</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
+          <span class="nav-kbd" aria-hidden="true" data-key="9">Alt+9</span>
         </button>
       </nav>
     </div>
@@ -4608,9 +4613,9 @@ function executeCommandItem(idx) {
 }
 
 // Global keyboard shortcuts
-const VIEW_KEYS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'focus', Digit4: 'habits', Digit5: 'notes', Digit6: 'analytics', Digit7: 'ai', Digit8: 'calendar' };
+const VIEW_KEYS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'focus', Digit4: 'habits', Digit5: 'notes', Digit6: 'analytics', Digit7: 'calendar', Digit8: 'study', Digit9: 'ai' }; // same order as the sidebar; 'study' opens the Study Studio dialog
 document.addEventListener('keydown', e => {
-  if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_KEYS[e.code]) { e.preventDefault(); switchNexusView(VIEW_KEYS[e.code]); return; }
+  if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_KEYS[e.code]) { e.preventDefault(); if (VIEW_KEYS[e.code] === 'study') openStudyStudio(); else switchNexusView(VIEW_KEYS[e.code]); return; }
   if (e.metaKey || e.ctrlKey) {
     if (e.key === 'k' || e.key === 'K') { e.preventDefault(); openCommandPalette(); }
     if (e.key === '\\') { e.preventDefault(); toggleFloatingCopilotDrawer(); }
@@ -6027,9 +6032,9 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=4.1.1" defer></script>
-<script src="chat-tasks.js?v=4.1.1" defer></script>
-<script src="derail.js?v=4.1.1" defer></script>
-<script src="study.js?v=4.1.1" defer></script>
+<script src="attach.js?v=4.1.2" defer></script>
+<script src="chat-tasks.js?v=4.1.2" defer></script>
+<script src="derail.js?v=4.1.2" defer></script>
+<script src="study.js?v=4.1.2" defer></script>
 </body>
 </html>
