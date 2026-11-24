@@ -9,6 +9,7 @@ const cors       = require('cors');
 const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
 const { AttachmentError, parseAttachments, ATTACHMENT_SYSTEM_NOTE } = require('./lib/attachments');
+const study = require('./lib/study');
 const compression = require('compression');
 const morgan     = require('morgan');
 const path       = require('path');
@@ -45,7 +46,8 @@ app.use(compression());
 app.use(morgan('dev'));
 const jsonSmall = express.json({ limit: '2mb' });
 // POST /api/chat can carry file attachments, so it uses a larger parser that only runs after login and rate limits (see the route).
-app.use((req, res, next) => (req.path === '/api/chat' && req.method === 'POST' ? next() : jsonSmall(req, res, next)));
+// POST /api/study/docs (4.1.0) works the same way: its own larger parser runs inside the study router, after login and its rate limit.
+app.use((req, res, next) => ((req.path === '/api/chat' || req.path === '/api/study/docs') && req.method === 'POST' ? next() : jsonSmall(req, res, next)));
 app.use(cookieParser());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
@@ -95,6 +97,16 @@ const aiDailyLimiter = rateLimit({
   message: { error: "You've reached today's AI limit. Please try again tomorrow.", code: 'DAILY_LIMIT' },
 });
 
+// 4.1.0: Study Studio uploads get their own limit, separate from chat. Asking the tutor uses aiLimiter and aiDailyLimiter.
+const studyUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 12,
+  keyGenerator: userKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'You are uploading too many files. Please try again in a while.', code: 'RATE_LIMIT' },
+});
+
 app.use('/api', globalLimiter);
 // Optional exact-path legacy redirects are configured externally as JSON, so this server
 // contains no application-specific redirect or cross-app business logic.
@@ -137,7 +149,7 @@ function connectDB() {
   return dbPromise;
 }
 
-const DB_ROUTES = ['/auth', '/me', '/bootstrap', '/state', '/push', '/chat', '/chats', '/complete'];
+const DB_ROUTES = ['/auth', '/me', '/bootstrap', '/state', '/push', '/chat', '/chats', '/complete', '/study'];
 app.use('/api', async (req, res, next) => {
   const p = req.path;
   if (p === '/auth/logout' || p === '/push/config') return next();
@@ -207,6 +219,8 @@ const chatSchema = new mongoose.Schema({
 }, { timestamps: true });
 chatSchema.index({ userId: 1, updatedAt: -1 });
 const Chat = mongoose.model('Chat', chatSchema);
+// 4.1.0: Study Studio keeps extracted text chunks in their own collections, never inside the 2 MB workspace document.
+const { StudyDocument, StudyChunk } = study.defineModels(mongoose);
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
@@ -342,6 +356,8 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
     return res.status(400).json({ error: 'Confirmation required.' });
   }
   await Chat.deleteMany({ userId: req.userId });
+  await StudyChunk.deleteMany({ userId: req.userId });
+  await StudyDocument.deleteMany({ userId: req.userId });
   await UserState.deleteMany({ userId: req.userId });
   await PushSubscription.deleteMany({ userId: req.userId, app: 'nexos' });
   await PushPreference.deleteOne({ userId: req.userId });
@@ -1144,6 +1160,12 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
     sendAIError(err, res);
   }
 });
+
+// 4.1.0: Study Studio (library and document-grounded tutor), see lib/study.js.
+app.use('/api/study', study.createStudyRouter({
+  StudyDocument, StudyChunk, requireAuth, uploadLimiter: studyUploadLimiter, aiLimiter, aiDailyLimiter,
+  askGemini, toGeminiContents, sendAIError, isValidId: (id) => mongoose.isValidObjectId(id) && String(id).length === 24,
+}));
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });

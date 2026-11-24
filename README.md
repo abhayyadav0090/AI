@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 4.0.0.** NexOS 4 adds **Day derailed** (replan a day that went off track) and lets guests try Action Mode with a scripted sample, on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
+**Current source release: 4.1.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -118,6 +118,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - **Action Mode:** describe a goal, review proposed actions (such as creating tasks, updating tasks or creating notes), and apply only the actions you approve.
 - **Day derailed (4.0.0):** a button in Classic and Enterprise for the moment a plan falls apart. Choose how much time you lost (1, 2 or 3 hours, or the rest of the day); NexAI looks at your open tasks due today or earlier and proposes which to move to tomorrow, instead of squeezing the old plan into fewer hours. You tick what to apply and approve. Only due dates change; nothing is deleted.
 - **Guest sample (4.0.0):** guests cannot use NexAI, but Action Mode and Day derailed now open a scripted sample with demo tasks and the same approve/untick interface. It makes no AI call, saves nothing and ends with a Sign in button.
+- **Study Studio (4.1.0):** upload a text PDF, TXT or Markdown file (up to 4 MB), then ask NexAI to explain, quiz you or solve a problem from it. The server reads the file, keeps only its text in small sections with page numbers (the original file is not stored), and finds the best sections for each question with a MongoDB text index. NexAI answers only from those sections, shows which document and page it used, and says so when the answer is not in your material. Each user can keep up to 20 documents and 1,500 sections; you can delete any document and its sections at any time. Guests see a scripted sample.
 - **Voice input (3.2.0):** dictate messages, Action Mode instructions and supported task fields in Classic and Enterprise. Where available, the microphone language can be switched between English (India) and Hindi. Dictation fills the input; it does not automatically submit the message or approve an action.
 - **File analysis (3.3.0):** attach up to 3 supported files, with a combined limit of 6 MB, to a main NexAI chat in Classic or Enterprise. Supported types include PDF, PNG, JPG, WEBP and supported text/code files such as TXT, MD, CSV, PY, JS and JAVA. NexAI can describe images, summarise documents and help solve assignments step by step.
 - On mobile, the attachment picker can offer camera and gallery options where the browser supports them.
@@ -153,6 +154,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 | Database | MongoDB Atlas with Mongoose |
 | Authentication | Google Sign-In, with JWT in an httpOnly cookie |
 | AI | Google Gemini API, called from the server |
+| Study files | pdf.js (`pdfjs-dist`) reads text PDFs on the server; sections are searched with a MongoDB text index |
 | Security | Helmet (CSP), CORS allow-list and express-rate-limit |
 | Hosting | Render |
 
@@ -163,9 +165,9 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 ```text
 Browser (HTML, CSS, JavaScript)
    |
-   |  /api/auth, /api/bootstrap, /api/state, /api/chat, /api/chats, /api/complete
+   |  /api/auth, /api/bootstrap, /api/state, /api/chat, /api/chats, /api/complete, /api/study
    v
-Express server  --->  MongoDB Atlas (users, saved state, chats)
+Express server  --->  MongoDB Atlas (users, saved state, chats, study documents and sections)
    |
    +--> Google Gemini API (the API key stays on the server)
 ```
@@ -176,6 +178,7 @@ Express server  --->  MongoDB Atlas (users, saved state, chats)
 - **AI reliability:** the server can retry temporary Gemini failures and switch to a configured fallback model. NexOS shows a clear message when the available quota is exhausted.
 - **Limits:** AI requests are rate-limited per signed-in user, at 30 per minute and 500 per day (set in `server.js`).
 - **File handling:** supported attachments are checked by the server, subject to the chat upload limits, and are not retained as permanent user files.
+- **Study Studio (4.1.0):** a study upload is read inside the request (no background queue), so a restart cannot leave a half-processed document. Only extracted text sections are stored, in their own collections and never inside the workspace document. Every study query is filtered by the user id from the login cookie.
 - **Safe rendering:** user and AI text is escaped before it is placed in the page.
 
 For detailed technical information, see [ARCHITECTURE.md](mds/ARCHITECTURE.md).
@@ -267,6 +270,7 @@ Setup notes:
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
 │   ├── derail.js               # Day derailed dialog and guest sample (shared by Classic and Enterprise)
+│   ├── study.js                # Study Studio dialog: upload, library and tutor (shared by Classic and Enterprise)
 │   ├── push-client.js          # Browser side of push reminders
 │   ├── sw.js                   # Service worker (app-shell cache)
 │   ├── recover.html            # Recovery Center (Recently deleted)
@@ -276,7 +280,8 @@ Setup notes:
 │   ├── nexos-icon-192.png
 │   └── nexos-icon-512.png
 ├── lib/
-│   └── attachments.js          # Server-side file validation for NexAI chat
+│   ├── attachments.js          # Server-side file validation for NexAI chat
+│   └── study.js                # Study Studio: PDF/TXT/MD reading, chunking, text-search tutor, models and routes
 ├── scripts/                    # generate-vapid-keys.js and the regression tests run by npm test
 ├── mds/
 │   ├── API.md                  # API reference
@@ -325,6 +330,9 @@ All routes start with `/api`. Authentication is required for workspace and chat 
 | GET | `/api/chats`, `/api/chats/:id` | List and open saved chats |
 | DELETE | `/api/chats/:id` | Delete a chat |
 | POST | `/api/complete` | One-off AI prompt (insights, summaries) |
+| GET, POST | `/api/study/docs` | List your study documents, or upload one (`{ name, data }`, base64) |
+| DELETE | `/api/study/docs/:id` | Delete a study document and its sections |
+| POST | `/api/study/ask` | Ask the tutor a question about your material; returns the answer and page references, or "not found" |
 | GET | `/api/push/config` | Public key the browser needs to subscribe to push reminders |
 | GET, PUT | `/api/push/preferences` | Load and save reminder preferences (on/off, time, time zone) |
 | POST, DELETE | `/api/push/subscribe` | Subscribe or unsubscribe this browser from push reminders |
@@ -357,7 +365,7 @@ All routes start with `/api`. Authentication is required for workspace and chat 
 
 ## Privacy
 
-NexOS does not use advertising or tracking scripts. In guest mode, workspace data stays in the browser and NexAI is disabled (the 4.0.0 guest sample is scripted and makes no AI request). When signed in with Google, NexOS stores account and workspace information in MongoDB Atlas. AI requests are sent to the Google Gemini API. Uploaded files are processed for the relevant NexAI request and are not kept as permanent workspace files. See [Privacy](https://ai-aqit.onrender.com/privacy.html) for the full details.
+NexOS does not use advertising or tracking scripts. In guest mode, workspace data stays in the browser and NexAI is disabled (the 4.0.0 guest sample is scripted and makes no AI request). When signed in with Google, NexOS stores account and workspace information in MongoDB Atlas. AI requests are sent to the Google Gemini API. Files attached to a NexAI chat message are processed for that request and are not kept as permanent workspace files. Study Studio keeps the extracted text of the documents you upload (not the original files) until you delete them or delete your workspace data; questions about them are sent to the Google Gemini API together with the matching text. See [Privacy](https://ai-aqit.onrender.com/privacy.html) for the full details.
 
 ---
 
@@ -374,6 +382,7 @@ NexOS and NexAI were created by Abhay Yadav. For the official portfolio, GitHub,
 - File uploads are limited to 3 files and 6 MB combined per message. Supported files include PDF, PNG, JPG, WEBP and supported text/code formats. **DOCX is not currently supported; export Word documents to PDF first.**
 - File attachments are available in the main NexAI chat. The Enterprise side-panel chat does not provide the same attachment control unless separately added.
 - Files are not retained as permanent chat attachments. To ask follow-up questions about a file later, attach it again.
+- Study Studio reads text PDFs, TXT and Markdown only. Scanned PDFs (pictures of pages), DOCX and PPTX are not supported yet, and the original files are not stored. A file can be up to 4 MB (and 300 PDF pages); each user can keep 20 documents and 1,500 sections. Search matches words from your question, so a question phrased with different words than your notes may report "not found"; try the words your material uses.
 - Guest mode has no NexAI; the Action Mode and Day derailed samples shown to guests are scripted demonstrations.
 - Day derailed moves open tasks to tomorrow only. It does not estimate task durations, so how much it moves depends on NexAI's judgment of what you tell it you lost; always review the proposals.
 - Automated script checks do not replace real browser, microphone, camera, mobile-layout or end-to-end Gemini testing.
@@ -386,7 +395,7 @@ NexOS and NexAI were created by Abhay Yadav. For the official portfolio, GitHub,
 
 **Legacy URL redirects.** The server supports generic exact-path redirects configured through `LEGACY_REDIRECTS_JSON`. Configure redirects in Render environment variables when a legacy path needs to point elsewhere.
 
-The delete-workspace action removes NexOS chats, workspace state and NexOS push subscriptions. It intentionally retains the shared Google identity record so independently deployed apps using the same identity collection do not lose access to their own records.
+The delete-workspace action removes NexOS chats, study documents and sections, workspace state and NexOS push subscriptions. It intentionally retains the shared Google identity record so independently deployed apps using the same identity collection do not lose access to their own records.
 
 ---
 
@@ -466,6 +475,7 @@ One line per release. The linked notes have the details.
 
 ### NexOS 4.x
 
+- **4.1.0** — Study Studio: upload a text PDF, TXT or Markdown file and ask NexAI to tutor you from it, with page references and an honest "not found in your material". Sections are stored in new `StudyDocument` and `StudyChunk` collections (the original file is not kept); upload and tutor routes under `/api/study`; new `lib/study.js` and `public/study.js`; new dependency `pdfjs-dist`. Deleting your workspace data also deletes your study data. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.0.md)
 - **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 
 ---

@@ -9,7 +9,7 @@ All responses use `Content-Type: application/json`.
 - **Requires login:** routes marked this way read the `token` cookie (set by `POST /api/auth/google`). Without a valid cookie they answer `401`.
 - **Errors** look like `{ "error": "<message safe to show the user>", "code": "..." }`. Some simple validation errors have no `code`.
 - **Origin check:** a request whose `Origin` is neither the app's own host nor listed in `ALLOWED_ORIGINS` gets `403` with `code: "ORIGIN_NOT_ALLOWED"`. Unknown `/api/*` paths get `404` with `code: "NOT_FOUND"`.
-- **Body size:** 2 MB for every route except `POST /api/chat`, which accepts up to 9 MB (only after login and rate limits) because it can carry attachments.
+- **Body size:** 2 MB for every route except `POST /api/chat`, which accepts up to 9 MB, and `POST /api/study/docs`, which accepts up to 6 MB (both only after login and rate limits) because they carry files.
 - **Rate limits:** 600 requests per 15 minutes per IP on `/api`; `POST /api/chat` and `POST /api/complete` also share per-user limits of 30 per minute and 500 per day. Counters are kept in server memory.
 
 ---
@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.0.0" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.1.0" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 
@@ -134,7 +134,7 @@ Changes the signed-in user's display name. Body: `{ "name": "..." }` (1 to 60 ch
 
 ## `DELETE /api/me`
 
-Deletes the signed-in user's NexOS data: workspace data, NexAI chats and push settings. The shared Google identity record is kept (other independently deployed apps may use it), but every device is signed out so none can write the deleted data back. Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
+Deletes the signed-in user's NexOS data: workspace data, NexAI chats, study documents and sections, and push settings. The shared Google identity record is kept (other independently deployed apps may use it), but every device is signed out so none can write the deleted data back. Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
 
 ## Push reminders
 
@@ -177,6 +177,68 @@ Single-shot prompt completion. Simpler than `/api/chat`.
 
 ---
 
+## Study Studio
+
+Upload notes, then ask NexAI to tutor you from them. All routes require login and every query is filtered by the user id from the cookie, never by anything in the request body. Only the extracted text sections are stored (the original file is not kept). Study routes use the normal `{ "error", "code" }` error shape.
+
+### `GET /api/study/docs`
+
+Lists the user's documents, newest first.
+
+**Response 200:**
+```json
+{
+  "docs": [
+    { "id": "665f...", "title": "Biology ch 2", "subject": "Biology", "fileName": "ch2.pdf", "kind": "pdf",
+      "size": 482113, "pages": 12, "chunkCount": 31, "truncated": false, "createdAt": "2026-11-24T10:30:00.000Z" }
+  ],
+  "usage": { "docs": 1, "chunks": 31, "maxDocs": 20, "maxChunks": 1500, "maxFileMB": 4 }
+}
+```
+
+### `POST /api/study/docs`
+
+Uploads one document and reads it inside the request (no background queue). **Limits:** 6 MB JSON body, the file itself up to 4 MB, PDFs up to 300 pages, 12 uploads per hour per user, one file read at a time on the server. The body parser runs only after login and the upload limit.
+
+**Request body:**
+```json
+{ "name": "ch2.pdf", "data": "<base64 of the file>", "title": "Biology ch 2", "subject": "Biology" }
+```
+`title` and `subject` are optional (the title defaults to the file name). The type is decided from the real bytes: a text PDF (starts with `%PDF-`), or a `.txt`, `.md` or `.markdown` file in UTF-8.
+
+**Response 201:** `{ "doc": { ...same fields as in the list } }`
+
+**Errors:** `400 BAD_DOCUMENT` (missing, empty or unreadable data), `413 BAD_DOCUMENT` (file too large, or a PDF over 300 pages), `415 BAD_DOCUMENT` (unsupported type), `422 BAD_DOCUMENT` (password-protected or damaged PDF, no readable text such as a scanned PDF, or reading took too long), `409 DOC_DUPLICATE` (the same file was uploaded before), `403 STUDY_QUOTA` (20 documents or 1,500 sections reached), `503 STUDY_BUSY` (another file is being read; try again), `429 RATE_LIMIT`.
+
+### `DELETE /api/study/docs/:id`
+
+Deletes the sections first, then the document. Returns `{ "ok": true }`, or `404 NOT_FOUND` when the id is not one of the user's documents.
+
+### `POST /api/study/ask`
+
+Asks the tutor a question about the user's material. **Limits:** shares the per-user AI limits (30 per minute, 500 per day) with `/api/chat`.
+
+**Request body:**
+```json
+{ "question": "How do plants make food?", "docId": "665f...", "history": [ { "role": "user", "content": "..." }, { "role": "assistant", "content": "..." } ] }
+```
+`docId` is optional and limits the search to one document (`404 NOT_FOUND` if it is not the user's). `history` is optional: up to the last 6 turns are used for follow-up questions. The question is 2 to 600 characters.
+
+The server finds the best matching sections with a MongoDB text index (words from the question; no embeddings) and sends up to 6 of them to Gemini with an instruction to answer only from them. When nothing matches, no Gemini call is made.
+
+**Response 200 (found):**
+```json
+{ "found": true, "answer": "Plants make food by photosynthesis ... [1]",
+  "sources": [ { "n": 1, "title": "Biology ch 2", "page": 4, "heading": "", "section": 7, "snippet": "Photosynthesis takes place in the chloroplasts..." } ] }
+```
+`sources` lists the sections the answer cites (all retrieved sections if it cites none). `page` is `null` for TXT and Markdown files.
+
+**Response 200 (not found):** `{ "found": false, "answer": "I couldn't find that in your study material. ...", "sources": [] }`. This is also returned when the model reports that the sections do not contain the answer.
+
+**Errors:** `400 BAD_REQUEST`, `404 NOT_FOUND`, and the usual AI errors (`503 AI_BUSY`, `502 AI_ERROR`, `429 RATE_LIMIT`, `429 DAILY_LIMIT`).
+
+---
+
 ## Frontend ↔ Backend Integration
 
 When running with the backend, `app.js` calls `/api/chat` and `/api/complete` instead of hitting Gemini directly. The API key is never exposed to the browser.
@@ -213,6 +275,9 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 
 ## Changes in 4.0.0
 - No API changes. Day derailed and the guest sample run in the browser: Day derailed sends one `POST /api/complete` request (signed-in users only) and applies approved changes to task due dates through the normal workspace save. The guest sample makes no request.
+
+## Changes in 4.1.0
+- New Study Studio routes: `GET` and `POST /api/study/docs`, `DELETE /api/study/docs/:id` and `POST /api/study/ask` (see above). `POST /api/study/docs` has its own 6 MB body limit and its own rate limit. `DELETE /api/me` now also deletes the user's study documents and sections.
 
 ## Corrections in this revision
 - `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.

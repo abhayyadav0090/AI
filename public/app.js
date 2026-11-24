@@ -3531,6 +3531,11 @@ function initNexAIActionMode() {
     derailButton.addEventListener('click', openDayDerailed);
     derailButton.dataset.derailBound = '1';
   }
+  const studyButton = document.getElementById('nexos-study-btn');
+  if (studyButton && studyButton.dataset.studyBound !== '1') {
+    studyButton.addEventListener('click', openStudyStudio);
+    studyButton.dataset.studyBound = '1';
+  }
 
   if (!document.getElementById('nexos-action-mode-styles')) {
     const style = document.createElement('style');
@@ -3619,6 +3624,12 @@ function derailAdapter() {
 function openDayDerailed() {
   if (!window.NexDerail) { notify('Day derailed is still loading. Try again in a moment.'); return; }
   NexDerail.open(derailAdapter());
+}
+
+// ───────── Study Studio (4.1.0, see study.js) ─────────
+function openStudyStudio() {
+  if (!window.NexStudy) { notify('Study Studio is still loading. Try again in a moment.'); return; }
+  NexStudy.open({ isGuest: () => isGuest(), signIn: () => logout(), toast: (m) => notify(m) });
 }
 
 function openNexAIActionMode() {

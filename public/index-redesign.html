@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=4.0.0" defer></script>
+<script src="/push-client.js?v=4.1.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=4.0.0">
+<link rel="manifest" href="/manifest.json?v=4.1.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1986,6 +1986,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <div class="view-actions-cluster">
             <button class="btn-secondary" onclick="openActionPlanModal()">⚡ Action Mode</button>
             <button class="btn-secondary" onclick="openDayDerailed()">🌧 Day derailed</button>
+            <button class="btn-secondary" onclick="openStudyStudio()">📚 Study Studio</button>
             <button class="btn-primary" onclick="toggleFloatingCopilotDrawer()">✦ NexAI panel</button>
           </div>
         </div>
@@ -2035,6 +2036,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <button class="quick-action-chip" onclick="switchNexusView('calendar')">📅 Open Calendar</button>
           <button class="quick-action-chip" onclick="openActionPlanModal()">⚡ Action Mode</button>
           <button class="quick-action-chip" onclick="openDayDerailed()">🌧 Day derailed</button>
+          <button class="quick-action-chip" onclick="openStudyStudio()">📚 Study Studio</button>
         </div>
 
         <!-- Dashboard Widgets -->
@@ -5786,6 +5788,15 @@ function openDayDerailed() {
   if (!window.NexDerail) { showToast('Day derailed is still loading. Try again in a moment.'); return; }
   NexDerail.open(derailAdapter());
 }
+// ---------------- STUDY STUDIO (4.1.0, see study.js) ----------------
+function openStudyStudio() {
+  if (!window.NexStudy) { showToast('Study Studio is still loading. Try again in a moment.'); return; }
+  NexStudy.open({
+    isGuest: () => enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview',
+    signIn: () => { location.href = new URLSearchParams(location.search).get('from') === 'classic' ? '/classic' : '/classic?next=enterprise'; },
+    toast: (m) => showToast(m)
+  });
+}
 async function draftCopilotActions() {
   if (enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview') { // 4.0.0: guests and preview try a scripted sample (no AI call, nothing saved)
     if (window.NexDerail) NexDerail.openDemo('plan', derailAdapter());
@@ -6016,8 +6027,9 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=4.0.0" defer></script>
-<script src="chat-tasks.js?v=4.0.0" defer></script>
-<script src="derail.js?v=4.0.0" defer></script>
+<script src="attach.js?v=4.1.0" defer></script>
+<script src="chat-tasks.js?v=4.1.0" defer></script>
+<script src="derail.js?v=4.1.0" defer></script>
+<script src="study.js?v=4.1.0" defer></script>
 </body>
 </html>
