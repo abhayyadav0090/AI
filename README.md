@@ -286,7 +286,8 @@ Setup notes:
 ├── RELEASE-NOTES/
 │   ├── RELEASE-NOTES NexOS 1.0/
 │   ├── RELEASE-NOTES NexOS 2.0/
-│   └── RELEASE-NOTES NexOS 3.0/
+│   ├── RELEASE-NOTES NexOS 3.0/
+│   └── RELEASE-NOTES NexOS 4.0/
 ├── server.js                   # Express server: auth, state, chats and Gemini proxy
 ├── render.yaml                 # Render blueprint
 ├── Dockerfile                  # Container image (Node 20 Alpine)
@@ -460,6 +461,11 @@ One line per release. The linked notes have the details.
 - **3.4.8** — Classic on phones: guests get a Sign in button in the top bar (between the page title and search) and the guest sync dot is hidden. Enterprise: Glass now uses blue and cyan so it no longer looks like Violet Orchid. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.8.md)
 - **3.4.9** — NexAI chat tasks: when NexAI suggests a list of tasks, an "Add N tasks" button appears under the reply, and typing "add these tasks" adds them directly. Works in Classic, the Enterprise NexAI page and the Enterprise side dock, with Undo. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.9.md)
 - **3.5.0** — NexAI chat can now also add habits and save a reply as a note, with the same one-tap buttons and "add these habits" / "save as a note" commands. Tasks vs habits is detected from the reply; when unclear you choose. One item is enough. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.5.0.md)
+
+---
+
+### NexOS 4.x
+
 - **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 
 ---
