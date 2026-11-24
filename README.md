@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 3.5.0.** The 3.x series focuses on performance, mobile usability, reliable navigation and a more capable NexAI experience while preserving existing NexOS features and workspace data.
+**Current source release: 4.0.0.** NexOS 4 adds **Day derailed** (replan a day that went off track) and lets guests try Action Mode with a scripted sample, on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -116,6 +116,8 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - Each message can use a current snapshot of workspace information, including tasks, habits, focus time and notes.
 - Daily AI insight on the dashboard.
 - **Action Mode:** describe a goal, review proposed actions (such as creating tasks, updating tasks or creating notes), and apply only the actions you approve.
+- **Day derailed (4.0.0):** a button in Classic and Enterprise for the moment a plan falls apart. Choose how much time you lost (1, 2 or 3 hours, or the rest of the day); NexAI looks at your open tasks due today or earlier and proposes which to move to tomorrow, instead of squeezing the old plan into fewer hours. You tick what to apply and approve. Only due dates change; nothing is deleted.
+- **Guest sample (4.0.0):** guests cannot use NexAI, but Action Mode and Day derailed now open a scripted sample with demo tasks and the same approve/untick interface. It makes no AI call, saves nothing and ends with a Sign in button.
 - **Voice input (3.2.0):** dictate messages, Action Mode instructions and supported task fields in Classic and Enterprise. Where available, the microphone language can be switched between English (India) and Hindi. Dictation fills the input; it does not automatically submit the message or approve an action.
 - **File analysis (3.3.0):** attach up to 3 supported files, with a combined limit of 6 MB, to a main NexAI chat in Classic or Enterprise. Supported types include PDF, PNG, JPG, WEBP and supported text/code files such as TXT, MD, CSV, PY, JS and JAVA. NexAI can describe images, summarise documents and help solve assignments step by step.
 - On mobile, the attachment picker can offer camera and gallery options where the browser supports them.
@@ -264,6 +266,7 @@ Setup notes:
 │   ├── ui.js                   # Shared UI interactions and Classic controls
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
+│   ├── derail.js               # Day derailed dialog and guest sample (shared by Classic and Enterprise)
 │   ├── push-client.js          # Browser side of push reminders
 │   ├── sw.js                   # Service worker (app-shell cache)
 │   ├── recover.html            # Recovery Center (Recently deleted)
@@ -353,7 +356,7 @@ All routes start with `/api`. Authentication is required for workspace and chat 
 
 ## Privacy
 
-NexOS does not use advertising or tracking scripts. In guest mode, workspace data stays in the browser and NexAI is disabled. When signed in with Google, NexOS stores account and workspace information in MongoDB Atlas. AI requests are sent to the Google Gemini API. Uploaded files are processed for the relevant NexAI request and are not kept as permanent workspace files. See [Privacy](https://ai-aqit.onrender.com/privacy.html) for the full details.
+NexOS does not use advertising or tracking scripts. In guest mode, workspace data stays in the browser and NexAI is disabled (the 4.0.0 guest sample is scripted and makes no AI request). When signed in with Google, NexOS stores account and workspace information in MongoDB Atlas. AI requests are sent to the Google Gemini API. Uploaded files are processed for the relevant NexAI request and are not kept as permanent workspace files. See [Privacy](https://ai-aqit.onrender.com/privacy.html) for the full details.
 
 ---
 
@@ -370,6 +373,8 @@ NexOS and NexAI were created by Abhay Yadav. For the official portfolio, GitHub,
 - File uploads are limited to 3 files and 6 MB combined per message. Supported files include PDF, PNG, JPG, WEBP and supported text/code formats. **DOCX is not currently supported; export Word documents to PDF first.**
 - File attachments are available in the main NexAI chat. The Enterprise side-panel chat does not provide the same attachment control unless separately added.
 - Files are not retained as permanent chat attachments. To ask follow-up questions about a file later, attach it again.
+- Guest mode has no NexAI; the Action Mode and Day derailed samples shown to guests are scripted demonstrations.
+- Day derailed moves open tasks to tomorrow only. It does not estimate task durations, so how much it moves depends on NexAI's judgment of what you tell it you lost; always review the proposals.
 - Automated script checks do not replace real browser, microphone, camera, mobile-layout or end-to-end Gemini testing.
 - Rate limits are kept in server memory, so they reset when the server restarts and are not shared between instances.
 - Each user's workspace is saved as one document (a save request is limited to 2 MB), and reminder checks run from a timer inside the server process every five minutes. That fits a single instance; read the scaling notes in [ARCHITECTURE.md](mds/ARCHITECTURE.md) before running more than one.
@@ -449,12 +454,13 @@ One line per release. The linked notes have the details.
 - **3.4.2** — Retries stuck Gemini requests after 15 seconds and falls back to the second model, remembers the sign-in check for 20 seconds, reads only recent messages from long chats, and adds `streamed`, `authCached` and `firstTokenTimeouts` to the NexAI timing log. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.2.md)
 - **3.4.3** — Lets NexAI look back through the whole saved chat when you ask about earlier messages, tells NexAI honestly how much of the chat it can see, and keeps the sign-in check for 60 seconds. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.3.md)
 - **3.4.4** — Makes NexAI's look-back catch follow-ups such as "second messages" or "we discussed", keeps look-back on for two minutes after you ask, and stops NexAI from inventing reasons for earlier mistakes. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.4.md)
-- **3.4.5** — Keeps the text already received when a NexAI stream stalls (saved with a short "cut off" note instead of an error), and limits the two-minute look-back window to real follow-ups so keyboard smashes and new topics stay fast.
+- **3.4.5** — Keeps the text already received when a NexAI stream stalls (saved with a short "cut off" note instead of an error), and limits the two-minute look-back window to real follow-ups so keyboard smashes and new topics stay fast. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.5.md)
 - **3.4.6** — Fixes the Enterprise theme icons (Glass, Midnight, Overgame) so each matches its colours, and adds the Violet Orchid theme (black, charcoal, violet and orchid). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.6.md)
 - **3.4.7** — Replaces the Enterprise theme dropdown with preview cards that show each theme's real colours, renames Overgame to Ember, and retires Midnight and Tonal (near-duplicates of Glass and Daylight; saved choices open as Glass and Daylight). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.7.md)
 - **3.4.8** — Classic on phones: guests get a Sign in button in the top bar (between the page title and search) and the guest sync dot is hidden. Enterprise: Glass now uses blue and cyan so it no longer looks like Violet Orchid. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.8.md)
 - **3.4.9** — NexAI chat tasks: when NexAI suggests a list of tasks, an "Add N tasks" button appears under the reply, and typing "add these tasks" adds them directly. Works in Classic, the Enterprise NexAI page and the Enterprise side dock, with Undo. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.4.9.md)
 - **3.5.0** — NexAI chat can now also add habits and save a reply as a note, with the same one-tap buttons and "add these habits" / "save as a note" commands. Tasks vs habits is detected from the reply; when unclear you choose. One item is enough. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%203.0/RELEASE-NOTES-3.5.0.md)
+- **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 
 ---
 

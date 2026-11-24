@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "3.3.5" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.0.0" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 
@@ -95,7 +95,9 @@ Sends one message to NexAI (Gemini). The server saves your message and the reply
 
 **Attachments:** each item is `{ "name": string, "data": base64 string }`. The server checks the real content of every file, not its name or reported type. Accepted: PDF, PNG, JPEG and WEBP (by their file signature) and text or code files (`txt`, `md`, `csv`, `json`, `xml`, `html`, `css`, `js`, `ts`, `py`, `java`, `c`, `cpp`, `h`, `cs`, `go`, `rs`, `php`, `rb`, `sql`, `yml`, `yaml`, `log`, `tex`) with no binary bytes. Text from a file is cut at 60,000 characters. Files are sent to the model with that one message and are not stored; the saved chat keeps your message and the file names. With attachments the model call waits up to 80 seconds and is tried once.
 
-The model only receives the most recent 40 saved messages of a chat as context.
+The model receives the most recent 24 saved messages of a chat as context. When the message looks like a question about earlier messages or a follow-up to one (for example "what did we discuss", "what was my first message"), the server looks back through the whole saved chat, within a size limit, and tells the model how much of the chat it can see.
+
+**Streaming:** send `"stream": true` and the reply arrives as server-sent events (`Content-Type: text/event-stream`) instead of the JSON below: `delta` events carry `{ "text": "..." }`, a final `done` event carries `{ "chatId", "title", "updatedAt" }`, and an `error` event carries `{ "error", "code" }`. If the stream stalls after text was already sent, the text received so far is kept and saved with a short note that it was cut off. Without `stream` the server answers with the JSON below.
 
 **Response 200:**
 ```json
@@ -110,7 +112,7 @@ The model only receives the most recent 40 saved messages of a chat as context.
 | 404 | `NOT_FOUND` | Chat does not exist |
 | 429 | `RATE_LIMIT`, `DAILY_LIMIT` | Too many messages |
 | 500 | `AI_CONFIG`, `SERVER_ERROR` | API key or server problem |
-| 502 / 503 | `AI_ERROR`, `AI_BUSY` | Gemini failed or is over its quota (retried once automatically) |
+| 502 / 503 | `AI_ERROR`, `AI_BUSY` | Gemini failed or is over its quota (a stalled first attempt is retried, then the fallback model is tried; with attachments the call is tried once) |
 
 ---
 
@@ -132,7 +134,7 @@ Changes the signed-in user's display name. Body: `{ "name": "..." }` (1 to 60 ch
 
 ## `DELETE /api/me`
 
-Deletes the signed-in user's account and everything stored for it (workspace data and NexAI chats). Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
+Deletes the signed-in user's NexOS data: workspace data, NexAI chats and push settings. The shared Google identity record is kept (other independently deployed apps may use it), but every device is signed out so none can write the deleted data back. Body must be `{ "confirm": "DELETE" }`, otherwise the server answers 400. Returns `{ "ok": true }` and clears the login cookie.
 
 ## Push reminders
 
@@ -175,8 +177,6 @@ Single-shot prompt completion. Simpler than `/api/chat`.
 
 ---
 
----
-
 ## Frontend ↔ Backend Integration
 
 When running with the backend, `app.js` calls `/api/chat` and `/api/complete` instead of hitting Gemini directly. The API key is never exposed to the browser.
@@ -201,6 +201,18 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 ## Changes in 3.3.0
 - `POST /api/chat` accepts `attachments` (up to 3 files, 6 MB in total) and uses a 9 MB body limit for that route only. Other routes keep the 2 MB limit.
 - New error code `BAD_ATTACHMENT` (400, 413, 415).
+
+## Changes in 3.4.1 to 3.4.5
+- `POST /api/chat` accepts `"stream": true` and then answers with server-sent events (3.4.1); without it the JSON response is unchanged.
+- A stalled first Gemini attempt is retried after a short first-token timeout, then the fallback model is used (3.4.2).
+- Questions about earlier messages make the server look back through the whole saved chat, and the model is told how much of the chat it sees (3.4.3, 3.4.4).
+- A stream that stalls after text arrived keeps that text, saved with a short "cut off" note, instead of failing (3.4.5).
+
+## Changes in 3.4.6 to 3.5.0
+- No API changes. These releases changed Enterprise themes, the guest Sign in button and the NexAI chat buttons that add tasks, habits and notes (all in the browser; they use the existing workspace save).
+
+## Changes in 4.0.0
+- No API changes. Day derailed and the guest sample run in the browser: Day derailed sends one `POST /api/complete` request (signed-in users only) and applies approved changes to task due dates through the normal workspace save. The guest sample makes no request.
 
 ## Corrections in this revision
 - `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.

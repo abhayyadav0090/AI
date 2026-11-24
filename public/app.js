@@ -3526,6 +3526,11 @@ function initNexAIActionMode() {
     button.addEventListener('click', openNexAIActionMode);
     button.dataset.actionModeBound = '1';
   }
+  const derailButton = document.getElementById('nexos-derail-btn');
+  if (derailButton && derailButton.dataset.derailBound !== '1') {
+    derailButton.addEventListener('click', openDayDerailed);
+    derailButton.dataset.derailBound = '1';
+  }
 
   if (!document.getElementById('nexos-action-mode-styles')) {
     const style = document.createElement('style');
@@ -3583,6 +3588,37 @@ function initNexAIActionMode() {
     document.getElementById('nexos-action-draft-btn').addEventListener('click', draftNexAIActionPlan);
     document.getElementById('nexos-action-approve-btn').addEventListener('click', applyNexAIActionDraft);
   }
+}
+
+// ───────── Day derailed + guest sample plan (4.0.0, see derail.js) ─────────
+function derailAdapter() {
+  return {
+    today: () => today(),
+    isGuest: () => isGuest(),
+    getTasks: () => state.tasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, stage: t.col, due: t.due || '' })),
+    applyMoves: (ids, to) => {
+      let n = 0;
+      ids.forEach(id => {
+        const task = state.tasks.find(t => String(t.id) === String(id));
+        if (!task || task.col === 'done') return;
+        delete task.sample;
+        task.due = to;
+        n++;
+      });
+      if (n) {
+        saveState();
+        renderPlanItems(); renderDashboard(); renderKanban(); updateStats(); updateContextPanel(); renderAnalytics();
+      }
+      return n;
+    },
+    askAI: (prompt, system) => callAI(prompt, system),
+    signIn: () => logout(),
+    toast: (m) => notify(m)
+  };
+}
+function openDayDerailed() {
+  if (!window.NexDerail) { notify('Day derailed is still loading. Try again in a moment.'); return; }
+  NexDerail.open(derailAdapter());
 }
 
 function openNexAIActionMode() {
@@ -3782,6 +3818,10 @@ function renderNexAIActionDraft(summary, actions) {
 
 async function draftNexAIActionPlan() {
   if (nexosActionBusy) return;
+  if (isGuest()) { // 4.0.0: guests try a scripted sample (no AI call, nothing saved)
+    if (window.NexDerail) NexDerail.openDemo('plan', derailAdapter());
+    return;
+  }
   const requestEl = document.getElementById('nexos-action-request');
   const status = document.getElementById('nexos-action-status');
   const results = document.getElementById('nexos-action-results');

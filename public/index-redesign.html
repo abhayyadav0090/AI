@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=3.5.0" defer></script>
+<script src="/push-client.js?v=4.0.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -1804,7 +1804,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=3.5.0">
+<link rel="manifest" href="/manifest.json?v=4.0.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -1985,6 +1985,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           </div>
           <div class="view-actions-cluster">
             <button class="btn-secondary" onclick="openActionPlanModal()">⚡ Action Mode</button>
+            <button class="btn-secondary" onclick="openDayDerailed()">🌧 Day derailed</button>
             <button class="btn-primary" onclick="toggleFloatingCopilotDrawer()">✦ NexAI panel</button>
           </div>
         </div>
@@ -2033,6 +2034,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <button class="quick-action-chip" onclick="switchNexusView('focus'); startPomodoro()">▶ Start Focus</button>
           <button class="quick-action-chip" onclick="switchNexusView('calendar')">📅 Open Calendar</button>
           <button class="quick-action-chip" onclick="openActionPlanModal()">⚡ Action Mode</button>
+          <button class="quick-action-chip" onclick="openDayDerailed()">🌧 Day derailed</button>
         </div>
 
         <!-- Dashboard Widgets -->
@@ -5753,7 +5755,42 @@ async function loadEnterpriseChatHistory() {
     }
   } catch (_) {}
 }
+// ---------------- DAY DERAILED + GUEST SAMPLE PLAN (4.0.0, see derail.js) ----------------
+function derailAdapter() {
+  return {
+    today: () => today(),
+    isGuest: () => enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview',
+    getTasks: () => state.tasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, stage: t.stage, due: t.due || '' })),
+    applyMoves: (ids, to) => {
+      let n = 0;
+      ids.forEach(id => {
+        const task = state.tasks.find(t => String(t.id) === String(id));
+        if (!task || task.stage === 'done') return;
+        task.due = to;
+        n++;
+      });
+      if (n) { saveWorkspaceState(); renderAllViews(); renderCalendarTimeline(); }
+      return n;
+    },
+    askAI: async (prompt, system) => {
+      const response = await fetch('/api/complete', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, system }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `NexAI request failed (${response.status})`);
+      return String(payload.text || '');
+    },
+    signIn: () => { location.href = new URLSearchParams(location.search).get('from') === 'classic' ? '/classic' : '/classic?next=enterprise'; },
+    toast: (m) => showToast(m)
+  };
+}
+function openDayDerailed() {
+  if (!window.NexDerail) { showToast('Day derailed is still loading. Try again in a moment.'); return; }
+  NexDerail.open(derailAdapter());
+}
 async function draftCopilotActions() {
+  if (enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview') { // 4.0.0: guests and preview try a scripted sample (no AI call, nothing saved)
+    if (window.NexDerail) NexDerail.openDemo('plan', derailAdapter());
+    return;
+  }
   const request = document.getElementById('action-mode-input-text')?.value.trim();
   const results = document.getElementById('action-proposals-results-list');
   const approve = document.getElementById('action-mode-approve-btn');
@@ -5979,7 +6016,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=3.5.0" defer></script>
-<script src="chat-tasks.js?v=3.5.0" defer></script>
+<script src="attach.js?v=4.0.0" defer></script>
+<script src="chat-tasks.js?v=4.0.0" defer></script>
+<script src="derail.js?v=4.0.0" defer></script>
 </body>
 </html>

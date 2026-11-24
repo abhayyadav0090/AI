@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 3.3.6. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 4.0.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
@@ -26,7 +26,7 @@ There is no build step and no frontend framework. Classic and Enterprise are two
 
 ### Two experiences
 - **Classic** (`/`, `/classic`): `index.html`, with Soft and Glass designs (tokens in `design.css`, each with light, dark and auto themes).
-- **Enterprise** (`/enterprise`): `index-redesign.html` with six themes chosen through `data-theme` and the `nexos_enterprise_theme` setting. It reads and writes the same saved workspace through a mapping layer (see `scripts/test-enterprise-bridge.js`).
+- **Enterprise** (`/enterprise`): `index-redesign.html` with five themes chosen through `data-theme` and the `nexos_enterprise_theme` setting. It reads and writes the same saved workspace through a mapping layer (see `scripts/test-enterprise-bridge.js`).
 
 ### State and rendering
 Classic keeps one `state` object: `tasks`, `habits`, `notes`, `pomodoroLog`, `pomodoroStats`, `dailyPlan`, `trash`, `dueNotificationsSeen`, `theme`, `design`, `currentNoteId`, `seeded`, `hideGuide`, `usedAI` and `profile`.
@@ -42,6 +42,7 @@ Persistence:
 
 ### Voice and attachments
 - **Voice (3.2.0):** the browser's speech recognition fills the input. Results are merged without repeating, and nothing is submitted automatically.
+- **Day derailed and the guest sample (4.0.0):** `derail.js` is shared by Classic and Enterprise. It draws its own dialog and talks to each page through a small adapter (`getTasks`, `applyMoves`, `askAI`, `isGuest`, `signIn`, `toast`). Day derailed sends open tasks due today or earlier (title, priority, stage, date, at most 20) in one `/api/complete` request, keeps only proposals that name task IDs it supplied (at most 8), and after approval changes only the due date to tomorrow. Guests and Enterprise preview never reach the AI: they see scripted sample proposals that save nothing.
 - **Attachments (3.3.0):** `attach.js` picks files, shrinks large photos on the device and sends base64 data with the chat message (see below).
 
 ## Backend
@@ -102,6 +103,7 @@ The current CSP allows inline scripts and inline event handlers (`'unsafe-inline
 - **3.0.1:** account-scoped cache-first startup and lighter mobile effects.
 - **3.1.1:** cache-first app shell, deferred Classic scripts and correct semantic-version cache headers.
 - **3.3.3 and 3.3.4:** the phone NexAI page is sized from the real space between the top bar and the bottom nav, so the page itself does not scroll.
+- **3.4.x to 4.0.0:** streaming chat replies, retry then fallback model, look-back through the whole chat on request, Enterprise theme cards, chat buttons that add tasks, habits and notes, and `derail.js` (see the release notes). The service worker now precaches `derail.js`.
 
 No load tests or benchmarks have been run, so NexOS makes no throughput claims. Measure in the deployed browser with DevTools Performance and Network panels.
 
