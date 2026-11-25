@@ -351,7 +351,8 @@
 
   function setAllMindmapCollapsed(node, collapsed, depth = 0) {
     if (!node || typeof node !== 'object') return;
-    if (depth >= 1) node.collapsed = Boolean(collapsed);
+    // When expanding, also un-collapse the root; when collapsing, skip root so it stays visible.
+    if (depth >= 1 || !collapsed) node.collapsed = Boolean(collapsed);
     if (Array.isArray(node.children)) node.children.forEach((c) => setAllMindmapCollapsed(c, collapsed, depth + 1));
   }
 
@@ -427,9 +428,11 @@
   }
 
   function renderGuest() {
-    const guestMap = mindmapCurrent || cloneMindmapTree(SAMPLE_MINDMAP.root);
-    if (!mindmapCurrent) mindmapCurrent = guestMap;
-    if (!mindmapSelectedId) mindmapSelectedId = guestMap.id;
+    if (!mindmapCurrent) {
+      const rootClone = cloneMindmapTree(SAMPLE_MINDMAP.root);
+      mindmapCurrent = { savedId: null, title: SAMPLE_MINDMAP.title, topic: SAMPLE_MINDMAP.topic, sourceTitle: SAMPLE_MINDMAP.sourceTitle, documentId: null, root: rootClone };
+    }
+    if (!mindmapSelectedId) mindmapSelectedId = mindmapCurrent.root.id;
     $('ns-root').innerHTML =
       '<div class="ns-starters" style="padding:4px 16px 6px">' +
         '<button type="button" data-ns="guest-mode" data-g="tutor"' + (guestPreviewTab === 'tutor' ? ' style="border-color:var(--k-accent);color:var(--k-accent);font-weight:600"' : '') + '>Tutor sample</button>' +
