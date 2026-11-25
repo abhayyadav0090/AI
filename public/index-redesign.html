@@ -1227,6 +1227,35 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
   background: var(--accent-primary); color: var(--text-on-accent);
   border-top-right-radius: 4px;
 }
+.chat-bubble-card p, .note-markdown-preview-pane p { margin-bottom: 8px; }
+.chat-bubble-card p:last-child, .note-markdown-preview-pane p:last-child { margin-bottom: 0; }
+.chat-bubble-card ol, .chat-bubble-card ul, .note-markdown-preview-pane ol, .note-markdown-preview-pane ul {
+  margin: 6px 0 8px; padding-left: 22px; list-style-position: outside;
+}
+.chat-bubble-card ol, .note-markdown-preview-pane ol { list-style-type: decimal; }
+.chat-bubble-card ul, .note-markdown-preview-pane ul { list-style-type: disc; }
+.chat-bubble-card ul.md-checklist, .note-markdown-preview-pane ul.md-checklist { list-style-type: none; padding-left: 4px; }
+.chat-bubble-card li, .note-markdown-preview-pane li { margin: 4px 0; }
+.chat-bubble-card li > p, .note-markdown-preview-pane li > p { margin: 4px 0 6px; }
+.chat-bubble-card li > ul, .note-markdown-preview-pane li > ul { list-style-type: circle; margin: 4px 0; }
+.chat-bubble-card li > ol, .note-markdown-preview-pane li > ol { list-style-type: lower-alpha; margin: 4px 0; }
+.chat-bubble-card pre.chat-code, .note-markdown-preview-pane pre.chat-code {
+  margin: 8px 0; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.30); border: 1px solid var(--border-subtle);
+  overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.5;
+}
+.chat-bubble-card code, .note-markdown-preview-pane code {
+  font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; border-radius: 5px;
+  background: rgba(127, 127, 127, 0.16);
+}
+.chat-bubble-card pre.chat-code code, .note-markdown-preview-pane pre.chat-code code {
+  padding: 0; background: none; font-size: inherit;
+}
+.chat-bubble-card hr, .note-markdown-preview-pane hr {
+  border: none; border-top: 1px solid var(--border-subtle); margin: 10px 0;
+}
+.chat-bubble-card a { color: var(--accent-secondary, var(--accent-primary)); text-decoration: underline; text-underline-offset: 3px; }
+.chat-bubble-card .chat-heading, .note-markdown-preview-pane .chat-heading { font-weight: 700; margin: 10px 0 4px; }
 
 .ai-input-dock {
   padding: 16px 20px; border-top: 1px solid var(--border-subtle);
@@ -4396,34 +4425,249 @@ function updateMarkdownPreview() {
 }
 
 function renderSimpleMarkdown(md) {
-  // Escape all source text first. Only the small, explicitly generated markup below is trusted.
-  let safe = escapeHtml(String(md || ''));
-  // Recover the malformed nested-link form occasionally returned in Enterprise chat:
-  // [label]\([url](url)) -> [label](url)
-  safe = safe.replace(/\]\s*\\?\(\s*\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)\s*\)/gi, ']($2)');
-  // Render safe Markdown links before emphasis/line-break formatting.
-  safe = safe.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|\/(?!\/))[^\s)]+)\)/gi, (match, label, href) => {
-    const external = /^https?:\/\//i.test(href);
-    return `<a href="${href}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`;
+  // Escape all source text after extracting fenced code blocks.
+  // Keep helpers indented so '\n}\n' marks only the end of renderSimpleMarkdown (VM test slice contract).
+  const blocks = [];
+  let withoutCode = String(md || '').replace(/```([a-zA-Z0-9_+-]*)\r?\n?([\s\S]*?)```/g, (_, _lang, code) => {
+    blocks.push(`<pre class="chat-code"><code>${escapeHtml(code.replace(/\r?\n$/, ''))}</code></pre>`);
+    return `\n\u0000${blocks.length - 1}\u0000\n`;
   });
-  // Convert bare absolute URLs too, without linking URLs already inside generated anchors.
-  safe = safe.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+)/gi, (match, prefix, rawUrl) => {
-    const trailing = (rawUrl.match(/[.,!?;:)\]]+$/) || [''])[0];
-    const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
-    return url ? `${prefix}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}` : match;
+  withoutCode = withoutCode.replace(/(^|\n)[ \t]*```([a-zA-Z0-9_+-]*)\r?\n([\s\S]*)$/, (_, lead, _lang, code) => {
+    blocks.push(`<pre class="chat-code"><code>${escapeHtml(code.replace(/\r?\n$/, ''))}</code></pre>`);
+    return `${lead}\u0000${blocks.length - 1}\u0000`;
   });
-  return safe
-    .replace(/^# (.+)$/gm, '<h1 style="font-size:22px;font-weight:800;margin:14px 0">$1</h1>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:18px;font-weight:700;margin:12px 0">$1</h2>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^> \[\!NOTE\]\n> (.+)$/gm, '<div class="callout-note">📌 <strong>Note:</strong> $1</div>')
-    .replace(/^> \[\!TIP\]\n> (.+)$/gm, '<div class="callout-tip">💡 <strong>Tip:</strong> $1</div>')
-    .replace(/^> \[\!WARNING\]\n> (.+)$/gm, '<div class="callout-warn">⚠️ <strong>Warning:</strong> $1</div>')
-    .replace(/^- \[ \] (.+)$/gm, '<div><input type="checkbox" disabled> $1</div>')
-    .replace(/^- \[x\] (.+)$/gm, '<div><input type="checkbox" checked disabled> <strike>$1</strike></div>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/\n/g, '<br>');
+
+  const inline = (source) => {
+    const tokens = [];
+    const hold = (html) => {
+      tokens.push(html);
+      return `\u0001${tokens.length - 1}\u0001`;
+    };
+    let s = String(source || '');
+    // Recover malformed nested-link forms occasionally emitted in Enterprise chat:
+    // [label]\([url](url)) -> [label](url)
+    s = s.replace(/\]\s*\\?\(\s*\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)\s*\)/gi, ']($2)');
+    s = s
+      .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|\/(?!\/))[^\s)]*)\)/gi, (match, label, href) => {
+        const safeHref = href.replace(/&amp;/g, '&');
+        if (!/^(https?:\/\/|mailto:|\/(?!\/))/i.test(safeHref)) return match;
+        const external = /^https?:\/\//i.test(safeHref);
+        return hold(`<a href="${escapeHtml(safeHref)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`);
+      })
+      .replace(/`([^`\n]+)`/g, (_, code) => hold(`<code>${code}</code>`))
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*(?!\s)([^*\n]+?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+    s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+)/gi, (match, prefix, rawUrl) => {
+      const trailing = (rawUrl.match(/[.,!?;:)\]]+$/) || [''])[0];
+      const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+      if (!url) return match;
+      return prefix + hold(`<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`) + trailing;
+    });
+    return s.replace(/\u0001(\d+)\u0001/g, (_, i) => tokens[Number(i)] || '');
+  };
+
+  const rawLines = escapeHtml(withoutCode).replace(/\r\n?/g, '\n').split('\n');
+  const parsed = rawLines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return { kind: 'blank', indent: 0, text: '' };
+    let m;
+    if ((m = /^\u0000(\d+)\u0000$/.exec(trimmed))) return { kind: 'code', indent: 0, idx: Number(m[1]) };
+    if (/^(?:---+|___+|\*\*\*+)$/.test(trimmed)) return { kind: 'hr', indent: 0 };
+    if ((m = /^&gt;\s*\[!(NOTE|TIP|WARNING)\]\s*$/i.exec(trimmed))) return { kind: 'calloutHead', indent: 0, label: m[1].toUpperCase() };
+    if ((m = /^&gt;\s?(.*)$/.exec(trimmed))) return { kind: 'quote', indent: 0, text: m[1] };
+    if ((m = /^(#{1,6})\s+(.+)$/.exec(trimmed))) return { kind: 'heading', indent: 0, level: m[1].length, text: m[2] };
+    if ((m = /^(\s*)[-*•\u2022]\s+\[([ xX])\]\s+(.+)$/.exec(line))) {
+      return { kind: 'check', indent: m[1].replace(/\t/g, '  ').length, checked: m[2].toLowerCase() === 'x', text: m[3] };
+    }
+    if ((m = /^(\s*)[-*•\u2022]\s+(.+)$/.exec(line))) {
+      return { kind: 'ul', indent: m[1].replace(/\t/g, '  ').length, text: m[2] };
+    }
+    if ((m = /^(\s*)(\d{1,3})[.)]\s+(.+)$/.exec(line))) {
+      return { kind: 'ol', indent: m[1].replace(/\t/g, '  ').length, num: Number(m[2]), text: m[3] };
+    }
+    return { kind: 'text', indent: line.match(/^\s*/)[0].replace(/\t/g, '  ').length, text: trimmed };
+  });
+
+  const canContinueOl = (fromIdx, olFrame) => {
+    let lastNonBlankText = '';
+    let paraBreaks = 0;
+    let inPara = false;
+    for (let j = fromIdx; j < parsed.length; j++) {
+      const ln = parsed[j];
+      if (ln.kind === 'blank') { inPara = false; continue; }
+      if (ln.kind === 'heading' || ln.kind === 'hr' || ln.kind === 'calloutHead') return false;
+      if (ln.kind === 'ol') {
+        if (ln.indent < olFrame.indent) return false;
+        if (ln.indent === olFrame.indent) {
+          if (ln.num === 1 && (/:\s*$/.test(lastNonBlankText) || /^\*\*[^*]{1,90}\*\*:?$/.test(lastNonBlankText))) return false;
+          if (ln.num > 1 && ln.num >= olFrame.lastNum && ln.num <= olFrame.lastNum + 3) return true;
+          if (ln.num === 1 && olFrame.allOnes) {
+            let nextSameIndentNum = null;
+            for (let k = j + 1; k < parsed.length; k++) {
+              const nx = parsed[k];
+              if (nx.kind === 'heading' || nx.kind === 'hr' || nx.kind === 'calloutHead') break;
+              if (nx.kind === 'ol' && nx.indent <= olFrame.indent) {
+                if (nx.indent === olFrame.indent) nextSameIndentNum = nx.num;
+                break;
+              }
+            }
+            return nextSameIndentNum !== 2;
+          }
+          return false;
+        }
+        continue;
+      }
+      if (ln.kind === 'text') {
+        if (!inPara) { paraBreaks++; inPara = true; if (paraBreaks > 4) return false; }
+        lastNonBlankText = ln.text;
+        continue;
+      }
+      inPara = false;
+    }
+    return false;
+  };
+
+  const root = [];
+  const stack = [];
+  let para = [];
+  let sawBlank = false;
+
+  const targetContainer = () => (stack.length ? stack[stack.length - 1].items[stack[stack.length - 1].items.length - 1].children : root);
+  const flushPara = () => {
+    if (!para.length) return;
+    targetContainer().push({ type: 'para', lines: para });
+    para = [];
+  };
+  const closeToIndent = (indent) => {
+    flushPara();
+    while (stack.length && stack[stack.length - 1].indent > indent) stack.pop();
+  };
+  const closeAll = () => {
+    flushPara();
+    stack.length = 0;
+  };
+
+  for (let i = 0; i < parsed.length; i++) {
+    const ln = parsed[i];
+    if (ln.kind === 'blank') {
+      flushPara();
+      sawBlank = true;
+      continue;
+    }
+    if (ln.kind === 'calloutHead' && i + 1 < parsed.length && parsed[i + 1].kind === 'quote') {
+      closeAll();
+      root.push({ type: 'callout', label: ln.label, text: parsed[i + 1].text });
+      i++;
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'heading' || ln.kind === 'hr') {
+      closeAll();
+      root.push(ln.kind === 'heading'
+        ? { type: 'heading', level: ln.level, text: ln.text }
+        : { type: 'hr' });
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'code') {
+      flushPara();
+      if (stack.length && !(stack[0].tag === 'ol' && canContinueOl(i + 1, stack[0]))) {
+        closeAll();
+      }
+      targetContainer().push({ type: 'code', idx: ln.idx });
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'ol' || ln.kind === 'ul' || ln.kind === 'check') {
+      const tag = ln.kind === 'ol' ? 'ol' : 'ul';
+      const isChecklist = ln.kind === 'check';
+      closeToIndent(ln.indent);
+      if (tag === 'ul' && stack.length && stack[stack.length - 1].tag === 'ol' && stack[stack.length - 1].indent === ln.indent && canContinueOl(i + 1, stack[stack.length - 1])) {
+        const subFrame = { tag: 'ul', checklist: isChecklist, indent: ln.indent, start: 1, lastNum: 0, allOnes: false, items: [] };
+        targetContainer().push({ type: 'list', frame: subFrame });
+        stack.push(subFrame);
+      } else {
+        while (stack.length && stack[stack.length - 1].indent === ln.indent) {
+          const top = stack[stack.length - 1];
+          if (top.tag !== tag || Boolean(top.checklist) !== isChecklist) {
+            stack.pop();
+            continue;
+          }
+          if (tag === 'ol' && ln.num === 1 && !top.allOnes && sawBlank) {
+            stack.pop();
+          }
+          break;
+        }
+      }
+      if (!stack.length || stack[stack.length - 1].indent < ln.indent) {
+        const startNum = tag === 'ol' ? (ln.num || 1) : 1;
+        const frame = { tag, checklist: isChecklist, indent: ln.indent, start: startNum, lastNum: startNum, allOnes: startNum === 1, items: [] };
+        targetContainer().push({ type: 'list', frame });
+        stack.push(frame);
+      } else if (tag === 'ol') {
+        const top = stack[stack.length - 1];
+        top.lastNum = ln.num;
+        if (ln.num !== 1) top.allOnes = false;
+      }
+      stack[stack.length - 1].items.push({ head: ln.text, isCheck: isChecklist, checked: Boolean(ln.checked), children: [] });
+      sawBlank = false;
+      continue;
+    }
+
+    if (stack.length) {
+      const top = stack[stack.length - 1];
+      if (ln.indent > top.indent) {
+        para.push(ln.text);
+        sawBlank = false;
+        continue;
+      }
+      if (!sawBlank) {
+        para.push(ln.text);
+        continue;
+      }
+      const rootList = stack[0];
+      if (rootList.tag === 'ol' && canContinueOl(i, rootList)) {
+        stack.length = 1;
+        para.push(ln.text);
+        sawBlank = false;
+        continue;
+      }
+      closeAll();
+    }
+    para.push(ln.text);
+    sawBlank = false;
+  }
+  closeAll();
+
+  const renderNodes = (nodes) => nodes.map((node) => {
+    if (node.type === 'code') return blocks[node.idx] || '';
+    if (node.type === 'hr') return '<hr>';
+    if (node.type === 'callout') {
+      if (node.label === 'NOTE') return `<div class="callout-note">📌 <strong>Note:</strong> ${inline(node.text)}</div>`;
+      if (node.label === 'TIP') return `<div class="callout-tip">💡 <strong>Tip:</strong> ${inline(node.text)}</div>`;
+      return `<div class="callout-warn">⚠️ <strong>Warning:</strong> ${inline(node.text)}</div>`;
+    }
+    if (node.type === 'heading') {
+      if (node.level === 1) return `<h1 style="font-size:22px;font-weight:800;margin:14px 0">${inline(node.text)}</h1>`;
+      if (node.level === 2) return `<h2 style="font-size:18px;font-weight:700;margin:12px 0">${inline(node.text)}</h2>`;
+      return `<p class="chat-heading">${inline(node.text)}</p>`;
+    }
+    if (node.type === 'para') return `<p>${node.lines.map(inline).join('<br>')}</p>`;
+    if (node.type === 'list') {
+      const f = node.frame;
+      const startAttr = f.tag === 'ol' && f.start > 1 ? ` start="${f.start}"` : '';
+      const clsAttr = f.checklist ? ' class="md-checklist"' : '';
+      return `<${f.tag}${startAttr}${clsAttr}>${f.items.map((it) => {
+        const prefix = it.isCheck ? `<input type="checkbox" disabled${it.checked ? ' checked' : ''}> ` : '';
+        const body = it.isCheck && it.checked ? `<strike>${inline(it.head)}</strike>` : inline(it.head);
+        const kids = renderNodes(it.children);
+        return `<li>${prefix}${body}${kids}</li>`;
+      }).join('')}</${f.tag}>`;
+    }
+    return '';
+  }).join('');
+
+  return renderNodes(root).replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[Number(i)] || '');
 }
 
 function formatNoteInsert(prefix, suffix = '') {

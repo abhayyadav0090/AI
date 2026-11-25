@@ -2600,19 +2600,25 @@ function sendSuggestedPrompt(text) {
 
 // Escapes the text first (so AI output can never inject HTML), then applies simple formatting.
 function formatChat(text) {
-  // Escape model output before applying a deliberately small, safe Markdown subset.
+  // Escape model output before applying a structured, safe Markdown subset.
   const blocks = [];
-  const withoutCode = String(text || '').replace(/```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g, (_, _lang, code) => {
-    blocks.push(`<pre class="chat-code"><code>${escHtml(code.replace(/\n$/, ''))}</code></pre>`);
-    return `\u0000${blocks.length - 1}\u0000`;
+  let withoutCode = String(text || '').replace(/```([a-zA-Z0-9_+-]*)\r?\n?([\s\S]*?)```/g, (_, _lang, code) => {
+    blocks.push(`<pre class="chat-code"><code>${escHtml(code.replace(/\r?\n$/, ''))}</code></pre>`);
+    return `\n\u0000${blocks.length - 1}\u0000\n`;
   });
+  // Protect an unclosed trailing code fence while NexAI is still streaming chunks.
+  withoutCode = withoutCode.replace(/(^|\n)[ \t]*```([a-zA-Z0-9_+-]*)\r?\n([\s\S]*)$/, (_, lead, _lang, code) => {
+    blocks.push(`<pre class="chat-code"><code>${escHtml(code.replace(/\r?\n$/, ''))}</code></pre>`);
+    return `${lead}\u0000${blocks.length - 1}\u0000`;
+  });
+
   const inline = (source) => {
     const tokens = [];
     const hold = (html) => {
       tokens.push(html);
       return `\u0001${tokens.length - 1}\u0001`;
     };
-    let s = source
+    let s = String(source || '')
       // Markdown links: allow web URLs, mailto links, and same-site absolute paths.
       .replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|\/(?!\/))[^\s)]*)\)/gi, (match, label, href) => {
         const safeHref = href.replace(/&amp;/g, '&');
@@ -2633,22 +2639,196 @@ function formatChat(text) {
     });
     return s.replace(/\u0001(\d+)\u0001/g, (_, i) => tokens[Number(i)] || '');
   };
-  const out = [];
-  let list = null;
-  let para = [];
-  const flushPara = () => { if (para.length) { out.push(`<p>${para.map(inline).join('<br>')}</p>`); para = []; } };
-  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map(item => `<li>${inline(item)}</li>`).join('')}</${list.tag}>`); list = null; } };
-  for (const line of escHtml(withoutCode).split('\n')) {
+
+  const rawLines = escHtml(withoutCode).replace(/\r\n?/g, '\n').split('\n');
+  const parsed = rawLines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return { kind: 'blank', indent: 0, text: '' };
     let m;
-    if ((m = /^\u0000(\d+)\u0000$/.exec(line.trim()))) { flushPara(); flushList(); out.push(blocks[Number(m[1])]); }
-    else if ((m = /^\s*[-*\u2022]\s+(.+)$/.exec(line))) { flushPara(); if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; } list.items.push(m[1]); }
-    else if ((m = /^\s*\d+[.)]\s+(.+)$/.exec(line))) { flushPara(); if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; } list.items.push(m[1]); }
-    else if ((m = /^#{1,6}\s+(.+)$/.exec(line))) { flushPara(); flushList(); out.push(`<p class="chat-heading">${inline(m[1])}</p>`); }
-    else if (!line.trim()) { flushPara(); flushList(); }
-    else { flushList(); para.push(line); }
+    if ((m = /^\u0000(\d+)\u0000$/.exec(trimmed))) return { kind: 'code', indent: 0, idx: Number(m[1]) };
+    if (/^(?:---+|___+|\*\*\*+)$/.test(trimmed)) return { kind: 'hr', indent: 0 };
+    if ((m = /^(#{1,6})\s+(.+)$/.exec(trimmed))) return { kind: 'heading', indent: 0, level: m[1].length, text: m[2] };
+    if ((m = /^(\s*)[-*•\u2022]\s+\[([ xX])\]\s+(.+)$/.exec(line))) {
+      return { kind: 'check', indent: m[1].replace(/\t/g, '  ').length, checked: m[2].toLowerCase() === 'x', text: m[3] };
+    }
+    if ((m = /^(\s*)[-*•\u2022]\s+(.+)$/.exec(line))) {
+      return { kind: 'ul', indent: m[1].replace(/\t/g, '  ').length, text: m[2] };
+    }
+    if ((m = /^(\s*)(\d{1,3})[.)]\s+(.+)$/.exec(line))) {
+      return { kind: 'ol', indent: m[1].replace(/\t/g, '  ').length, num: Number(m[2]), text: m[3] };
+    }
+    return { kind: 'text', indent: line.match(/^\s*/)[0].replace(/\t/g, '  ').length, text: trimmed };
+  });
+
+  // Check whether an open ordered list should continue across intervening blanks,
+  // explanatory paragraphs, code blocks, or unindented sub-bullets.
+  const canContinueOl = (fromIdx, olFrame) => {
+    let lastNonBlankText = '';
+    let paraBreaks = 0;
+    let inPara = false;
+    for (let j = fromIdx; j < parsed.length; j++) {
+      const ln = parsed[j];
+      if (ln.kind === 'blank') { inPara = false; continue; }
+      if (ln.kind === 'heading' || ln.kind === 'hr') return false;
+      if (ln.kind === 'ol') {
+        if (ln.indent < olFrame.indent) return false;
+        if (ln.indent === olFrame.indent) {
+          if (ln.num === 1 && (/:\s*$/.test(lastNonBlankText) || /^\*\*[^*]{1,90}\*\*:?$/.test(lastNonBlankText))) return false;
+          if (ln.num > 1 && ln.num >= olFrame.lastNum && ln.num <= olFrame.lastNum + 3) return true;
+          if (ln.num === 1 && olFrame.allOnes) {
+            // If this "1." is followed by "2." at the same indent, it is starting a new independent list.
+            let nextSameIndentNum = null;
+            for (let k = j + 1; k < parsed.length; k++) {
+              const nx = parsed[k];
+              if (nx.kind === 'heading' || nx.kind === 'hr') break;
+              if (nx.kind === 'ol' && nx.indent <= olFrame.indent) {
+                if (nx.indent === olFrame.indent) nextSameIndentNum = nx.num;
+                break;
+              }
+            }
+            return nextSameIndentNum !== 2;
+          }
+          return false;
+        }
+        continue;
+      }
+      if (ln.kind === 'text') {
+        if (!inPara) { paraBreaks++; inPara = true; if (paraBreaks > 4) return false; }
+        lastNonBlankText = ln.text;
+        continue;
+      }
+      inPara = false;
+    }
+    return false;
+  };
+
+  const root = [];
+  const stack = [];
+  let para = [];
+  let sawBlank = false;
+
+  const targetContainer = () => (stack.length ? stack[stack.length - 1].items[stack[stack.length - 1].items.length - 1].children : root);
+  const flushPara = () => {
+    if (!para.length) return;
+    targetContainer().push({ type: 'para', lines: para });
+    para = [];
+  };
+  const closeToIndent = (indent) => {
+    flushPara();
+    while (stack.length && stack[stack.length - 1].indent > indent) stack.pop();
+  };
+  const closeAll = () => {
+    flushPara();
+    stack.length = 0;
+  };
+
+  for (let i = 0; i < parsed.length; i++) {
+    const ln = parsed[i];
+    if (ln.kind === 'blank') {
+      flushPara();
+      sawBlank = true;
+      continue;
+    }
+    if (ln.kind === 'heading' || ln.kind === 'hr') {
+      closeAll();
+      root.push(ln.kind === 'heading'
+        ? { type: 'heading', level: ln.level, text: ln.text }
+        : { type: 'hr' });
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'code') {
+      flushPara();
+      if (stack.length && !(stack[0].tag === 'ol' && canContinueOl(i + 1, stack[0]))) {
+        closeAll();
+      }
+      targetContainer().push({ type: 'code', idx: ln.idx });
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'ol' || ln.kind === 'ul' || ln.kind === 'check') {
+      const tag = ln.kind === 'ol' ? 'ol' : 'ul';
+      const isChecklist = ln.kind === 'check';
+      closeToIndent(ln.indent);
+      // Unindented sub-bullets inside a loose ordered list stay nested under the active item.
+      if (tag === 'ul' && stack.length && stack[stack.length - 1].tag === 'ol' && stack[stack.length - 1].indent === ln.indent && canContinueOl(i + 1, stack[stack.length - 1])) {
+        const subFrame = { tag: 'ul', checklist: isChecklist, indent: ln.indent, start: 1, lastNum: 0, allOnes: false, items: [] };
+        targetContainer().push({ type: 'list', frame: subFrame });
+        stack.push(subFrame);
+      } else {
+        while (stack.length && stack[stack.length - 1].indent === ln.indent) {
+          const top = stack[stack.length - 1];
+          if (top.tag !== tag || Boolean(top.checklist) !== isChecklist) {
+            stack.pop();
+            continue;
+          }
+          if (tag === 'ol' && ln.num === 1 && !top.allOnes && sawBlank) {
+            stack.pop();
+          }
+          break;
+        }
+      }
+      if (!stack.length || stack[stack.length - 1].indent < ln.indent) {
+        const startNum = tag === 'ol' ? (ln.num || 1) : 1;
+        const frame = { tag, checklist: isChecklist, indent: ln.indent, start: startNum, lastNum: startNum, allOnes: startNum === 1, items: [] };
+        targetContainer().push({ type: 'list', frame });
+        stack.push(frame);
+      } else if (tag === 'ol') {
+        const top = stack[stack.length - 1];
+        top.lastNum = ln.num;
+        if (ln.num !== 1) top.allOnes = false;
+      }
+      stack[stack.length - 1].items.push({ head: ln.text, isCheck: isChecklist, checked: Boolean(ln.checked), children: [] });
+      sawBlank = false;
+      continue;
+    }
+
+    // Plain prose line
+    if (stack.length) {
+      const top = stack[stack.length - 1];
+      if (ln.indent > top.indent) {
+        para.push(ln.text);
+        sawBlank = false;
+        continue;
+      }
+      if (!sawBlank) {
+        para.push(ln.text);
+        continue;
+      }
+      const rootList = stack[0];
+      if (rootList.tag === 'ol' && canContinueOl(i, rootList)) {
+        stack.length = 1;
+        para.push(ln.text);
+        sawBlank = false;
+        continue;
+      }
+      closeAll();
+    }
+    para.push(ln.text);
+    sawBlank = false;
   }
-  flushPara(); flushList();
-  return out.join('').replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[Number(i)] || '');
+  closeAll();
+
+  const renderNodes = (nodes) => nodes.map((node) => {
+    if (node.type === 'code') return blocks[node.idx] || '';
+    if (node.type === 'hr') return '<hr>';
+    if (node.type === 'heading') return `<p class="chat-heading">${inline(node.text)}</p>`;
+    if (node.type === 'para') return `<p>${node.lines.map(inline).join('<br>')}</p>`;
+    if (node.type === 'list') {
+      const f = node.frame;
+      const startAttr = f.tag === 'ol' && f.start > 1 ? ` start="${f.start}"` : '';
+      const clsAttr = f.checklist ? ' class="md-checklist"' : '';
+      return `<${f.tag}${startAttr}${clsAttr}>${f.items.map((it) => {
+        const prefix = it.isCheck ? `<input type="checkbox" disabled${it.checked ? ' checked' : ''}> ` : '';
+        const body = it.isCheck && it.checked ? `<strike>${inline(it.head)}</strike>` : inline(it.head);
+        const kids = renderNodes(it.children);
+        return `<li>${prefix}${body}${kids}</li>`;
+      }).join('')}</${f.tag}>`;
+    }
+    return '';
+  }).join('');
+
+  return renderNodes(root).replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[Number(i)] || '');
 }
 
 function appendChatMsg(role, content, extraClass = '') {
