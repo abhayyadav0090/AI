@@ -44,9 +44,10 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
     const url = planner.buildGoogleCalendarUrl(blocks[0], { timeZone: 'Asia/Kolkata', recurDaily: true, recurUntilDateKey: '2026-12-01' });
     assert.ok(url.startsWith('https://calendar.google.com/calendar/render?'));
     assert.ok(url.includes('action=TEMPLATE') && url.includes('20261125T183000%2F20261125T200000') && url.includes('RRULE%3AFREQ%3DDAILY'));
-    const ics = planner.buildExamPlanIcs(plan, { startDateKey: '2026-11-25', startTime: '18:30', timeZone: 'Asia/Kolkata' });
+    const ics = planner.buildExamPlanIcs({ ...plan, topics: ['Concurrency Control Protocols and Serializable Isolation Levels Deep Dive', ...plan.topics] }, { startDateKey: '2026-11-25', startTime: '18:30', timeZone: 'Asia/Kolkata' });
     assert.ok(ics.includes('BEGIN:VCALENDAR') && ics.includes('BEGIN:VEVENT') && ics.includes('DTSTART;TZID=Asia/Kolkata:20261125T183000'));
     assert.ok(ics.includes('SUMMARY:Revise: Operating Systems (CS)'));
+    assert.ok(ics.split('\r\n').every((line) => line.length <= 75), 'ICS lines are folded per RFC 5545 <= 75 chars');
   }
 
   // 3) Spaced revision push reminder helpers
@@ -127,9 +128,12 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
       assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(rated.dueDateKey));
       assert.ok(new Date(rated.dueAt).getTime() > Date.now());
 
-      // Exam plan schedule + ICS + user isolation
+      // Exam plan schedule + ICS + user isolation + studyTime/timeZone + past exam guard
       const future = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
-      const created = await fetch(base + '/plans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user': A }, body: JSON.stringify({ title: 'DBMS', examDate: future, dailyMinutes: 45, topics: ['Normalization', 'B+ Trees'] }) }).then((r) => r.json());
+      const past = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+      const pastRes = await fetch(base + '/plans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user': A }, body: JSON.stringify({ title: 'Past Exam', examDate: past, dailyMinutes: 45, topics: ['Topic 1'] }) });
+      assert.equal(pastRes.status, 400, 'rejects far-past exam dates');
+      const created = await fetch(base + '/plans', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user': A }, body: JSON.stringify({ title: 'DBMS', examDate: future, dailyMinutes: 45, studyTime: '19:30', timeZone: 'Asia/Kolkata', topics: ['Normalization', 'B+ Trees'] }) }).then((r) => r.json());
       const sched = await fetch(base + `/plans/${created.id}/schedule?startTime=19:00&tz=Asia/Kolkata`, { headers: { 'x-user': A } }).then((r) => r.json());
       assert.ok(sched.blocks.length >= 1 && sched.blocks[0].startTime === '19:00');
       assert.ok(sched.googleCalendarUrl.includes('https://calendar.google.com/calendar/render'));
@@ -160,6 +164,7 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
   assert.ok(srv.includes('dueStudyReminders') && srv.includes('studyReminderPayload'), 'server push sweep sends spaced revision reminders');
   assert.ok(ui.includes('Add to Google Calendar') && ui.includes('Download .ics') && ui.includes('Study streak &amp; daily goal'), 'Study Studio UI exposes Google Calendar, .ics, and Habit streak sync');
   assert.ok(ui.includes('Upcoming scheduled revisions'), 'Study Studio shows auto-scheduled upcoming due dates');
+  assert.ok(ui.includes("get('calendar')") && ui.includes('Google Calendar connected!'), 'Study Studio surfaces Google Calendar OAuth connection feedback');
   assert.ok(classic.includes('classicRecordStudyCheckIn') && classic.includes('getStudyHabit: classicStudyHabitInfo'), 'Classic wires Study Studio to Habits and Tasks');
   assert.ok(ent.includes('enterpriseRecordStudyCheckIn') && ent.includes('getStudyHabit: enterpriseStudyHabitInfo'), 'Enterprise wires Study Studio to Habits and Tasks');
   assert.ok(classic.includes("study') === 'revision'") && ent.includes("study') === 'revision'"), 'both UIs open Study Studio Revision tab on push click');

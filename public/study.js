@@ -489,13 +489,26 @@
   }
 
   async function createPlan() {
-    const title = $('ns-plan-title').value, subject = $('ns-plan-subject').value;
-    const examDate = $('ns-plan-date').value, dailyMinutes = Number($('ns-plan-minutes').value);
-    const topics = $('ns-plan-topics').value.split(/\n+/).map((x) => x.trim()).filter(Boolean);
+    if (busy) return;
+    const title = ($('ns-plan-title').value || '').trim();
+    const subject = ($('ns-plan-subject').value || '').trim();
+    const examDate = $('ns-plan-date').value;
+    const dailyMinutes = Number($('ns-plan-minutes').value);
+    const topics = ($('ns-plan-topics').value || '').split(/\n+/).map((x) => x.trim()).filter(Boolean);
+    if (title.length < 2 || !examDate || !topics.length) {
+      setStatus('Enter an exam title, future date and at least one topic.');
+      return;
+    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+    busy = true;
     try {
-      await call('POST', '/plans', { title, subject, examDate, dailyMinutes, topics });
-      setStatus('Exam plan created.'); await loadRevision();
+      await call('POST', '/plans', { title, subject, examDate, dailyMinutes, topics, studyTime: planStartTime, timeZone: tz });
+      $('ns-plan-title').value = '';
+      $('ns-plan-topics').value = '';
+      setStatus('Exam plan created.');
+      await loadRevision();
     } catch (e) { setStatus(e.message || 'Could not create plan.'); }
+    finally { busy = false; }
   }
 
   function renderDocs() {
@@ -753,8 +766,22 @@
     const requestedTab = opts && TABS.includes(opts.tab) ? opts.tab : 'tutor';
     tab = requestedTab;
     renderMain();
-    setStatus('Loading your library.', true);
-    refresh().then(() => { setStatus(''); if (!docs.length && requestedTab === 'tutor') setTab('library'); else if (tab === 'tutor') renderChat(); })
+    const calParam = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('calendar') : '';
+    const calNotice = calParam === 'connected'
+      ? 'Google Calendar connected! You can now sync revision time-blocks.'
+      : calParam === 'cancelled'
+        ? 'Google Calendar connection cancelled.'
+        : '';
+    if (typeof history !== 'undefined' && typeof location !== 'undefined' && (calParam || new URLSearchParams(location.search).get('study'))) {
+      try {
+        const cleanUrl = new URL(location.href);
+        cleanUrl.searchParams.delete('study');
+        cleanUrl.searchParams.delete('calendar');
+        history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+      } catch (_) {}
+    }
+    setStatus(calNotice || 'Loading your library.', !calNotice);
+    refresh().then(() => { setStatus(calNotice); if (!docs.length && requestedTab === 'tutor') setTab('library'); else if (tab === 'tutor') renderChat(); })
       .catch((e) => setStatus((e && e.message) || 'Could not load your library.'));
     const card = modal.querySelector('.ns-card'); if (card) card.focus();
   }

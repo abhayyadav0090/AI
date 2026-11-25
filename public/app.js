@@ -1171,9 +1171,9 @@ function renderDashboard() {
   const notesList = document.getElementById('dash-notes-list');
   const recentNotes = [...state.notes].sort((a, b) => (b.updated || b.created || 0) - (a.updated || a.created || 0)).slice(0, 4);
   notesList.innerHTML = recentNotes.length ? recentNotes.map(n => `
-      <button type="button" class="dash-note-item" onclick="openNoteFromDash('${n.id}')">
-        <span class="dash-note-title">${n.pinned ? '\uD83D\uDCCC ' : ''}${escHtml(n.title)}</span>
-        <span class="dash-note-preview">${escHtml(n.content.slice(0, 90)) || 'Empty note'}</span>
+      <button type="button" class="dash-note-item" onclick="openNoteFromDash('${escHtml(n.id)}')">
+        <span class="dash-note-title">${n.pinned ? '\uD83D\uDCCC ' : ''}${escHtml(n.title || 'Untitled Note')}</span>
+        <span class="dash-note-preview">${escHtml((n.content || '').slice(0, 90)) || 'Empty note'}</span>
       </button>`).join('')
     : '<div class="empty-state">No notes yet.</div>';
   renderFocusTask();
@@ -1206,9 +1206,9 @@ function updateStats() {
     sub.textContent = overdue ? `${overdue} overdue \u00B7 ${dueToday} due today` : dueToday ? `${dueToday} due today` : 'Nothing due today';
     sub.classList.toggle('is-alert', overdue > 0);
   }
-  const focusMins = state.pomodoroLog.filter(l => l.date === t0).reduce((s, l) => s + l.minutes, 0);
+  const focusMins = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === t0).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
   document.getElementById('stat-focus-val').textContent = focusMins + 'm';
-  const doneHabits = activeHabits().filter(h => h.checks[t0]).length;
+  const doneHabits = activeHabits().filter(h => h && h.checks && h.checks[t0]).length;
   const pct = activeHabits().length ? Math.round((doneHabits / activeHabits().length) * 100) : 0;
   document.getElementById('stat-habits-val').textContent = pct + '%';
   const habitSub = document.getElementById('stat-habits-sub');
@@ -1222,7 +1222,7 @@ let dragId = null;
 function addTask() {
   const input = document.getElementById('new-task-input');
   const priority = document.getElementById('new-task-priority').value;
-  const title = input.value.trim();
+  const title = input.value.trim().slice(0, 160);
   if (!title) { input.focus(); return; }
   const task = { id: uid(), title, col: 'todo', priority, desc: '', due: '', created: Date.now() };
   state.tasks.push(task);
@@ -1275,7 +1275,7 @@ function moveTaskStep(id, direction) {
   const nextIndex = cols.indexOf(task.col) + (Number(direction) || 0);
   if (nextIndex < 0 || nextIndex >= cols.length) return;
   setTaskCol(task, cols[nextIndex]);
-  saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
+  saveState(); renderKanban(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); checkDueNotifications();
 }
 
 function dragStart(id) {
@@ -1369,10 +1369,12 @@ function saveTaskModal() {
   document.getElementById('task-modal').classList.remove('is-open');
 }
 async function aiSuggestTask() {
+  if (isGuest()) { notify('NexAI needs a Google sign-in.'); return; }
   const titleInput = document.getElementById('modal-title-input');
   const title = titleInput.value.trim();
-  if (!title) { titleInput.placeholder = 'Enter a task title first…'; return; }
+  if (!title) { titleInput.placeholder = 'Enter a task title first…'; titleInput.focus(); return; }
   const descInput = document.getElementById('modal-desc-input');
+  const prevDesc = descInput.value;
   descInput.value = 'AI is generating a description…';
   try {
     const res = await callAI(`For the task "${title}", write a concise 1-2 sentence actionable description and suggest a priority (low/medium/high). Format: DESCRIPTION: ... | PRIORITY: ...`);
@@ -1380,8 +1382,16 @@ async function aiSuggestTask() {
     if (match) {
       descInput.value = match[1];
       document.getElementById('modal-priority-input').value = match[2].toLowerCase();
-    } else { descInput.value = res.slice(0, 200); }
-  } catch (e) { descInput.value = 'Could not generate suggestion.'; }
+    } else if (res.trim()) {
+      descInput.value = res.trim().slice(0, 200);
+    } else {
+      descInput.value = prevDesc;
+      notify('NexAI did not return a suggestion.');
+    }
+  } catch (e) {
+    descInput.value = prevDesc;
+    notify((e && e.userMessage) || 'Could not generate suggestion.');
+  }
 }
 
 // ═══════════════════════════ POMODORO ═══════════════════════════
@@ -1432,7 +1442,7 @@ function togglePomodoro() {
   } else {
     if (btn) btn.textContent = '\u25B6';
     if (miniBtn) miniBtn.textContent = '\u25B6';
-    pomState.remaining = Math.max(0, Math.ceil((pomState.endAt - Date.now()) / 1000));
+    if (pomState.endAt > 0) pomState.remaining = Math.max(0, Math.ceil((pomState.endAt - Date.now()) / 1000));
     renderPomTimer();
   }
 }
@@ -1522,7 +1532,8 @@ function pomSessionComplete() {
     if (pomState.sessionCount >= (state.pomodoroStats.longestStreak || 0)) {
       state.pomodoroStats.longestStreak = pomState.sessionCount;
     }
-    saveState(); updateStats();
+    saveState(); updateStats(); renderDashboard(); renderKanban();
+    if (document.getElementById('view-analytics')?.classList.contains('active')) renderAnalytics();
     // Play sound
     if (document.getElementById('sound-enabled')?.checked) playBeep();
     try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification('Focus session complete', { body: 'Nice work. Time for a break.', icon: '/nexos-icon-192.png', tag: 'nexos-pomodoro' }); } catch (_) {}
@@ -1540,16 +1551,20 @@ function pomSessionComplete() {
   renderPomoStats();
 }
 
+let pomAudioCtx = null;
 function playBeep() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!pomAudioCtx) pomAudioCtx = new AudioCtx();
+    if (pomAudioCtx.state === 'suspended') pomAudioCtx.resume().catch(() => {});
+    const osc = pomAudioCtx.createOscillator();
+    const gain = pomAudioCtx.createGain();
+    osc.connect(gain); gain.connect(pomAudioCtx.destination);
     osc.frequency.value = 880; osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.3, pomAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, pomAudioCtx.currentTime + 0.8);
+    osc.start(pomAudioCtx.currentTime); osc.stop(pomAudioCtx.currentTime + 0.8);
   } catch (e) {}
 }
 
@@ -1626,11 +1641,11 @@ function renderPomoStats() {
 function addHabit() {
   const input = document.getElementById('new-habit-input');
   const color = document.getElementById('new-habit-color').value;
-  const name = input.value.trim();
+  const name = input.value.trim().slice(0, 80);
   if (!name) { input.focus(); return; }
   state.habits.push({ id: uid(), name, color, checks: {}, streak: 0 });
   input.value = '';
-  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel();
+  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
 }
 
 // Edit a habit's name and colour (4.2.0). The edit bar opens under the habit's row; Enter saves, Esc cancels.
@@ -1789,7 +1804,9 @@ function renderHabits() {
 function toggleHabit(id, dateKey) {
   const h = state.habits.find(h => h.id === id);
   if (!h) return;
-  h.checks[dateKey] = !h.checks[dateKey];
+  if (!h.checks || typeof h.checks !== 'object') h.checks = {};
+  if (h.checks[dateKey]) delete h.checks[dateKey];
+  else h.checks[dateKey] = true;
   h.streak = calcStreak(h);
   saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
 }
@@ -1807,6 +1824,7 @@ function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
   if (editingHabitId === id) editingHabitId = null;
+  if (habitDetailId === id) habitDetailId = null;
   const [removed] = state.habits.splice(index, 1);
   const trashId = addToTrash('habit', removed);
   const planItems = state.dailyPlan?.items ? state.dailyPlan.items.filter(item => item.type === 'habit' && item.id === id) : [];
@@ -1832,7 +1850,7 @@ function renderHeatmap() {
       const offset = -(weeks - 1 - w) * 7 - (days - 1 - d);
       const dt = new Date(); dt.setDate(dt.getDate() + offset);
       const key = dateKey(dt);
-      const count = state.habits.filter(h => h.checks[key]).length;
+      const count = state.habits.filter(h => h && h.checks && h.checks[key]).length;
       const level = count === 0 ? 0 : count === 1 ? 1 : count <= 2 ? 2 : count <= 3 ? 3 : 4;
       const cell = document.createElement('div');
       cell.className = `heatmap-cell ${level > 0 ? 'h' + level : ''}`;
@@ -1846,10 +1864,12 @@ function renderHeatmap() {
 // ═══════════════════════════ NOTES ═══════════════════════════
 function newNote() {
   flushNoteEdits();
-  const note = { id: uid(), title: 'Untitled Note', content: '', tags: [], pinned: false, created: Date.now() };
+  const now = Date.now();
+  const note = { id: uid(), title: 'Untitled Note', content: '', tags: [], pinned: false, created: now, updated: now };
   state.notes.unshift(note);
   state.currentNoteId = note.id;
   saveState(); renderNotes(); updateContextPanel();
+  document.getElementById('note-editor')?.classList.add('is-open');
   document.getElementById('note-title-input')?.select();
 }
 
@@ -1867,9 +1887,9 @@ function renderNoteList(list) {
   if (filter === 'tagged') notes = notes.filter(n => Array.isArray(n.tags) && n.tags.length > 0);
   if (query) notes = notes.filter(n => `${n.title || ''} ${n.content || ''} ${(n.tags || []).join(' ')}`.toLowerCase().includes(query));
   list.innerHTML = notes.length ? notes.map(n => `
-      <button type="button" class="note-list-item ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNote('${n.id}')">
-        <span class="note-list-title">${n.pinned ? '\uD83D\uDCCC ' : ''}${escHtml(n.title)}</span>
-        <span class="note-list-preview">${escHtml(n.content.slice(0, 80)) || 'Empty note'}</span>
+      <button type="button" class="note-list-item ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNote('${escHtml(n.id)}')">
+        <span class="note-list-title">${n.pinned ? '\uD83D\uDCCC ' : ''}${escHtml(n.title || 'Untitled Note')}</span>
+        <span class="note-list-preview">${escHtml((n.content || '').slice(0, 80)) || 'Empty note'}</span>
         ${(Array.isArray(n.tags) && n.tags.length) ? `<span class="note-list-tags">${n.tags.map(t => `<span class="note-tag">#${escHtml(t)}</span>`).join('')}</span>` : ''}
       </button>`).join('')
     : `<div class="empty-state" style="padding:24px">${query ? 'No results.' : 'No notes found.'}</div>`;
@@ -1878,7 +1898,22 @@ function renderNoteList(list) {
 function renderNotes() {
   renderNoteList();
   updateStats();
-  if (state.currentNoteId) renderNoteEditor();
+  if (state.currentNoteId && state.notes.some(n => n.id === state.currentNoteId)) {
+    renderNoteEditor();
+  } else {
+    state.currentNoteId = null;
+    editorNoteId = null;
+    noteDirty = false;
+    const titleEl = document.getElementById('note-title-input');
+    const contentEl = document.getElementById('note-content');
+    const tagsRow = document.getElementById('note-tags-row');
+    const pinBtn = document.getElementById('pin-btn');
+    if (titleEl) titleEl.value = '';
+    if (contentEl) contentEl.value = '';
+    if (tagsRow) tagsRow.innerHTML = '';
+    if (pinBtn) { pinBtn.classList.remove('on'); pinBtn.setAttribute('aria-pressed', 'false'); }
+    updateWordCount();
+  }
 }
 
 // The editor is loaded from state; edits are written back as you type, so switching notes can never drop text.
@@ -1930,8 +1965,8 @@ function renderNoteEditor() {
   const tagsRow = document.getElementById('note-tags-row');
   if (!note || !titleEl) return;
   if (editorNoteId !== note.id || !noteDirty) {
-    titleEl.value = note.title;
-    contentEl.value = note.content;
+    titleEl.value = note.title || '';
+    if (contentEl) contentEl.value = note.content || '';
     editorNoteId = note.id;
     noteDirty = false;
   }
@@ -2031,14 +2066,16 @@ function filterNotes(filter, btn) {
 async function summarizeNote() {
   flushNoteEdits();
   const note = state.notes.find(n => n.id === state.currentNoteId);
-  if (!note || !note.content.trim()) { notify('Write something in the note first.'); return; }
+  if (!note || !(note.content || '').trim()) { notify('Write something in the note first.'); return; }
   const contentEl = document.getElementById('note-content');
   const original = note.content;
   contentEl.value = 'AI is summarizing\u2026';
   contentEl.disabled = true;
   try {
-    const summary = await callAI(`Summarize this note concisely in 2-3 sentences:\n\n${note.content}`);
-    note.content = `## AI Summary\n${summary}\n\n---\n\n${original}`;
+    const summary = await callAI(`Summarize this note concisely in 2-3 sentences:\n\n${original.slice(0, 12000)}`);
+    if (!summary || !summary.trim()) throw new Error('Empty AI summary');
+    delete note.sample;
+    note.content = `## AI Summary\n${summary.trim()}\n\n---\n\n${original}`;
     note.updated = Date.now();
     contentEl.value = note.content;
     saveState(); updateWordCount(); renderNoteList();
@@ -2064,7 +2101,7 @@ function ensureClassicChartLibrary() {
     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
     script.async = true;
     script.onload = () => resolve(!!window.Chart);
-    script.onerror = () => resolve(false);
+    script.onerror = () => { classicChartLoadPromise = null; resolve(false); };
     document.head.appendChild(script);
   });
   return classicChartLoadPromise;
@@ -2108,7 +2145,7 @@ function renderFocusChart(days) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = dateKey(d);
     labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-    const mins = state.pomodoroLog.filter(l => l.date === key).reduce((s, l) => s + l.minutes, 0);
+    const mins = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
     data.push(mins);
   }
   if (focusChartInstance) focusChartInstance.destroy();
@@ -2156,7 +2193,7 @@ function renderHabitBars() {
     let done = 0;
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      if (h.checks[dateKey(d)]) done++;
+      if (h && h.checks && h.checks[dateKey(d)]) done++;
     }
     const pct = Math.round((done / totalDays) * 100);
     return `<div style="margin-bottom:12px">
@@ -2724,24 +2761,28 @@ function nexSessionEntry(dateKey, minutes, taskId, tasks) {
 async function getDailyInsight() {
   const btn = document.querySelector('#ai-insight-bar .btn-sm');
   const text = document.getElementById('ai-insight-text');
+  if (btn?.disabled) return;
   if (isGuest()) {
     // Guests cannot call NexAI, so give a simple insight worked out on this device.
     if (text) text.textContent = nexLocalInsight(state, today(), pomDurations.focus) + ' Sign in with Google for NexAI insights.';
     if (btn) btn.textContent = 'Refresh';
     return;
   }
-  if (btn) btn.textContent = '…';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
   if (text) text.textContent = 'Generating insight…';
   try {
     const insight = await callAI(
       `Based on this productivity snapshot, give ONE sharp, actionable insight in 1-2 sentences:\n${buildSystemContext()}`,
       'You are a concise productivity assistant. One key insight only.'
     );
-    if (text) text.textContent = insight;
+    if (!insight || !insight.trim()) throw new Error('Empty insight');
+    if (text) text.textContent = insight.trim();
     if (btn) btn.textContent = 'Refresh';
   } catch (e) {
     if (text) text.textContent = e.userMessage || 'Could not load insight. Try again.';
     if (btn) btn.textContent = 'Retry';
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -3240,7 +3281,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════ PLAN MY DAY ═══════════════════════════
 function clockMinutes(date = new Date()) { return date.getHours() * 60 + date.getMinutes(); }
 function isValidClockTime(value) {
-  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim());
   return !!match && Number(match[1]) < 24 && Number(match[2]) < 60;
 }
 function timeLabel(totalMinutes) {
@@ -3250,7 +3291,7 @@ function timeLabel(totalMinutes) {
   return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 function parseTimeMinutes(value) {
-  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim());
   return match ? Number(match[1]) * 60 + Number(match[2]) : 9 * 60;
 }
 
@@ -3366,7 +3407,9 @@ function togglePlanItem(type, id) {
     const habit = state.habits.find(h => h.id === id);
     if (!habit) return;
     habit.checks = habit.checks && typeof habit.checks === 'object' ? habit.checks : {};
-    habit.checks[today()] = !habit.checks[today()];
+    const d = today();
+    if (habit.checks[d]) delete habit.checks[d];
+    else habit.checks[d] = true;
     habit.streak = calcStreak(habit);
   } else return;
   saveState();
@@ -3494,7 +3537,7 @@ function getPeriodStats(startOffset, endOffset) {
   const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() + startOffset);
   const end = new Date(); end.setHours(23, 59, 59, 999); end.setDate(end.getDate() + endOffset);
   const startKey = dateKey(start), endKey = dateKey(end);
-  const focus = state.pomodoroLog.filter(l => l.date >= startKey && l.date <= endKey).reduce((sum, l) => sum + (Number(l.minutes) || 0), 0);
+  const focus = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date >= startKey && l.date <= endKey).reduce((sum, l) => sum + (Number(l.minutes) || 0), 0);
   const tasks = state.tasks.filter(t => t.doneAt && t.doneAt >= start.getTime() && t.doneAt <= end.getTime()).length;
   let habitChecks = 0;
   state.habits.forEach(h => Object.entries(h.checks || {}).forEach(([key, done]) => { if (done && key >= startKey && key <= endKey) habitChecks++; }));
@@ -3827,6 +3870,7 @@ function classicRecordStudyCheckIn() {
 }
 function openStudyStudio(opts) {
   if (!window.NexStudy) { notify('Study Studio is still loading. Try again in a moment.'); return; }
+  const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string') ? { tab: opts.tab } : undefined;
   NexStudy.open({
     isGuest: () => isGuest(),
     signIn: () => logout(),
@@ -3836,7 +3880,7 @@ function openStudyStudio(opts) {
     ensureStudyHabit: classicEnsureStudyHabit,
     recordStudyCheckIn: classicRecordStudyCheckIn,
     addStudyTasks: nexChatAddTasks,
-  }, opts);
+  }, cleanOpts);
 }
 
 function openNexAIActionMode() {

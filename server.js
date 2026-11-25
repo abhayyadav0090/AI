@@ -1128,6 +1128,8 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     const aiStartedAt = Date.now();
     if (req.body?.stream === true) {
       timing.streamed = true;
+      let clientClosed = false;
+      res.on('close', () => { clientClosed = true; });
       res.status(200);
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -1142,32 +1144,38 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
           ...(files.parts.length ? { timeoutMs: 80000, firstTokenTimeoutMs: 40000, maxAttempts: 1, maxContinuations: 1 } : {}),
           continueFrom,
           timings: timing,
-          onText: (delta) => writeChatEvent(res, 'delta', { text: delta }),
+          onText: (delta) => { if (!clientClosed) writeChatEvent(res, 'delta', { text: delta }); },
         });
         timing.aiMs = Date.now() - aiStartedAt;
         const savedUser = files.names.length ? `${text}\n\n\u{1F4CE} ${files.names.join(', ')}` : text;
         const dbSaveStartedAt = Date.now();
         await persistChatTurn(chat, req.userId,
           { role: 'user', content: savedUser, ts: Date.now() },
-          { role: 'assistant', content: result.text.slice(0, 60000), incomplete: result.incomplete, incompleteReason: result.incompleteReason || '', ts: Date.now() }, isNewChat);
+          { role: 'assistant', content: result.text.slice(0, 60000), incomplete: result.incomplete || clientClosed, incompleteReason: result.incompleteReason || (clientClosed ? 'STREAM_INTERRUPTED' : ''), ts: Date.now() }, isNewChat);
         timing.dbSaveMs = Date.now() - dbSaveStartedAt;
         if (isNewChat) pruneOldChats(req.userId).catch(() => {});
         setChatTiming(res, timing);
-        writeChatEvent(res, 'done', {
-          chatId: chat._id,
-          title: chat.title,
-          updatedAt: chat.updatedAt,
-          incomplete: result.incomplete,
-          incompleteReason: result.incompleteReason,
-          finishReason: result.finishReason,
-          continuations: result.continuations,
-        });
-        return res.end();
+        if (!clientClosed) {
+          writeChatEvent(res, 'done', {
+            chatId: chat._id,
+            title: chat.title,
+            updatedAt: chat.updatedAt,
+            incomplete: result.incomplete,
+            incompleteReason: result.incompleteReason,
+            finishReason: result.finishReason,
+            continuations: result.continuations,
+          });
+          return res.end();
+        }
+        return;
       } catch (streamErr) {
         timing.aiMs = timing.aiMs || (Date.now() - aiStartedAt);
         setChatTiming(res, timing);
-        writeChatEvent(res, 'error', { error: streamErr.message || 'NexAI could not respond.', code: streamErr.code || 'AI_STREAM_ERROR' });
-        return res.end();
+        if (!clientClosed) {
+          writeChatEvent(res, 'error', { error: streamErr.message || 'NexAI could not respond.', code: streamErr.code || 'AI_STREAM_ERROR' });
+          return res.end();
+        }
+        return;
       }
     }
     const result = await nexaiReliability.askWithAutoContinuation({

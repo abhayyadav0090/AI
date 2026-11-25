@@ -2398,10 +2398,12 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
                 <button class="format-tool-btn" onclick="formatNoteInsert('`', '`')" title="Inline Code">&lt;/&gt;</button>
               </div>
 
-              <div style="display:flex;gap:8px;align-items:center">
-                <button class="voice-input-btn" id="note-voice-btn" onclick="toggleVoiceDictation('note')" title="Voice Dictation">🎙️</button>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button class="voice-input-btn" id="note-voice-btn" onclick="toggleVoiceDictation('note')" title="Voice Dictation" aria-label="Voice dictation">🎙️</button>
+                <button class="btn-secondary" onclick="togglePinActiveNote()" id="note-pin-btn" title="Pin or unpin note">📌 Pin</button>
                 <button class="btn-secondary" onclick="toggleMarkdownPreview()" id="preview-toggle-btn">👁 Preview</button>
-                <button class="btn-secondary" onclick="aiSummarizeActiveNote()">✦ AI Summarize</button>
+                <button class="btn-secondary" onclick="aiSummarizeActiveNote()" id="note-ai-summarize-btn">✦ AI Summarize</button>
+                <button class="btn-secondary" onclick="deleteActiveNote()" title="Delete active note">🗑 Delete</button>
                 <button class="btn-primary" onclick="saveActiveNote()">Save Note</button>
               </div>
             </div>
@@ -2439,8 +2441,8 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <div style="display:flex;justify-content:space-between;align-items:center">
               <h3 class="dash-card-title">Daily Deep Focus Minutes</h3>
               <div style="display:flex;gap:6px">
-                <button class="filter-btn active" style="font-size:11px;padding:3px 8px">7 Days</button>
-                <button class="filter-btn" style="font-size:11px;padding:3px 8px">30 Days</button>
+                <button type="button" class="filter-btn active" id="analytics-range-7" onclick="setAnalyticsRange(7, this)" style="font-size:11px;padding:3px 8px">7 Days</button>
+                <button type="button" class="filter-btn" id="analytics-range-30" onclick="setAnalyticsRange(30, this)" style="font-size:11px;padding:3px 8px">30 Days</button>
               </div>
             </div>
             <div style="position:relative;height:240px;margin-top:12px">
@@ -2712,8 +2714,8 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     </p>
     <div id="plan-items-schedule-list" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-bottom:18px"></div>
     <div style="display:flex;justify-content:space-between">
-      <button class="btn-secondary" onclick="generateAutoSchedule(true)">⚡ Re-sort by Priority</button>
-      <button class="btn-primary" onclick="closeModal('modal-plan-schedule')">Apply Schedule</button>
+      <button class="btn-secondary" onclick="generateAutoSchedule(false)">⚡ Re-sort by Priority</button>
+      <button class="btn-primary" onclick="applyAutoSchedule()">Apply Schedule</button>
     </div>
   </div>
 </div>
@@ -3046,21 +3048,24 @@ function playHarmonicChime() {
 
 // KPI Counters
 function updateKPICounters() {
-  const activeTasks = state.tasks.filter(t => t.stage !== 'done').length;
-  const focusMins = state.pomodoroStats.totalMins || 0;
-  const doneHabits = activeHabits().filter(h => h.checks && h.checks[today()]).length;
-  const habitPct = activeHabits().length ? Math.round((doneHabits / activeHabits().length) * 100) : 0;
-  
+  const allTasks = Array.isArray(state.tasks) ? state.tasks : [];
+  const allNotes = Array.isArray(state.notes) ? state.notes : [];
+  const activeTasks = allTasks.filter(t => t && t.stage !== 'done').length;
+  const focusMins = (state.pomodoroStats && Number(state.pomodoroStats.totalMins)) || 0;
+  const habits = activeHabits();
+  const doneHabits = habits.filter(h => h && h.checks && h.checks[today()]).length;
+  const habitPct = habits.length ? Math.round((doneHabits / habits.length) * 100) : 0;
+
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setVal('kpi-tasks-val', activeTasks);
   setVal('kpi-focus-val', focusMins + 'm');
   setVal('kpi-habits-val', habitPct + '%');
-  setVal('kpi-notes-val', state.notes.length);
+  setVal('kpi-notes-val', allNotes.length);
 
   setVal('ctx-tasks-badge', activeTasks);
   setVal('ctx-focus-badge', focusMins + 'm');
-  setVal('ctx-habits-badge', `${doneHabits}/${activeHabits().length}`);
-  setVal('ctx-notes-badge', state.notes.length);
+  setVal('ctx-habits-badge', `${doneHabits}/${habits.length}`);
+  setVal('ctx-notes-badge', allNotes.length);
 }
 
 // Render All
@@ -3077,23 +3082,34 @@ function renderAllViews() {
 function renderDashboard() {
   renderQuickStartCard();
   applyEnterpriseHomeOrder();
-  // Priorities
+  // Priorities: sort high-priority and urgent due-date tasks first
   const list = document.getElementById('dash-priorities-list');
   if (list) {
-    const tasks = state.tasks.filter(t => t.stage !== 'done').slice(0, 5);
+    const pOrder = { high: 0, medium: 1, low: 2 };
+    const tasks = state.tasks.filter(t => t && t.stage !== 'done').sort((a, b) => {
+      const p = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+      if (p) return p;
+      if (a.due && b.due && a.due !== b.due) return String(a.due).localeCompare(String(b.due));
+      if (a.due && !b.due) return -1;
+      if (!a.due && b.due) return 1;
+      return (a.created || 0) - (b.created || 0);
+    }).slice(0, 5);
     if (!tasks.length) {
       list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No active tasks. Add one in Kanban!</div>';
     } else {
       const fm = nexFocusMinutesMap(state);
-      list.innerHTML = tasks.map(t => `
+      list.innerHTML = tasks.map(t => {
+        const pri = ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium';
+        return `
         <div class="dash-task-item ${t.stage === 'done' ? 'done' : ''}">
-          <div class="task-check-circle" onclick="toggleTaskDone('${t.id}')">✓</div>
+          <div class="task-check-circle" onclick="toggleTaskDone('${escapeHtml(t.id)}')">✓</div>
           <span class="dash-task-name">${escapeHtml(t.title)}</span>
           ${fm[t.id] ? `<span style="font-size:11px;color:var(--text-muted)">\u25F7 ${fm[t.id]}m</span>` : ''}
-          <span class="priority-badge ${t.priority}">${t.priority}</span>
-          <button type="button" class="dash-task-focus-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>
+          <span class="priority-badge ${pri}">${pri}</span>
+          <button type="button" class="dash-task-focus-btn" onclick="focusOnTask('${escapeHtml(t.id)}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
 
@@ -3121,17 +3137,22 @@ function renderDashboard() {
     }
   }
 
-  // Notes
+  // Notes (pinned and recently edited first)
   const noteBox = document.getElementById('dash-notes-container');
   if (noteBox) {
     if (!state.notes.length) {
       noteBox.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No notes created yet.</div>';
     } else {
-      noteBox.innerHTML = state.notes.slice(0, 3).map(n => `
-        <div class="dash-task-item" style="cursor:pointer" onclick="openNoteInEditor('${n.id}')">
-          <span style="color:var(--accent-primary)">◧</span>
-          <span class="dash-task-name">${escapeHtml(n.title)}</span>
-          <span style="font-size:11px;color:var(--text-muted)">${(n.content || '').split(' ').filter(Boolean).length} words</span>
+      const sortedNotes = [...state.notes].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return (b.updated || b.created || 0) - (a.updated || a.created || 0);
+      });
+      noteBox.innerHTML = sortedNotes.slice(0, 3).map(n => `
+        <div class="dash-task-item" style="cursor:pointer" onclick="openNoteInEditor('${escapeHtml(n.id)}')">
+          <span style="color:var(--accent-primary)">${n.pinned ? '📌' : '◧'}</span>
+          <span class="dash-task-name">${escapeHtml(n.title || 'Untitled Note')}</span>
+          <span style="font-size:11px;color:var(--text-muted)">${(n.content || '').trim().split(/\s+/).filter(Boolean).length} words</span>
         </div>
       `).join('');
     }
@@ -3144,9 +3165,14 @@ function renderDashboard() {
 function refreshDailyInsight() {
   const el = document.getElementById('dash-ai-insight-text');
   if (!el) return;
+  if (typeof nexLocalInsight === 'function') {
+    const focusCfgMins = Math.round((Number(state.pomoTotalTime) || 1500) / 60);
+    el.textContent = nexLocalInsight(state, today(), focusCfgMins);
+    return;
+  }
   const activeTasks = state.tasks.filter(t => t.stage !== 'done');
   const highPri = activeTasks.filter(t => t.priority === 'high');
-  const mins = state.pomodoroStats.totalMins || 0;
+  const mins = (state.pomodoroStats && Number(state.pomodoroStats.totalMins)) || 0;
 
   if (highPri.length > 0) {
     el.textContent = `High-Priority Focus: Tackle "${highPri[0].title}" first today using a 25-minute Pomodoro sprint.`;
@@ -3187,14 +3213,14 @@ function renderKanban() {
       const tags = t.tags || [];
 
       return `
-        <div class="task-card" draggable="true" ondragstart="handleTaskDragStart(event, '${t.id}')" onclick="openTaskEditorModal('${t.id}')">
+        <div class="task-card" draggable="true" ondragstart="handleTaskDragStart(event, '${t.id}')" ondragend="handleTaskDragEnd(event)" onclick="openTaskEditorModal('${t.id}')">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
             <span class="priority-badge ${t.priority}">${t.priority}</span>
             <div class="task-card-actions" onclick="event.stopPropagation()">
               ${t.stage !== 'done' ? `<button class="task-action-icon-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>` : ''}
-              <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', -1)" title="Move Back">←</button>
-              <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', 1)" title="Move Forward">→</button>
-              <button class="task-action-icon-btn" onclick="deleteTask('${t.id}')" title="Delete">✕</button>
+              <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', -1)" title="Move Back" aria-label="Move ${escapeHtml(t.title)} back" ${t.stage === 'todo' ? 'disabled' : ''}>←</button>
+              <button class="task-action-icon-btn" onclick="moveTaskStage('${t.id}', 1)" title="Move Forward" aria-label="Move ${escapeHtml(t.title)} forward" ${t.stage === 'done' ? 'disabled' : ''}>→</button>
+              <button class="task-action-icon-btn" onclick="deleteTask('${t.id}')" title="Delete" aria-label="Delete ${escapeHtml(t.title)}">✕</button>
             </div>
           </div>
           <div class="task-card-title">${escapeHtml(t.title)}</div>
@@ -3222,8 +3248,27 @@ function renderKanban() {
           </div>
         </div>
       `;
-    }).join('');
+    }).join('') || `<div style="padding:18px 10px;text-align:center;color:var(--text-muted);font-size:12px">No tasks in this stage</div>`;
   });
+}
+
+function setEnterpriseTaskStage(task, stage) {
+  if (!task || !['todo', 'inprogress', 'review', 'done'].includes(stage)) return;
+  if (task.stage === stage) {
+    if (stage === 'done' && !task.doneAt) task.doneAt = Date.now();
+    return;
+  }
+  task.stage = stage;
+  if (stage === 'done') task.doneAt = Date.now();
+  else delete task.doneAt;
+}
+
+function refreshEnterpriseTaskViews() {
+  saveWorkspaceState();
+  renderKanban();
+  renderDashboard();
+  renderCalendarTimeline();
+  updateKPICounters();
 }
 
 function getDueStatus(due) {
@@ -3238,19 +3283,21 @@ function handleTaskDragStart(e, id) {
   e.dataTransfer.setData('text/plain', id);
   e.target.classList.add('dragging');
 }
+function handleTaskDragEnd(e) {
+  if (e && e.target) e.target.classList.remove('dragging');
+  document.querySelectorAll('.kanban-cards-container').forEach(c => c.classList.remove('drag-hover'));
+}
 function handleDragOver(e) {
   e.preventDefault();
 }
 function handleTaskDrop(e, stage) {
   e.preventDefault();
+  document.querySelectorAll('.task-card.dragging').forEach(c => c.classList.remove('dragging'));
   const id = e.dataTransfer.getData('text/plain');
   const task = state.tasks.find(t => t.id === id);
   if (task) {
-    task.stage = stage;
-    saveWorkspaceState();
-    renderKanban();
-    renderDashboard();
-    renderCalendarTimeline();
+    setEnterpriseTaskStage(task, stage);
+    refreshEnterpriseTaskViews();
     showToast(`Task moved to ${stage}`);
     if (stage === 'done') playHarmonicChime();
     else playTactileClick();
@@ -3264,11 +3311,8 @@ function moveTaskStage(id, delta) {
   const idx = stages.indexOf(task.stage);
   const next = idx + delta;
   if (next >= 0 && next < stages.length) {
-    task.stage = stages[next];
-    saveWorkspaceState();
-    renderKanban();
-    renderDashboard();
-    renderCalendarTimeline();
+    setEnterpriseTaskStage(task, stages[next]);
+    refreshEnterpriseTaskViews();
     if (task.stage === 'done') playHarmonicChime();
     else playTactileClick();
   }
@@ -3298,11 +3342,8 @@ function playCompletionConfetti(options = { particleCount: 40, spread: 60, origi
 function toggleTaskDone(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
-  task.stage = task.stage === 'done' ? 'todo' : 'done';
-  saveWorkspaceState();
-  renderKanban();
-  renderDashboard();
-  renderCalendarTimeline();
+  setEnterpriseTaskStage(task, task.stage === 'done' ? 'todo' : 'done');
+  refreshEnterpriseTaskViews();
   if (task.stage === 'done') {
     playHarmonicChime();
     playCompletionConfetti();
@@ -3328,15 +3369,12 @@ function deleteTask(id) {
   const trashId = trashEntry('task', mapEnterpriseTaskToClassic(task));
   state.tasks.splice(index, 1);
   if (focusTaskId === id) { focusTaskId = ''; focusPromptId = ''; }
-  saveWorkspaceState();
-  renderKanban();
-  renderDashboard();
-  renderCalendarTimeline();
+  refreshEnterpriseTaskViews();
   showToast('Task deleted', { action: 'Undo', onAction: () => {
     if (state.tasks.some(t => t.id === task.id)) return;
     untrash(trashId);
     state.tasks.splice(Math.min(index, state.tasks.length), 0, task);
-    saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline();
+    refreshEnterpriseTaskViews();
   } });
 }
 
@@ -3351,7 +3389,9 @@ function filterKanbanPriority(pri, btn) {
 function sortKanbanCards(criteria) {
   if (criteria === 'due') {
     state.tasks.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+    saveWorkspaceState();
     renderKanban();
+    renderCalendarTimeline();
     showToast('Sorted by due date');
     playTactileClick();
   }
@@ -3364,17 +3404,14 @@ function filterKanbanSearch(query) {
 
 function handleQuickAddKey(e, stage) {
   if (e.key === 'Enter') {
-    const title = e.target.value.trim();
+    const title = e.target.value.trim().slice(0, 160);
     if (!title) return;
     state.tasks.push({
-      id: uid(), title, desc: '', stage, priority: 'medium', due: today(),
+      id: uid(), title, desc: '', stage: safeEnterpriseStage(stage), priority: 'medium', due: today(),
       created: Date.now(), subtasks: [], tags: []
     });
     e.target.value = '';
-    saveWorkspaceState();
-    renderKanban();
-    renderDashboard();
-    renderCalendarTimeline();
+    refreshEnterpriseTaskViews();
     showToast('Task added');
     playTactileClick();
   }
@@ -3384,12 +3421,30 @@ function handleQuickAddKey(e, stage) {
 function renderCalendarTimeline() {
   const grid = document.getElementById('calendar-hourly-grid');
   if (!grid) return;
+  const dayLabel = document.getElementById('calendar-current-day-label');
+  if (dayLabel) {
+    dayLabel.textContent = `Today's Schedule — ${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`;
+  }
   grid.innerHTML = '';
 
   const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   const activeTasks = state.tasks.filter(t => t.stage !== 'done');
+  const pinnedByHour = new Map();
+  const unscheduledTasks = [];
+  activeTasks.forEach(t => {
+    const hr = Number(t.scheduledHour);
+    if (Number.isInteger(hr) && hr >= 8 && hr <= 20) {
+      if (!pinnedByHour.has(hr)) pinnedByHour.set(hr, []);
+      pinnedByHour.get(hr).push(t);
+    } else {
+      unscheduledTasks.push(t);
+    }
+  });
 
-  hours.forEach((hr, idx) => {
+  let autoCursor = 0;
+  const nowHour = new Date().getHours();
+
+  hours.forEach(hr => {
     const timeStr = `${hr.toString().padStart(2, '0')}:00`;
     const row = document.createElement('div');
     row.className = 'calendar-hour-row';
@@ -3397,22 +3452,31 @@ function renderCalendarTimeline() {
     const label = document.createElement('div');
     label.className = 'hour-time-label';
     label.textContent = timeStr;
+    if (hr === nowHour) label.style.color = 'var(--accent-primary)';
 
     const content = document.createElement('div');
     content.className = 'hour-slot-content';
     content.title = `Click to schedule task at ${timeStr}`;
     content.onclick = () => scheduleTaskAtHour(hr);
 
-    // Map scheduled tasks or focus block
-    const assignedTask = activeTasks[idx % (activeTasks.length || 1)];
-    if (assignedTask && idx < activeTasks.length) {
-      content.innerHTML = `
-        <div class="calendar-event-pill">
-          <span style="color:var(--accent-primary)">▦</span>
-          <strong>${escapeHtml(assignedTask.title)}</strong>
-          <span class="priority-badge ${assignedTask.priority}">${assignedTask.priority}</span>
+    const pinned = pinnedByHour.get(hr) || [];
+    const slotTasks = pinned.length
+      ? pinned
+      : (hr >= Math.max(8, nowHour) && autoCursor < unscheduledTasks.length ? [unscheduledTasks[autoCursor++]] : []);
+
+    if (slotTasks.length) {
+      content.innerHTML = slotTasks.map(task => {
+        const isPinned = Number.isInteger(Number(task.scheduledHour));
+        const pri = ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium';
+        return `
+        <div class="calendar-event-pill" onclick="event.stopPropagation(); openTaskEditorModal('${escapeHtml(task.id)}')" style="cursor:pointer" title="Click to edit task">
+          <span style="color:var(--accent-primary)">${isPinned ? '🕒' : '▦'}</span>
+          <strong>${escapeHtml(task.title)}</strong>
+          <span class="priority-badge ${pri}">${pri}</span>
+          ${isPinned ? `<button type="button" onclick="event.stopPropagation(); clearTaskScheduledHour('${escapeHtml(task.id)}')" title="Unschedule from ${timeStr}" aria-label="Unschedule" style="margin-left:auto;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>` : ''}
         </div>
       `;
+      }).join('');
     } else {
       content.innerHTML = '<span style="color:var(--text-muted);font-size:11.5px">+ Open Focus Block</span>';
     }
@@ -3423,17 +3487,29 @@ function renderCalendarTimeline() {
   });
 }
 
+function clearTaskScheduledHour(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  delete task.scheduledHour;
+  saveWorkspaceState();
+  renderCalendarTimeline();
+  showToast('Task removed from time slot');
+}
+
 function scheduleTaskAtHour(hr) {
-  const title = prompt(`Schedule new task for ${hr}:00 today:`);
-  if (!title) return;
+  const raw = prompt(`Schedule new task for ${String(hr).padStart(2, '0')}:00 today:`);
+  if (raw === null) return;
+  const cleanTitle = String(raw).trim().slice(0, 160);
+  if (!cleanTitle) { showToast('Please enter a task title.'); return; }
   state.tasks.push({
-    id: uid(), title: title.trim(), desc: `Scheduled for ${hr}:00`,
-    stage: 'todo', priority: 'medium', due: today(), created: Date.now(), subtasks: []
+    id: uid(), title: cleanTitle, desc: `Scheduled for ${String(hr).padStart(2, '0')}:00`,
+    stage: 'todo', priority: 'medium', due: today(), scheduledHour: hr, created: Date.now(), subtasks: []
   });
   saveWorkspaceState();
   renderAllViews();
   renderCalendarTimeline();
-  showToast(`Task scheduled at ${hr}:00`);
+  if (typeof updateKPICounters === 'function') updateKPICounters();
+  showToast(`Task scheduled at ${String(hr).padStart(2, '0')}:00`);
 }
 
 // ---------------- TASK MODAL ----------------
@@ -3466,28 +3542,30 @@ function openTaskEditorModal(id) {
 }
 
 function saveTaskModal() {
-  const title = document.getElementById('task-modal-title').value.trim();
-  if (!title) return;
+  const titleEl = document.getElementById('task-modal-title');
+  const title = titleEl.value.trim().slice(0, 160);
+  if (!title) { titleEl.focus(); showToast('Enter a task title.'); return; }
   const desc = document.getElementById('task-modal-desc').value.trim();
-  const stage = document.getElementById('task-modal-stage').value;
-  const priority = document.getElementById('task-modal-priority').value;
-  const due = document.getElementById('task-modal-due').value;
+  const stage = safeEnterpriseStage(document.getElementById('task-modal-stage').value);
+  const priority = safeEnterprisePriority(document.getElementById('task-modal-priority').value);
+  const rawDue = document.getElementById('task-modal-due').value;
+  const due = /^\d{4}-\d{2}-\d{2}$/.test(rawDue) ? rawDue : '';
 
   if (editingTaskId) {
     const task = state.tasks.find(t => t.id === editingTaskId);
     if (task) {
-      task.title = title; task.desc = desc; task.stage = stage;
+      delete task.sample;
+      task.title = title; task.desc = desc;
       task.priority = priority; task.due = due;
+      setEnterpriseTaskStage(task, stage);
     }
   } else {
     state.tasks.push({
-      id: uid(), title, desc, stage, priority, due, created: Date.now(), subtasks: [], tags: []
+      id: uid(), title, desc, stage, priority, due, created: Date.now(), subtasks: [], tags: [],
+      ...(stage === 'done' ? { doneAt: Date.now() } : {})
     });
   }
-  saveWorkspaceState();
-  renderKanban();
-  renderDashboard();
-  renderCalendarTimeline();
+  refreshEnterpriseTaskViews();
   closeModal('modal-task-editor');
   showToast('Task saved');
   playTactileClick();
@@ -3516,12 +3594,20 @@ async function aiBreakdownActiveTask() {
 // ---------------- POMODORO & PROCEDURAL AUDIO 3.0 ----------------
 function setPomodoroMode(mode) {
   playTactileClick();
-  state.pomoMode = mode;
+  const validMode = ['focus', 'short', 'long'].includes(mode) ? mode : 'focus';
+  state.pomoMode = validMode;
   document.querySelectorAll('.mode-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-pomo-' + mode)?.classList.add('active');
+  document.getElementById('tab-pomo-' + validMode)?.classList.add('active');
 
-  const mins = mode === 'focus' ? (parseInt(document.getElementById('cfg-focus-min')?.value) || 25)
-    : mode === 'short' ? (parseInt(document.getElementById('cfg-short-min')?.value) || 5) : 15;
+  const clampMin = (elId, fallback, min, max) => {
+    const el = document.getElementById(elId);
+    const raw = parseInt(el?.value || fallback, 10);
+    const v = Number.isFinite(raw) ? Math.min(max, Math.max(min, raw)) : fallback;
+    if (el && String(v) !== el.value) el.value = v;
+    return v;
+  };
+  const mins = validMode === 'focus' ? clampMin('cfg-focus-min', 25, 1, 120)
+    : validMode === 'short' ? clampMin('cfg-short-min', 5, 1, 60) : 15;
   state.pomoTotalTime = mins * 60;
   state.pomoTimeRemaining = state.pomoTotalTime;
   pausePomodoro();
@@ -3549,7 +3635,7 @@ function renderFocusTask() {
   }
   document.querySelectorAll('.pomo-task-slot').forEach(el => { el.innerHTML = html; });
 }
-function focusRefresh() { saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline(); }
+function focusRefresh() { saveWorkspaceState(); renderKanban(); renderDashboard(); renderCalendarTimeline(); if (typeof updateKPICounters === 'function') updateKPICounters(); }
 function focusOnTask(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task) return;
@@ -3576,7 +3662,10 @@ function focusLogSession(mins) {
 function focusFinishTask() {
   const task = state.tasks.find(t => t.id === focusTaskId);
   focusTaskId = ''; focusPromptId = '';
-  if (task) task.stage = 'done';
+  if (task) {
+    if (typeof setEnterpriseTaskStage === 'function') setEnterpriseTaskStage(task, 'done');
+    else { task.stage = 'done'; task.doneAt = Date.now(); }
+  }
   focusRefresh(); renderFocusTask();
   if (task) playHarmonicChime();
 }
@@ -3641,19 +3730,24 @@ function resetPomodoro() {
 
 function skipPomodoro() {
   pausePomodoro();
-  completePomodoroInterval();
+  const nextMode = state.pomoMode === 'focus' ? 'short' : 'focus';
+  setPomodoroMode(nextMode);
+  showToast(nextMode === 'short' ? 'Switched to break' : 'Switched to focus');
 }
 
 function completePomodoroInterval() {
   pausePomodoro();
   playHarmonicChime();
   if (state.pomoMode === 'focus') {
-    const mins = Math.round(state.pomoTotalTime / 60);
+    const mins = Math.max(1, Math.round((state.pomoTotalTime || 1500) / 60));
     state.pomodoroStats.totalMins = (state.pomodoroStats.totalMins || 0) + mins;
     state.pomodoroStats.sessions = (state.pomodoroStats.sessions || 0) + 1;
     state.pomodoroStats.streak = (state.pomodoroStats.streak || 0) + 1;
     focusLogSession(mins);
     saveWorkspaceState();
+    renderDashboard();
+    renderKanban();
+    updateKPICounters();
     showToast(`Focus session completed! +${mins}m deep work logged.`);
     playCompletionConfetti();
     setPomodoroMode('short');
@@ -3673,7 +3767,8 @@ function renderPomTimerUI() {
   const t2 = document.getElementById('dash-pomo-time');
   if (t2) t2.textContent = timeStr;
 
-  const progressFraction = (state.pomoTotalTime - state.pomoTimeRemaining) / state.pomoTotalTime;
+  const total = Math.max(1, Number(state.pomoTotalTime) || 1500);
+  const progressFraction = Math.min(1, Math.max(0, (total - state.pomoTimeRemaining) / total));
   
   // Large ring (dasharray 880)
   const fgLarge = document.getElementById('pomo-large-progress');
@@ -3871,7 +3966,7 @@ function applyHabitFields(habit) {
   if (remind) { if (/^([01]\d|2[0-3]):[0-5]\d$/.test(remind.value)) habit.remindAt = remind.value; else delete habit.remindAt; }
   return true;
 }
-function refreshHabitViews() { saveWorkspaceState(); renderHabits(); renderDashboard(); }
+function refreshHabitViews() { saveWorkspaceState(); renderHabits(); renderDashboard(); if (typeof updateKPICounters === 'function') updateKPICounters(); }
 function saveEditHabit(id) {
   const habit = state.habits.find(h => h.id === id);
   if (!habit || !document.getElementById('habit-edit-name')) { cancelEditHabit(); return; }
@@ -3971,9 +4066,9 @@ function getPast7Dates() {
 function toggleHabitCheck(id, dateStr) {
   const habit = state.habits.find(h => h.id === id);
   if (!habit) return;
-  if (!habit.checks) habit.checks = {};
-
-  habit.checks[dateStr] = !habit.checks[dateStr];
+  if (!habit.checks || typeof habit.checks !== 'object') habit.checks = {};
+  if (habit.checks[dateStr]) delete habit.checks[dateStr];
+  else habit.checks[dateStr] = true;
   
   // Compute streak
   let streak = 0;
@@ -3993,6 +4088,7 @@ function toggleHabitCheck(id, dateStr) {
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
 
   if (habit.checks[dateStr]) {
     playHarmonicChime();
@@ -4016,6 +4112,7 @@ function deleteHabit(id) {
   const index = state.habits.findIndex(h => h.id === id);
   if (index < 0) return;
   if (editingHabitId === id) editingHabitId = null;
+  if (typeof habitDetailId !== 'undefined' && habitDetailId === id) habitDetailId = null;
   const habit = state.habits[index];
   const days = Object.values(habit.checks || {}).filter(Boolean).length;
   const detail = days ? ` Its ${days} check-in${days === 1 ? '' : 's'} will be removed too.` : '';
@@ -4025,24 +4122,32 @@ function deleteHabit(id) {
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
   showToast(`Habit "${habit.name}" deleted`, { action: 'Undo', onAction: () => {
     if (state.habits.some(h => h.id === habit.id)) return;
     untrash(trashId);
     state.habits.splice(Math.min(index, state.habits.length), 0, habit);
     saveWorkspaceState(); renderHabits(); renderDashboard();
+    if (typeof updateKPICounters === 'function') updateKPICounters();
   } });
 }
 
 function openNewHabitModal() {
-  const name = prompt('Enter new habit name (e.g. Read 20 pages, 30m Workout, Meditation):');
-  if (!name) return;
+  const raw = prompt('Enter new habit name (e.g. Read 20 pages, 30m Workout, Meditation):');
+  if (raw === null) return;
+  const cleanName = String(raw).trim().slice(0, 80);
+  if (!cleanName) {
+    if (typeof showToast === 'function') showToast('Please enter a habit name');
+    return;
+  }
   state.habits.push({
-    id: uid(), name: name.trim(), color: 'var(--accent-primary)',
+    id: uid(), name: cleanName, color: 'var(--accent-primary)',
     streak: 0, checks: {}
   });
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
   showToast('New habit created!');
   playTactileClick();
 }
@@ -4076,75 +4181,191 @@ function renderHeatmap() {
 
 // ---------------- SMART NOTES STUDIO 3.0 ----------------
 let noteSearchQuery = '';
+let noteEditorLoadedId = null;
+let enterpriseNoteDirty = false;
+let enterpriseNoteSaveTimer = null;
+
+function flushEnterpriseNoteEdits(quiet = true) {
+  clearTimeout(enterpriseNoteSaveTimer);
+  if (!enterpriseNoteDirty || !noteEditorLoadedId) return false;
+  const note = state.notes.find(n => n.id === noteEditorLoadedId);
+  const titleEl = document.getElementById('note-editor-title');
+  const textarea = document.getElementById('note-editor-textarea');
+  enterpriseNoteDirty = false;
+  if (!note || !titleEl || !textarea) return false;
+  delete note.sample;
+  note.title = titleEl.value.trim().slice(0, 120) || 'Untitled Note';
+  note.content = textarea.value;
+  note.updated = Date.now();
+  saveWorkspaceState();
+  const statusEl = document.getElementById('note-save-status');
+  if (statusEl) statusEl.textContent = quiet ? 'Auto-saved' : 'Saved just now';
+  return true;
+}
+
+window.addEventListener('pagehide', () => flushEnterpriseNoteEdits(true));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushEnterpriseNoteEdits(true);
+});
 
 function renderNotesList() {
   const container = document.getElementById('notes-list-container');
   if (!container) return;
 
-  let notes = [...state.notes];
+  let notes = [...state.notes].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.updated || b.created || 0) - (a.updated || a.created || 0);
+  });
   if (noteSearchQuery.trim()) {
-    const q = noteSearchQuery.toLowerCase();
-    notes = notes.filter(n => n.title.toLowerCase().includes(q) || (n.content || '').toLowerCase().includes(q));
+    const q = noteSearchQuery.trim().toLowerCase();
+    notes = notes.filter(n =>
+      (n.title || '').toLowerCase().includes(q)
+      || (n.content || '').toLowerCase().includes(q)
+      || (Array.isArray(n.tags) ? n.tags.join(' ').toLowerCase().includes(q) : false)
+    );
   }
 
-  if (!notes.length) {
-    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px">No notes found.</div>';
-    return;
-  }
-
-  container.innerHTML = notes.map(n => `
-    <div class="note-list-card ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNoteInEditor('${n.id}')">
-      <div class="note-list-card-title">${escapeHtml(n.title)}</div>
+  container.innerHTML = notes.length
+    ? notes.map(n => `
+    <div class="note-list-card ${n.id === state.currentNoteId ? 'active' : ''}" onclick="openNoteInEditor('${escapeHtml(n.id)}')">
+      <div class="note-list-card-title">${n.pinned ? '📌 ' : ''}${escapeHtml(n.title || 'Untitled Note')}</div>
       <div class="note-list-card-snippet">${escapeHtml((n.content || '').slice(0, 60)) || 'Empty note'}</div>
     </div>
-  `).join('');
+  `).join('')
+    : `<div style="color:var(--text-muted);font-size:13px;padding:12px">${noteSearchQuery.trim() ? 'No matching notes found.' : 'No notes yet. Click + New Note to capture a thought.'}</div>`;
 
-  if (state.currentNoteId) {
-    const current = state.notes.find(n => n.id === state.currentNoteId);
-    if (current) {
-      document.getElementById('note-editor-title').value = current.title;
-      document.getElementById('note-editor-textarea').value = current.content || '';
+  const current = state.currentNoteId ? state.notes.find(n => n.id === state.currentNoteId) : null;
+  const titleEl = document.getElementById('note-editor-title');
+  const textarea = document.getElementById('note-editor-textarea');
+  const pinBtn = document.getElementById('note-pin-btn');
+  if (current && titleEl && textarea) {
+    if (noteEditorLoadedId !== current.id || !enterpriseNoteDirty) {
+      titleEl.value = current.title || '';
+      textarea.value = current.content || '';
+      noteEditorLoadedId = current.id;
+      enterpriseNoteDirty = false;
       updateNoteWordCount();
+      if (document.getElementById('note-editor-preview')?.classList.contains('active')) {
+        updateMarkdownPreview();
+      }
     }
+    if (pinBtn) pinBtn.textContent = current.pinned ? '📌 Pinned' : '📌 Pin';
+  } else if (!current && titleEl && textarea && !enterpriseNoteDirty) {
+    noteEditorLoadedId = null;
+    titleEl.value = '';
+    textarea.value = '';
+    updateNoteWordCount();
+    if (pinBtn) pinBtn.textContent = '📌 Pin';
   }
 }
 
 function openNoteInEditor(id) {
+  if (noteEditorLoadedId && noteEditorLoadedId !== id) {
+    flushEnterpriseNoteEdits(true);
+  }
   state.currentNoteId = id;
   switchNexusView('notes');
   renderNotesList();
 }
 
 function quickCreateNote() {
+  flushEnterpriseNoteEdits(true);
+  const now = Date.now();
   const newNote = {
-    id: uid(), title: 'Sprint Meeting & Strategy',
-    content: '# Core Objectives\n- Prioritize user experience and latency\n- Execute 2 daily focus sessions\n- Verify analytics',
-    tags: ['sprint', 'strategy'], created: Date.now()
+    id: uid(), title: 'Untitled Note',
+    content: '',
+    tags: [], pinned: false, created: now, updated: now
   };
   state.notes.unshift(newNote);
   state.currentNoteId = newNote.id;
+  noteEditorLoadedId = newNote.id;
+  enterpriseNoteDirty = false;
   saveWorkspaceState();
   switchNexusView('notes');
   renderNotesList();
+  renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
+  document.getElementById('note-editor-title')?.select();
   showToast('Note created');
   playTactileClick();
 }
 
 function saveActiveNote() {
-  const note = state.notes.find(n => n.id === state.currentNoteId);
-  if (!note) return;
-  note.title = document.getElementById('note-editor-title').value.trim() || 'Untitled Note';
-  note.content = document.getElementById('note-editor-textarea').value;
+  clearTimeout(enterpriseNoteSaveTimer);
+  const titleEl = document.getElementById('note-editor-title');
+  const textarea = document.getElementById('note-editor-textarea');
+  if (!titleEl || !textarea) return;
+  let note = state.notes.find(n => n.id === state.currentNoteId);
+  if (!note) {
+    const now = Date.now();
+    note = { id: uid(), title: 'Untitled Note', content: '', tags: [], pinned: false, created: now, updated: now };
+    state.notes.unshift(note);
+    state.currentNoteId = note.id;
+  }
+  delete note.sample;
+  note.title = titleEl.value.trim().slice(0, 120) || 'Untitled Note';
+  note.content = textarea.value;
+  note.updated = Date.now();
+  noteEditorLoadedId = note.id;
+  enterpriseNoteDirty = false;
   saveWorkspaceState();
   renderNotesList();
   renderDashboard();
-  document.getElementById('note-save-status').textContent = 'Saved just now';
+  if (typeof updateKPICounters === 'function') updateKPICounters();
+  const statusEl = document.getElementById('note-save-status');
+  if (statusEl) statusEl.textContent = 'Saved just now';
   showToast('Note saved');
   playTactileClick();
 }
 
+function togglePinActiveNote() {
+  flushEnterpriseNoteEdits(true);
+  const note = state.notes.find(n => n.id === state.currentNoteId);
+  if (!note) { showToast('Select a note first.'); return; }
+  note.pinned = !note.pinned;
+  note.updated = Date.now();
+  saveWorkspaceState();
+  renderNotesList();
+  renderDashboard();
+  showToast(note.pinned ? 'Note pinned to top' : 'Note unpinned');
+}
+
+function deleteActiveNote() {
+  clearTimeout(enterpriseNoteSaveTimer);
+  const index = state.notes.findIndex(n => n.id === state.currentNoteId);
+  if (index < 0) { showToast('No active note to delete.'); return; }
+  const [removed] = state.notes.splice(index, 1);
+  const trashId = trashEntry('note', { ...removed });
+  enterpriseNoteDirty = false;
+  noteEditorLoadedId = null;
+  state.currentNoteId = state.notes[0]?.id || null;
+  saveWorkspaceState();
+  renderNotesList();
+  renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
+  showToast(`Deleted "${removed.title || 'Untitled Note'}"`, { action: 'Undo', onAction: () => {
+    untrash(trashId);
+    if (!state.notes.some(n => n.id === removed.id)) {
+      state.notes.splice(Math.min(index, state.notes.length), 0, removed);
+    }
+    state.currentNoteId = removed.id;
+    enterpriseNoteDirty = false;
+    noteEditorLoadedId = null;
+    saveWorkspaceState();
+    renderNotesList();
+    renderDashboard();
+    if (typeof updateKPICounters === 'function') updateKPICounters();
+  } });
+}
+
 function markNoteUnsaved() {
-  document.getElementById('note-save-status').textContent = 'Unsaved changes';
+  enterpriseNoteDirty = true;
+  if (!noteEditorLoadedId && state.currentNoteId) noteEditorLoadedId = state.currentNoteId;
+  const statusEl = document.getElementById('note-save-status');
+  if (statusEl) statusEl.textContent = 'Unsaved changes';
+  clearTimeout(enterpriseNoteSaveTimer);
+  enterpriseNoteSaveTimer = setTimeout(() => { flushEnterpriseNoteEdits(true); }, 900);
 }
 
 function handleNoteContentChange() {
@@ -4226,25 +4447,32 @@ function filterNotesSearch(q) {
 
 async function aiSummarizeActiveNote() {
   const textarea = document.getElementById('note-editor-textarea');
+  const btn = document.getElementById('note-ai-summarize-btn');
   if (!textarea || !textarea.value.trim()) { showToast('Write something in the note first.'); return; }
+  if (btn && btn.disabled) return;
   try {
+    if (btn) { btn.disabled = true; btn.textContent = '✦ Summarizing…'; }
     showToast('NexAI is summarizing…');
     const summary = await enterpriseComplete(`Summarize this note in 2 to 3 sentences:\n\n${textarea.value.slice(0, 10000)}`, 'You are a concise productivity assistant.');
-    if (!summary) throw new Error('NexAI returned nothing. Please try again.');
-    textarea.value = `## Summary\n${summary}\n\n---\n\n${textarea.value}`;
+    if (!summary || !summary.trim()) throw new Error('NexAI returned nothing. Please try again.');
+    textarea.value = `## Summary\n${summary.trim()}\n\n---\n\n${textarea.value}`;
     handleNoteContentChange();
+    flushEnterpriseNoteEdits(true);
     showToast('Summary added to the top of the note');
     playHarmonicChime();
   } catch (err) { showToast(err.message || 'NexAI could not summarize this note.'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '✦ AI Summarize'; } }
 }
 
 function exportCurrentNoteMarkdown() {
+  flushEnterpriseNoteEdits(true);
   const current = state.notes.find(n => n.id === state.currentNoteId);
-  if (!current) return;
+  if (!current) { showToast('Select a note to export.'); return; }
   const dataStr = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(current.content || '');
   const a = document.createElement('a');
   a.setAttribute('href', dataStr);
-  a.setAttribute('download', `${(current.title || 'note').replace(/[^a-z0-9]/gi, '_')}.md`);
+  const safeName = (current.title || 'note').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'note';
+  a.setAttribute('download', `${safeName}.md`);
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -4333,6 +4561,16 @@ function renderEnterpriseScore() {
 
 let enterpriseChartLoadPromise = null;
 let enterpriseAnalyticsRenderToken = 0;
+let enterpriseAnalyticsRange = 7;
+
+function setAnalyticsRange(days, btn) {
+  enterpriseAnalyticsRange = days === 30 ? 30 : 7;
+  document.getElementById('analytics-range-7')?.classList.toggle('active', enterpriseAnalyticsRange === 7);
+  document.getElementById('analytics-range-30')?.classList.toggle('active', enterpriseAnalyticsRange === 30);
+  if (btn) btn.classList.add('active');
+  renderAnalyticsCharts();
+}
+
 function ensureEnterpriseChartLibrary() {
   if (window.Chart) return Promise.resolve(true);
   if (enterpriseChartLoadPromise) return enterpriseChartLoadPromise;
@@ -4341,7 +4579,7 @@ function ensureEnterpriseChartLibrary() {
     script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
     script.async = true;
     script.onload = () => resolve(!!window.Chart);
-    script.onerror = () => resolve(false);
+    script.onerror = () => { enterpriseChartLoadPromise = null; resolve(false); };
     document.head.appendChild(script);
   });
   return enterpriseChartLoadPromise;
@@ -4350,21 +4588,26 @@ function ensureEnterpriseChartLibrary() {
 async function renderAnalyticsCharts() {
   const renderToken = ++enterpriseAnalyticsRenderToken;
   renderEnterpriseScore();
+  renderHourlyProductivityHeat();
   if (!window.Chart) {
     const loaded = await ensureEnterpriseChartLibrary();
     if (!loaded || renderToken !== enterpriseAnalyticsRenderToken || !document.getElementById('pane-analytics')?.classList.contains('active')) return;
   }
 
-  const isDark = document.documentElement.getAttribute('data-theme').includes('dark');
+  const isDark = (document.documentElement.getAttribute('data-theme') || '').includes('dark');
   const textColor = isDark ? '#94a3b8' : '#475569';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
 
-  // Focus Bar Chart: real minutes for the last 7 days from the focus log (no sample numbers)
+  // Focus Bar Chart: real minutes for selected window (7 or 30 days)
   const focusDays = [];
-  for (let i = 6; i >= 0; i--) {
+  const totalDays = enterpriseAnalyticsRange === 30 ? 30 : 7;
+  for (let i = totalDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    focusDays.push({ label: d.toLocaleDateString('en-US', { weekday: 'short' }), minutes: (state.pomodoroLog || []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0) });
+    const label = totalDays <= 7
+      ? d.toLocaleDateString('en-US', { weekday: 'short' })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    focusDays.push({ label, minutes: (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0) });
   }
   const ctx1 = document.getElementById('analyticsFocusChart')?.getContext('2d');
   if (ctx1) {
@@ -4385,7 +4628,7 @@ async function renderAnalyticsCharts() {
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: textColor }, grid: { display: false } },
-          y: { ticks: { color: textColor }, grid: { color: gridColor } }
+          y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
         }
       }
     });
@@ -4417,17 +4660,29 @@ async function renderAnalyticsCharts() {
     });
   }
 
-  // Velocity Line Chart
+  // Velocity Line Chart: group completed tasks across the last 5 weeks via doneAt
   const ctx3 = document.getElementById('analyticsVelocityChart')?.getContext('2d');
   if (ctx3) {
     if (velocityChartInstance) velocityChartInstance.destroy();
+    const nowMs = Date.now();
+    const weekMs = 7 * 86400000;
+    const weekLabels = ['4w ago', '3w ago', '2w ago', 'Last week', 'This week'];
+    const weekCounts = [0, 0, 0, 0, 0];
+    state.tasks.filter(t => t && t.stage === 'done').forEach(t => {
+      if (t.doneAt && Number.isFinite(Number(t.doneAt))) {
+        const weeksAgo = Math.floor((nowMs - Number(t.doneAt)) / weekMs);
+        if (weeksAgo >= 0 && weeksAgo < 5) weekCounts[4 - weeksAgo]++;
+      } else {
+        weekCounts[4]++;
+      }
+    });
     velocityChartInstance = new Chart(ctx3, {
       type: 'line',
       data: {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Current Week'],
+        labels: weekLabels,
         datasets: [{
           label: 'Tasks Completed',
-          data: [null, null, null, null, state.tasks.filter(t => t.stage === 'done').length], // no completion history is stored yet, so earlier weeks are left empty instead of invented
+          data: weekCounts,
           borderColor: '#00B7C3',
           backgroundColor: 'rgba(0, 183, 195, 0.15)',
           tension: 0.35, fill: true
@@ -4438,13 +4693,11 @@ async function renderAnalyticsCharts() {
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: textColor }, grid: { display: false } },
-          y: { ticks: { color: textColor }, grid: { color: gridColor } }
+          y: { beginAtZero: true, ticks: { precision: 0, color: textColor }, grid: { color: gridColor } }
         }
       }
     });
   }
-
-  renderHourlyProductivityHeat();
 }
 
 function renderHourlyProductivityHeat() {
@@ -4452,10 +4705,25 @@ function renderHourlyProductivityHeat() {
   if (!container) return;
   container.innerHTML = '';
   const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const counts = Object.create(null);
+  hours.forEach(hr => { counts[hr] = 0; });
+  state.tasks.forEach(t => {
+    if (!t) return;
+    if (t.stage === 'done' && t.doneAt) {
+      const hr = new Date(Number(t.doneAt)).getHours();
+      if (counts[hr] !== undefined) counts[hr]++;
+    }
+    const sched = Number(t.scheduledHour);
+    if (Number.isInteger(sched) && counts[sched] !== undefined) counts[sched]++;
+  });
+  const maxCount = Math.max(0, ...Object.values(counts));
   hours.forEach(hr => {
+    const score = counts[hr] || 0;
+    const isPeak = maxCount > 0 && score >= Math.max(1, maxCount * 0.65);
     const slot = document.createElement('div');
-    slot.className = 'hourly-heat-slot' + (hr === 9 || hr === 10 || hr === 14 ? ' active' : '');
-    slot.innerHTML = `<span>${hr}h</span><span>${hr === 9 || hr === 10 || hr === 14 ? 'Peak' : 'Norm'}</span>`;
+    slot.className = 'hourly-heat-slot' + (isPeak ? ' active' : '');
+    slot.title = `${String(hr).padStart(2, '0')}:00 — ${score} completed/scheduled block${score === 1 ? '' : 's'}`;
+    slot.innerHTML = `<span>${hr}h</span><span>${isPeak ? 'Peak' : score > 0 ? String(score) : 'Idle'}</span>`;
     container.appendChild(slot);
   });
 }
@@ -4463,18 +4731,25 @@ function renderHourlyProductivityHeat() {
 function saveWeeklyReviewToNotes() {
   const activeTasks = state.tasks.filter(t => t.stage !== 'done').length;
   const doneTasks = state.tasks.filter(t => t.stage === 'done').length;
+  const totalFocusMins = (state.pomodoroStats && Number(state.pomodoroStats.totalMins)) || 0;
   const reviewContent = `# Executive Weekly Review (${today()})\n\n` +
     `• **Completed Tasks:** ${doneTasks}\n` +
     `• **Active Open Tasks:** ${activeTasks}\n` +
-    `• **Deep Focus Logged:** ${state.pomodoroStats.totalMins || 0} minutes\n` +
+    `• **Deep Focus Logged:** ${totalFocusMins} minutes\n` +
     `• **Habits Monitored:** ${activeHabits().length}\n\n` +
     `## Strategic Takeaways\n- Maintain momentum on high priority items\n- Timebox focus sessions earlier in the day`;
 
-  state.notes.unshift({
+  const now = Date.now();
+  const note = {
     id: uid(), title: `Weekly Review ${today()}`,
-    content: reviewContent, tags: ['review', 'analytics'], created: Date.now()
-  });
+    content: reviewContent, tags: ['review', 'analytics'], pinned: false, created: now, updated: now
+  };
+  state.notes.unshift(note);
+  state.currentNoteId = note.id;
   saveWorkspaceState();
+  renderNotesList();
+  renderDashboard();
+  if (typeof updateKPICounters === 'function') updateKPICounters();
   showToast('Weekly review saved to Smart Notes!');
   playHarmonicChime();
 }
@@ -4653,35 +4928,86 @@ function openActionPlanModal() {
 }
 
 // ---------------- DAY PLANNER MODAL ----------------
+let lastProposedSchedule = [];
+
 function openPlanScheduleModal() {
-  generateAutoSchedule();
+  generateAutoSchedule(false);
   openModal('modal-plan-schedule');
   playTactileClick();
 }
 
-function generateAutoSchedule() {
+function generateAutoSchedule(applyImmediately = false) {
   const container = document.getElementById('plan-items-schedule-list');
-  if (!container) return;
-
   const active = state.tasks.filter(t => t.stage !== 'done');
+  const pOrder = { high: 0, medium: 1, low: 2 };
   const sorted = [...active].sort((a, b) => {
-    const pOrder = { high: 0, medium: 1, low: 2 };
-    return (pOrder[a.priority] || 1) - (pOrder[b.priority] || 1);
+    const p = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+    if (p) return p;
+    if (a.due && b.due && a.due !== b.due) return String(a.due).localeCompare(String(b.due));
+    if (a.due && !b.due) return -1;
+    if (!a.due && b.due) return 1;
+    return (a.created || 0) - (b.created || 0);
   });
 
-  let curHour = 9;
-  container.innerHTML = sorted.slice(0, 6).map(t => {
-    const startStr = `${curHour.toString().padStart(2, '0')}:00`;
-    const endStr = `${(curHour + 1).toString().padStart(2, '0')}:00`;
+  const openHabits = state.habits.filter(h => h && !h.archived && !(h.checks && h.checks[today()]));
+  const combined = [
+    ...sorted.map(t => ({ kind: 'task', id: t.id, title: t.title, badge: t.priority || 'medium', badgeClass: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium' })),
+    ...openHabits.slice(0, 3).map(h => ({ kind: 'habit', id: h.id, title: `Habit: ${h.name}`, badge: 'habit', badgeClass: 'medium' }))
+  ];
+
+  const nowHour = new Date().getHours();
+  let curHour = nowHour >= 20 ? 9 : Math.max(8, nowHour);
+  lastProposedSchedule = [];
+
+  const rows = [];
+  for (const item of combined) {
+    if (curHour > 20 || rows.length >= 8) break;
+    const startStr = `${String(curHour).padStart(2, '0')}:00`;
+    const endStr = `${String(curHour + 1).padStart(2, '0')}:00`;
+    if (item.kind === 'task') lastProposedSchedule.push({ id: item.id, hour: curHour });
     curHour += 1;
-    return `
+    rows.push(`
       <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-subtle)">
         <span style="font-family:var(--font-mono);font-size:12px;color:var(--accent-primary);font-weight:600">${startStr} - ${endStr}</span>
-        <span style="flex:1;font-size:13.5px;font-weight:500">${escapeHtml(t.title)}</span>
-        <span class="priority-badge ${t.priority}">${t.priority}</span>
+        <span style="flex:1;font-size:13.5px;font-weight:500">${escapeHtml(item.title)}</span>
+        <span class="priority-badge ${item.badgeClass}">${escapeHtml(item.badge)}</span>
       </div>
-    `;
-  }).join('');
+    `);
+  }
+
+  if (container) {
+    container.innerHTML = rows.length
+      ? rows.join('')
+      : '<div style="color:var(--text-muted);font-size:13px;padding:14px;text-align:center">No open tasks or pending habits for today. Add a task or habit first.</div>';
+  }
+
+  if (applyImmediately) {
+    if (!lastProposedSchedule.length) {
+      showToast('No open tasks to schedule right now.');
+      return;
+    }
+    lastProposedSchedule.forEach(entry => {
+      const task = state.tasks.find(t => t.id === entry.id);
+      if (task) task.scheduledHour = entry.hour;
+    });
+    saveWorkspaceState();
+    renderCalendarTimeline();
+    showToast(`Optimized ${lastProposedSchedule.length} focus block(s) onto your timeline`);
+    playTactileClick();
+  }
+}
+
+function applyAutoSchedule() {
+  if (lastProposedSchedule.length) {
+    lastProposedSchedule.forEach(entry => {
+      const task = state.tasks.find(t => t.id === entry.id);
+      if (task) task.scheduledHour = entry.hour;
+    });
+    saveWorkspaceState();
+    renderCalendarTimeline();
+    showToast(`Applied ${lastProposedSchedule.length} timeblock(s) to today's schedule`);
+  }
+  closeModal('modal-plan-schedule');
 }
 
 // ---------------- COMMAND PALETTE (Ctrl+K) ----------------
@@ -4950,6 +5276,10 @@ function safeEnterpriseStage(value) {
   if (s === 'in_progress' || s === 'in-progress' || s === 'in progress') return 'inprogress';
   return ['todo', 'inprogress', 'review', 'done'].includes(s) ? s : 'todo';
 }
+function safeEnterpriseId(value) {
+  const id = String(value || '');
+  return /^[a-zA-Z0-9_-]{1,120}$/.test(id) ? id : uid();
+}
 function safeEnterprisePriority(value) {
   const p = String(value || '').toLowerCase();
   return ['low', 'medium', 'high'].includes(p) ? p : 'medium';
@@ -4961,7 +5291,7 @@ function mapClassicTaskToEnterprise(t) {
   })) : [];
   return {
     ...task,
-    id: String(task.id || uid()),
+    id: safeEnterpriseId(task.id),
     title: String(task.title || 'Untitled task'),
     desc: String(task.desc || task.description || ''),
     stage: safeEnterpriseStage(task.col || task.stage || task.status),
@@ -4976,7 +5306,7 @@ function mapEnterpriseTaskToClassic(t) {
   const task = t && typeof t === 'object' ? t : {};
   const converted = {
     ...task,
-    id: String(task.id || uid()),
+    id: safeEnterpriseId(task.id),
     title: String(task.title || 'Untitled task'),
     desc: String(task.desc || task.description || ''),
     col: safeEnterpriseStage(task.stage || task.col),
@@ -5664,7 +5994,8 @@ function nexChatAddHabits(items) {
 }
 function nexChatAddNote(draft) {
   if (state.notes.some(n => n.content === draft.content)) return { added: 0, skipped: 1 };
-  const note = { id: uid(), title: draft.title, content: draft.content, tags: draft.tags || ['nexai'], pinned: false, created: Date.now() };
+  const now = Date.now();
+  const note = { id: uid(), title: draft.title, content: draft.content, tags: draft.tags || ['nexai'], pinned: false, created: now, updated: now };
   const previous = state.currentNoteId;
   state.notes.unshift(note);
   state.currentNoteId = note.id;
@@ -5791,6 +6122,7 @@ async function postEnterpriseChat(message, box, files = []) {
     if (files.length && enterpriseAttach) enterpriseAttach.clear();
     if (pending) pending.innerHTML = renderSimpleMarkdown(payload.text || 'No response received.');
     attachNexChatTasks(pending, payload.text || '', message, box, { incomplete: Boolean(payload.incomplete), incompleteReason: payload.incompleteReason });
+    if (payload.interrupted && payload.errorMessage) showToast(payload.errorMessage);
     saveWorkspaceState();
     if (!payload.interrupted) await refreshEnterpriseChatList();
     return true;
@@ -6017,6 +6349,7 @@ function enterpriseRecordStudyCheckIn() {
 }
 function openStudyStudio(opts) {
   if (!window.NexStudy) { showToast('Study Studio is still loading. Try again in a moment.'); return; }
+  const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string') ? { tab: opts.tab } : undefined;
   NexStudy.open({
     isGuest: () => enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview',
     signIn: () => { location.href = new URLSearchParams(location.search).get('from') === 'classic' ? '/classic' : '/classic?next=enterprise'; },
@@ -6026,7 +6359,7 @@ function openStudyStudio(opts) {
     ensureStudyHabit: enterpriseEnsureStudyHabit,
     recordStudyCheckIn: enterpriseRecordStudyCheckIn,
     addStudyTasks: nexChatAddTasks,
-  }, opts);
+  }, cleanOpts);
 }
 async function draftCopilotActions() {
   if (enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview') { // 4.0.0: guests and preview try a scripted sample (no AI call, nothing saved)

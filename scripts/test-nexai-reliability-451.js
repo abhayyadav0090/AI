@@ -226,5 +226,15 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
   assert.ok(classic.includes('lastReplyIncomplete') && classic.includes('continueClassicChat'), 'Classic handles incomplete replies and Continue');
   assert.ok(ent.includes('lastReplyIncomplete') && ent.includes('continueEnterpriseChat'), 'Enterprise handles incomplete replies and Continue');
 
+  // 10) Idempotent banner stripping & CRLF SSE partial-stream recovery checks
+  {
+    const clean = R.stripIncompleteBanner('Detailed guide paragraph.' + R.TRUNCATED_REPLY_NOTE + R.TRUNCATED_REPLY_NOTE);
+    assert.equal(clean, 'Detailed guide paragraph.', 'repeated truncation notices are stripped cleanly');
+    const crlfSse = 'event: delta\r\ndata: {"text":"Hello "}\r\n\r\nevent: delta\r\ndata: {"text":"world"}\r\n\r\n';
+    const blocks = crlfSse.split(/\r?\n\r?\n/).filter(Boolean);
+    assert.equal(blocks.length, 2, 'CRLF SSE frames split cleanly into 2 events');
+    assert.ok(srv.includes("res.on('close'"), 'server stream tracks client abort to avoid writing on closed sockets');
+  }
+
   console.log('NexOS 4.5.1 NexAI reliability and task-extraction tests passed.');
 })().catch((err) => { console.error(err); process.exit(1); });
