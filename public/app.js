@@ -663,6 +663,9 @@ async function startApp(user, options = {}) {
   initChat(); // loads saved chats in the background
   performance.mark?.('nexos-classic-workspace-ready');
   if (askQuickStart) openQuickStart('new');
+  if (!user.guest && new URLSearchParams(location.search).get('study') === 'revision') {
+    setTimeout(() => openStudyStudio({ tab: 'revision' }), 150);
+  }
 }
 
 // Small starter set that explains the app. Every item is flagged `sample: true`
@@ -2358,18 +2361,29 @@ function nexChatAddNote(draft) {
     refresh();
   } };
 }
-function nexChatTasksCtx() {
-  return {
+function nexChatTasksCtx(extra) {
+  return Object.assign({
     today: () => today(),
     toast: (m, o) => { if (window.NexUI) NexUI.toast(m, o); },
     say: (t) => { const div = appendChatMsg('assistant', t); scrollChat(); return div ? div.querySelector('.msg-bubble') : null; },
     addTasks: nexChatAddTasks,
     addHabits: nexChatAddHabits,
     addNote: nexChatAddNote
-  };
+  }, extra || {});
 }
-function attachNexChatTasks(msgDiv, text, userMsg) {
-  try { if (window.NexChatTasks && msgDiv) NexChatTasks.attach(msgDiv.querySelector('.msg-bubble'), text, userMsg, nexChatTasksCtx()); }
+function continueClassicChat() {
+  if (chatBusy) return;
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  input.value = 'Continue from where you left off';
+  sendMessage();
+}
+function attachNexChatTasks(msgDiv, text, userMsg, extra) {
+  try {
+    if (window.NexChatTasks && msgDiv) {
+      NexChatTasks.attach(msgDiv.querySelector('.msg-bubble'), text, userMsg, nexChatTasksCtx(Object.assign({ onContinue: continueClassicChat }, extra || {})));
+    }
+  }
   catch (e) { console.warn('Add-tasks button failed.', e); }
 }
 
@@ -2379,12 +2393,19 @@ function renderMessages(messages) {
   box.innerHTML = '';
   if (!messages.length) box.innerHTML = welcomeHtml;
   else {
-    let lastAssistant = null, lastText = '', lastUser = '';
+    let lastAssistant = null, lastText = '', lastUser = '', lastIncomplete = false, lastReason = '';
     messages.forEach(m => {
       const div = appendChatMsg(m.role, m.content);
-      if (m.role === 'assistant') { lastAssistant = div; lastText = m.content; } else lastUser = m.content;
+      if (m.role === 'assistant') {
+        lastAssistant = div; lastText = m.content;
+        lastIncomplete = Boolean(m.incomplete); lastReason = m.incompleteReason || '';
+        if (m.incomplete && window.NexChatTasks) {
+          const b = div?.querySelector('.msg-bubble');
+          if (b) { b.dataset.nxIncomplete = '1'; NexChatTasks.renderIncompleteBar(b, { incomplete: true, incompleteReason: m.incompleteReason, onContinue: continueClassicChat }); }
+        }
+      } else lastUser = m.content;
     });
-    attachNexChatTasks(lastAssistant, lastText, lastUser);
+    attachNexChatTasks(lastAssistant, lastText, lastUser, { incomplete: lastIncomplete, incompleteReason: lastReason });
   }
   setChips(!messages.length);
   scrollChat();
@@ -2469,12 +2490,14 @@ async function sendMessage() {
   const files = chatAttach ? chatAttach.list() : [];
   if (!msg && !files.length) return;
   // 3.4.9: "add these tasks" right after NexAI listed some adds them directly (no AI call).
-  const priorReply = window.NexChatTasks ? NexChatTasks.lastReply(document.getElementById('chat-messages'), '.chat-msg.assistant', '.msg-bubble') : '';
+  const chatBox = document.getElementById('chat-messages');
+  const priorReply = window.NexChatTasks ? NexChatTasks.lastReply(chatBox, '.chat-msg.assistant', '.msg-bubble') : '';
+  const priorIncomplete = window.NexChatTasks ? NexChatTasks.lastReplyIncomplete(chatBox, '.chat-msg.assistant', '.msg-bubble') : false;
   if (!files.length && window.NexChatTasks && NexChatTasks.canDirectAdd(msg, priorReply)) {
     input.value = '';
     autoResizeTextarea(input);
     appendChatMsg('user', msg);
-    NexChatTasks.tryDirectAdd(msg, priorReply, nexChatTasksCtx());
+    NexChatTasks.tryDirectAdd(msg, priorReply, nexChatTasksCtx({ incomplete: priorIncomplete }));
     scrollChat();
     return;
   }
@@ -2487,11 +2510,13 @@ async function sendMessage() {
   const userDiv = appendChatMsg('user', shownMsg);
   showTyping();
   let streamedBubble = null;
+  let streamedPartial = '';
   const sendBtn = document.getElementById('chat-send-btn');
   if (sendBtn) sendBtn.disabled = true;
   try {
     const data = await callAIChat(activeChatId, msg, buildSystemContext(), files, (partial) => {
       removeTyping();
+      streamedPartial = partial;
       if (!streamedBubble) streamedBubble = appendChatMsg('assistant', '');
       const bubble = streamedBubble?.querySelector('.msg-bubble');
       if (bubble) bubble.innerHTML = formatChat(partial);
@@ -2499,20 +2524,30 @@ async function sendMessage() {
     });
     removeTyping();
     const replyDiv = streamedBubble || appendChatMsg('assistant', data.text);
+    const replyBubble = replyDiv?.querySelector('.msg-bubble');
+    if (replyBubble && data.incomplete) {
+      replyBubble.dataset.nxIncomplete = '1';
+      replyBubble.dataset.nxIncompleteReason = data.incompleteReason || '';
+    }
     attachNexChatTasks(replyDiv, data.text, msg);
-    activeChatId = data.chatId;
+    if (data.chatId) activeChatId = data.chatId;
     if (chatAttach) chatAttach.clear();
-    upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
+    if (data.chatId && data.title) upsertChat({ id: data.chatId, title: data.title, updatedAt: data.updatedAt });
     if (!state.usedAI) { state.usedAI = true; saveState(); }
   } catch (e) {
-    // Nothing was saved on the server, so undo the message and put the text back to retry.
     removeTyping();
-    streamedBubble?.remove();
-    userDiv?.remove();
-    input.value = msg;
-    autoResizeTextarea(input);
-    appendChatMsg('assistant', e.userMessage || 'Could not reach NexAI. Please try again.', 'error');
-    if (!activeChatId) setChips(true);
+    if (streamedBubble && streamedPartial.trim()) {
+      attachNexChatTasks(streamedBubble, streamedPartial, msg, { incomplete: true, incompleteReason: 'STREAM_INTERRUPTED' });
+      if (chatAttach) chatAttach.clear();
+    } else {
+      // Nothing was streamed or saved, so undo the message and put the text back to retry.
+      streamedBubble?.remove();
+      userDiv?.remove();
+      input.value = msg;
+      autoResizeTextarea(input);
+      appendChatMsg('assistant', e.userMessage || e.message || 'Could not reach NexAI. Please try again.', 'error');
+      if (!activeChatId) setChips(true);
+    }
   }
   chatBusy = false;
   if (sendBtn) sendBtn.disabled = false;
@@ -3545,7 +3580,7 @@ async function readChatStream(response, onText) {
   if (!response.body) throw new Error('Streaming is not supported by this browser.');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '', meta = null, answer = '';
+  let buffer = '', meta = null, answer = '', streamErr = null;
   const consume = (raw) => {
     const lines = raw.split(/\r?\n/);
     let event = 'message'; const data = [];
@@ -3557,20 +3592,35 @@ async function readChatStream(response, onText) {
     let payload; try { payload = JSON.parse(data.join('\n')); } catch (_) { return; }
     if (event === 'delta' && payload.text) { answer += payload.text; onText(answer); }
     else if (event === 'done') meta = payload;
-    else if (event === 'error') { const err = new Error(payload.error || 'NexAI could not respond.'); err.userMessage = err.message; throw err; }
+    else if (event === 'error') {
+      const err = new Error(payload.error || 'NexAI could not respond.');
+      err.userMessage = err.message; err.code = payload.code;
+      streamErr = err;
+    }
   };
   try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split(/\n\n/); buffer = chunks.pop() || '';
+      const chunks = buffer.split(/\r?\n\r?\n/); buffer = chunks.pop() || '';
       for (const chunk of chunks) consume(chunk);
+      if (streamErr) break;
     }
     buffer += decoder.decode();
-    if (buffer.trim()) consume(buffer);
+    if (!streamErr && buffer.trim()) consume(buffer);
+  } catch (readErr) {
+    if (!answer.trim()) throw readErr;
+    return { text: answer, incomplete: true, interrupted: true, incompleteReason: 'STREAM_INTERRUPTED', chatId: activeChatId };
   } finally { try { reader.releaseLock(); } catch (_) {} }
-  if (!meta) throw new Error('NexAI stream ended before the reply was saved. Please retry.');
+  if (streamErr) {
+    if (answer.trim()) return { text: answer, incomplete: true, interrupted: true, incompleteReason: streamErr.code || 'STREAM_INTERRUPTED', errorMessage: streamErr.message, chatId: activeChatId };
+    throw streamErr;
+  }
+  if (!meta) {
+    if (answer.trim()) return { text: answer, incomplete: true, interrupted: true, incompleteReason: 'STREAM_INTERRUPTED', chatId: activeChatId };
+    throw new Error('NexAI stream ended before the reply was saved. Please retry.');
+  }
   return { ...meta, text: answer };
 }
 
@@ -3735,10 +3785,58 @@ function openDayDerailed() {
   NexDerail.open(derailAdapter());
 }
 
-// ───────── Study Studio (4.1.0, see study.js) ─────────
-function openStudyStudio() {
+// ───────── Study Studio (4.1.0 / 4.5.1, see study.js) ─────────
+function findClassicStudyHabit() {
+  return state.habits.find(h => h && !h.archived && h.studyHabit)
+    || state.habits.find(h => h && !h.archived && /\b(study|revision|revise)\b/i.test(h.name || ''))
+    || null;
+}
+function classicStudyHabitInfo() {
+  const habit = findClassicStudyHabit();
+  const stats = habit && window.NexHabits ? NexHabits.stats(habit, today()) : { current: 0, best: 0, doneToday: false, goal: 7, weekDone: 0, mode: 'day' };
+  return { habit, stats };
+}
+function classicEnsureStudyHabit(opts) {
+  let habit = findClassicStudyHabit();
+  const goal = opts && opts.goal >= 1 && opts.goal <= 7 ? Math.round(opts.goal) : 7;
+  if (!habit) {
+    habit = { id: uid(), name: 'Daily Study & Revision', color: '#4285F4', checks: {}, streak: 0, goal, studyHabit: true };
+    state.habits.push(habit);
+  } else {
+    habit.studyHabit = true;
+    if (opts && opts.goal) habit.goal = goal;
+  }
+  refreshHabitViews();
+  return classicStudyHabitInfo();
+}
+function classicRecordStudyCheckIn() {
+  let habit = findClassicStudyHabit();
+  if (!habit) {
+    habit = { id: uid(), name: 'Daily Study & Revision', color: '#4285F4', checks: {}, streak: 0, goal: 7, studyHabit: true };
+    state.habits.push(habit);
+  }
+  habit.studyHabit = true;
+  if (!habit.checks || typeof habit.checks !== 'object') habit.checks = {};
+  const d = today();
+  if (!habit.checks[d]) {
+    habit.checks[d] = true;
+    habit.streak = window.NexHabits ? NexHabits.stats(habit, d).current : (habit.streak || 0) + 1;
+    refreshHabitViews();
+  }
+  return classicStudyHabitInfo();
+}
+function openStudyStudio(opts) {
   if (!window.NexStudy) { notify('Study Studio is still loading. Try again in a moment.'); return; }
-  NexStudy.open({ isGuest: () => isGuest(), signIn: () => logout(), toast: (m) => notify(m) });
+  NexStudy.open({
+    isGuest: () => isGuest(),
+    signIn: () => logout(),
+    toast: (m) => notify(m),
+    today: () => today(),
+    getStudyHabit: classicStudyHabitInfo,
+    ensureStudyHabit: classicEnsureStudyHabit,
+    recordStudyCheckIn: classicRecordStudyCheckIn,
+    addStudyTasks: nexChatAddTasks,
+  }, opts);
 }
 
 function openNexAIActionMode() {

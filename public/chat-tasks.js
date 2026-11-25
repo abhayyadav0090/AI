@@ -1,10 +1,10 @@
-/* NexOS 3.5.0 — turn NexAI chat replies into tasks, habits or a note.
+/* NexOS 4.5.1 — turn NexAI chat replies into tasks, habits or a note.
    Shared by Classic chat, the Enterprise NexAI page and the Enterprise side dock.
    Pure text parsing + small one-tap buttons. Each page supplies addTasks(), addHabits() and addNote(). */
 (function (root) {
   'use strict';
 
-  const BULLET = /^(\s*)(?:[-*•–]|\d{1,2}[.)])\s+(?:\[[ xX]?\]\s+)?(.+?)\s*$/;
+  const BULLET = /^(\s*)(?:[-*•–]|\d{1,2}[.)])\s+(?:\[([ xX]?)\]\s+)?(.+?)\s*$/;
   const VERB = /\b(add|create|make|put|save|insert|schedule|enter|include|bana|banao|banado|jod|jodo|daal|daalo|rakh|rakho)\b/i;
   const TASK_WORD = /\b(tasks?|to-?dos?|kaam|action items?|checklist)\b/i;
   const HABIT_WORD = /\b(habits?|routines?)\b/i;
@@ -14,9 +14,12 @@
   // What a reply is about. Habit and task cues are kept strict so that a plain bullet list never gets a button.
   const HABIT_CUE = /\b(habits?|routines?|streaks?|rozana|roz|every\s?day|everyday|each\s+(?:morning|day|evening)|every\s+(?:morning|evening|night))\b/i;
   const TASK_STRONG = /\b(tasks?|to-?dos?|deadlines?|due|action items?|checklist|assignments?|milestones?|kaam)\b/i;
-  const TASK_LOOSE = /\b(plan|schedule|priorit\w*|steps?|goals?|revise|study|finish|complete|submit|prepare)\b/i;
+  const TASK_LOOSE = /\b(action plan|next steps|step-by-step plan|study plan|to-do|roadmap|today'?s plan|your plan|plan my|schedule for)\b/i;
   const SAVE_VERB = /\b(save|add|keep|store|put|rakh|rakho|bana|banao)\b/i;
   const NOTE_TARGET = /\b(?:as|in|to|into)\s+(?:a\s+|my\s+|the\s+)?notes?\b|\bnotes?\s+(?:me|mein|main|m)\b|\bnote\s+(?:bana|banao)/i;
+  const NON_TASK_LABEL = /^(?:hook|body|headline|caption|opening|closing|intro|introduction|conclusion|cta|call to action|hashtags?|tone|tip|note|notes|example|examples|why|why it matters|option\s*\d*|length|audience|target audience|subject|format|summary|key takeaway|takeaway|overview|background|pros|cons|benefit|benefits|advantage|challenge|result|outcome)\s*[:\-–—]/i;
+  const ACTION_VERB = /^(?:add|apply|ask|audit|book|build|buy|call|cancel|check|clean|close|complete|confirm|connect|contact|create|debug|define|deliver|deploy|design|do|download|draft|edit|email|enroll|establish|explore|file|fill|finalize|find|finish|fix|follow|format|gather|generate|get|go|implement|improve|install|interview|join|keep|launch|learn|list|log|make|measure|meet|message|migrate|monitor|move|network|note|open|optimize|order|organize|outline|pay|pick|plan|polish|post|practice|prepare|prioritize|publish|read|refactor|register|remove|renew|reply|research|reset|resolve|respond|review|revise|run|save|schedule|search|send|set|setup|share|ship|sign|solve|sort|start|study|submit|summarize|sync|take|test|track|try|update|upgrade|upload|verify|visit|watch|write)\b/i;
+  const INCOMPLETE_MARKER = /_\(The reply (?:was cut off because the connection stalled|reached the maximum output length)[^)]*\)_\s*$/i;
 
   const pad = (n) => String(n).padStart(2, '0');
   function isoPlus(todayIso, days) {
@@ -67,18 +70,42 @@
     return { title: title.slice(0, 120), description: stripMd(desc).slice(0, 600) };
   }
 
-  /* Pull list items out of a reply as task drafts. Never calls the network. */
+  function isIncompleteReply(text, opts) {
+    return Boolean((opts && opts.incomplete) || INCOMPLETE_MARKER.test(String(text || '')));
+  }
+
+  function isActionableItem(body, title, hasCheckbox, due, prio, explicitCue) {
+    const cleanBody = stripMd(body);
+    if (NON_TASK_LABEL.test(cleanBody) || NON_TASK_LABEL.test(title)) return false;
+    if (hasCheckbox) return true;
+    if (explicitCue) return true;
+    if (due || prio !== 'medium') return true;
+    return ACTION_VERB.test(title);
+  }
+
+  /* Pull clear actionable list items out of a reply as task drafts. Never calls the network. */
   function extract(text, opts) {
     opts = opts || {};
     const max = opts.max || 10;
+    const raw = String(text || '');
+    const incomplete = isIncompleteReply(raw, opts);
+    const explicitCue = Boolean(opts.explicitCue) || TASK_STRONG.test(raw) || HABIT_CUE.test(raw) || TASK_STRONG.test(opts.userMsg || '') || HABIT_CUE.test(opts.userMsg || '');
     const out = [];
     const seen = new Set();
     let last = null;
-    String(text || '').split(/\r?\n/).forEach((line) => {
+    let inFence = false;
+    const lines = raw.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      if (/^\s*```/.test(line)) { inFence = !inFence; last = null; return; }
+      if (inFence || /^\s*>/.test(line)) { last = null; return; }
       const m = BULLET.exec(line);
-      if (!m) return;
+      if (!m) { if (line.trim()) last = null; return; }
       const indent = m[1].replace(/\t/g, '  ').length;
-      const body = m[2];
+      const hasCheckbox = m[2] !== undefined;
+      const body = m[3];
+      // If the reply was truncated and this is the final non-empty line without clean ending, skip the broken fragment.
+      const isLastNonEmpty = lines.slice(idx + 1).every((l) => !l.trim() || INCOMPLETE_MARKER.test(l));
+      if (incomplete && isLastNonEmpty && /[,(\[\-–—]$/.test(body.trim())) { last = null; return; }
       if (indent >= 2 && last) {                       // sub-bullet: extra detail for the item above
         const extra = stripMd(body);
         if (extra && last.description.length < 500) last.description = (last.description ? last.description + ' · ' : '') + extra;
@@ -87,10 +114,13 @@
       if (/\?\s*$/.test(body) || /:\s*$/.test(body)) { last = null; return; }   // a question or a heading, not a task
       const { title, description } = splitTitle(body);
       if (title.length < 3) { last = null; return; }
+      const priority = priorityOf(body);
+      const due = dueOf(body, opts.today);
+      if (!isActionableItem(body, title, hasCheckbox, due, priority, explicitCue)) { last = null; return; }
       const key = title.toLowerCase();
       if (seen.has(key)) { last = null; return; }
       seen.add(key);
-      last = { title, description, priority: priorityOf(body), due: dueOf(body, opts.today) };
+      last = { title, description, priority, due };
       if (out.length < max) out.push(last); else last = null;
     });
     return out;
@@ -113,7 +143,7 @@
     return count >= 2 && TASK_LOOSE.test(reply + ' ' + userMsg) ? 'task' : 'none';
   }
   function looksLikeTasks(reply, userMsg, opts) {
-    const k = classify(reply, userMsg, extract(reply, opts).length);
+    const k = classify(reply, userMsg, extract(reply, Object.assign({ userMsg }, opts || {})).length);
     return k === 'task' || k === 'both';
   }
 
@@ -143,20 +173,23 @@
     const first = (text.split(/\r?\n/).find((l) => stripMd(l.replace(/^#+\s*/, '')).length >= 3) || '').replace(/^#+\s*/, '');
     let title = stripMd(first).replace(/^(?:[-*•–]|\d{1,2}[.)])\s+/, '').replace(/[\s:.\-–—]+$/, '').slice(0, 60).trim();
     if (!title) title = 'NexAI note ' + (todayIso || '');
-    return { title, content: text.slice(0, 20000), tags: ['nexai'] };
+    return { title, content: text.slice(0, 60000), tags: ['nexai'] };
   }
   const NOTE_MIN = 150;
 
   /* Decide what a short command means. Returns { kind: 'note'|'task'|'habit'|'ask', items? } or null. */
-  function resolveIntent(message, replyText) {
+  function resolveIntent(message, replyText, opts) {
     if (!replyText) return null;
     if (wantsNote(message)) return { kind: 'note' };
     if (!wantsAdd(message)) return null;
-    const items = extract(replyText);
+    const items = extract(replyText, Object.assign({ userMsg: message, explicitCue: true }, opts || {}));
     if (!items.length) return null;
-    let kind = explicitKind(message) || classify(replyText, '', items.length);
+    const countMatch = /\b(\d{1,2})\b/.exec(String(message || ''));
+    const limit = countMatch ? Math.max(1, Number(countMatch[1])) : items.length;
+    const picked = items.slice(0, limit);
+    let kind = explicitKind(message) || classify(replyText, '', picked.length);
     if (kind === 'none') kind = 'task';
-    return { kind: kind === 'both' ? 'ask' : kind, items };
+    return { kind: kind === 'both' ? 'ask' : kind, items: picked };
   }
 
   function lastReply(box, assistantSel, bubbleSel) {
@@ -165,6 +198,14 @@
     const lastMsg = all[all.length - 1];
     const bubble = lastMsg && lastMsg.querySelector(bubbleSel);
     return (bubble && bubble.dataset && bubble.dataset.nxReply) || '';
+  }
+
+  function lastReplyIncomplete(box, assistantSel, bubbleSel) {
+    if (!box) return false;
+    const all = box.querySelectorAll(assistantSel);
+    const lastMsg = all[all.length - 1];
+    const bubble = lastMsg && lastMsg.querySelector(bubbleSel);
+    return Boolean(bubble && bubble.dataset && bubble.dataset.nxIncomplete === '1');
   }
 
   const NOUN = { task: ['task', 'tasks', 'To Do on your board'], habit: ['habit', 'habits', 'Habits'], note: ['note', 'notes', 'Notes'] };
@@ -189,10 +230,10 @@
     if (typeof document === 'undefined' || document.getElementById('nx-addtasks-style')) return;
     const s = document.createElement('style');
     s.id = 'nx-addtasks-style';
-    s.textContent = '.nx-addtasks{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.nx-addtasks button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:0;border-radius:999px;cursor:pointer;font:600 13px/1 inherit;font-family:inherit;background:var(--accent-fill,var(--accent-primary,#4f8cff));color:var(--on-accent,var(--text-on-accent,#fff))}.nx-addtasks button.nx-sec{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.45)}.nx-addtasks button:disabled{opacity:.75;cursor:default}';
+    s.textContent = '.nx-addtasks{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.nx-addtasks button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:0;border-radius:999px;cursor:pointer;font:600 13px/1 inherit;font-family:inherit;background:var(--accent-fill,var(--accent-primary,#4f8cff));color:var(--on-accent,var(--text-on-accent,#fff))}.nx-addtasks button.nx-sec{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.45)}.nx-addtasks button:disabled{opacity:.75;cursor:default}.nx-incomplete-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding:8px 12px;border-radius:12px;border:1px solid rgba(250,160,0,.45);background:rgba(250,160,0,.1);font-size:12.5px;line-height:1.4}.nx-incomplete-bar button{min-height:30px;padding:0 12px;border-radius:999px;border:0;cursor:pointer;font:600 12px/1 inherit;background:var(--accent-fill,var(--accent-primary,#4f8cff));color:var(--on-accent,var(--text-on-accent,#fff))}';
     document.head.appendChild(s);
   }
-  function makeButton(label, secondary, run, ctx, kind, replyText) {
+  function makeButton(label, secondary, run, ctx, kind) {
     const btn = document.createElement('button');
     btn.type = 'button';
     if (secondary) btn.className = 'nx-sec';
@@ -216,34 +257,77 @@
   }
   const plural = (n, kind) => `${n} ${n === 1 ? NOUN[kind][0] : NOUN[kind][1]}`;
 
+  function renderIncompleteBar(bubble, opts) {
+    if (!bubble || !opts || !opts.incomplete) return;
+    ensureStyle();
+    bubble.querySelectorAll('.nx-incomplete-bar').forEach((n) => n.remove());
+    const bar = document.createElement('div');
+    bar.className = 'nx-incomplete-bar';
+    const reasonMap = {
+      MAX_TOKENS: 'Response reached the output limit before finishing.',
+      STREAM_STALLED: 'Connection stalled before the response finished.',
+      STREAM_INTERRUPTED: 'Stream was interrupted — partial answer saved.',
+      CONTINUATION_FAILED: 'Auto-continuation was interrupted — partial answer saved.',
+      SAFETY: 'Response stopped early due to safety guidelines.',
+      RECITATION: 'Response stopped early due to content restrictions.',
+    };
+    const msg = document.createElement('span');
+    msg.textContent = '\u26A0 Incomplete response: ' + (reasonMap[opts.incompleteReason] || 'The response did not finish completely.');
+    bar.appendChild(msg);
+    if (typeof opts.onContinue === 'function' && !['SAFETY', 'RECITATION'].includes(opts.incompleteReason)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Continue';
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        opts.onContinue();
+      });
+      bar.appendChild(btn);
+    }
+    bubble.appendChild(bar);
+  }
+
   /* Remember the reply text on its bubble and add the one-tap buttons it deserves:
-     Add N tasks / Add N habits (or both when it is unclear) and Save as note for longer replies. */
+     Add N tasks / Add N habits (or both when it is unclear) and Save as note only for complete replies. */
   function attach(bubble, replyText, userMsg, ctx) {
     if (!bubble || !bubble.dataset) return;
     bubble.dataset.nxReply = String(replyText || '');
+    const incomplete = isIncompleteReply(replyText, ctx);
+    bubble.dataset.nxIncomplete = incomplete ? '1' : '0';
+    const incompleteReason = (ctx && ctx.incompleteReason) || (bubble.dataset && bubble.dataset.nxIncompleteReason) || '';
     bubble.querySelectorAll('.nx-addtasks').forEach((n) => n.remove());
-    const items = extract(replyText, { today: ctx.today() });
+    bubble.querySelectorAll('.nx-incomplete-bar').forEach((n) => n.remove());
+    if (incomplete) renderIncompleteBar(bubble, { incomplete: true, incompleteReason, onContinue: ctx && ctx.onContinue });
+    const items = extract(replyText, { today: ctx.today(), userMsg, incomplete });
     const kind = classify(replyText, userMsg, items.length);
     const buttons = [];
-    const add = (k, label, secondary) => buttons.push(makeButton(label, secondary, () => runKind(k, items, replyText, ctx), ctx, k, replyText));
+    const add = (k, label, secondary) => buttons.push(makeButton(label, secondary, () => runKind(k, items, replyText, ctx), ctx, k));
     if (kind === 'task' || kind === 'both') add('task', `＋ ${kind === 'both' ? 'As' : 'Add'} ${plural(items.length, 'task')}`);
     if (kind === 'habit' || kind === 'both') add('habit', `＋ ${kind === 'both' ? 'As' : 'Add'} ${plural(items.length, 'habit')}`);
-    if (String(replyText || '').trim().length >= NOTE_MIN) add('note', 'Save as note', true);
+    if (!incomplete && String(replyText || '').trim().length >= NOTE_MIN) add('note', 'Save as note', true);
     if (buttons.length) buildBar(bubble, buttons);
   }
 
   /* True when the message is a short "add these" / "save as note" command and the last reply can be used. */
-  function canDirectAdd(message, replyText) { return !!resolveIntent(message, replyText); }
+  function canDirectAdd(message, replyText, opts) { return !!resolveIntent(message, replyText, opts); }
 
   /* Handle that command here, without NexAI. Returns true when handled (caller must not send it on). */
   function tryDirectAdd(message, replyText, ctx) {
-    const intent = resolveIntent(message, replyText);
+    const incomplete = isIncompleteReply(replyText, ctx);
+    const intent = resolveIntent(message, replyText, { today: ctx && ctx.today ? ctx.today() : '', incomplete });
     if (!intent) return false;
+    if (intent.kind === 'note' && incomplete) {
+      const msg = 'That response is incomplete, so I did not save it as a note yet. Say "continue" or click Continue to finish it first.';
+      if (ctx.toast) ctx.toast(msg);
+      if (ctx.say) ctx.say(msg);
+      return true;
+    }
     if (intent.kind === 'ask') {
       const el = ctx.say('This looks like it could be tasks or habits. Where should I add it?');
       if (el) buildBar(el, [
-        makeButton(`＋ As ${plural(intent.items.length, 'task')}`, false, () => ctx.addTasks(intent.items), ctx, 'task', replyText),
-        makeButton(`＋ As ${plural(intent.items.length, 'habit')}`, false, () => ctx.addHabits(intent.items), ctx, 'habit', replyText)
+        makeButton(`＋ As ${plural(intent.items.length, 'task')}`, false, () => ctx.addTasks(intent.items), ctx, 'task'),
+        makeButton(`＋ As ${plural(intent.items.length, 'habit')}`, false, () => ctx.addHabits(intent.items), ctx, 'habit')
       ]);
       return true;
     }
@@ -255,7 +339,11 @@
     return true;
   }
 
-  const api = { extract, classify, looksLikeTasks, wantsAdd, wantsNote, noteDraft, resolveIntent, canDirectAdd, lastReply, tryDirectAdd, attach };
+  const api = {
+    extract, classify, looksLikeTasks, wantsAdd, wantsNote, noteDraft,
+    resolveIntent, canDirectAdd, lastReply, lastReplyIncomplete, tryDirectAdd, attach,
+    isIncompleteReply, renderIncompleteBar,
+  };
   root.NexChatTasks = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

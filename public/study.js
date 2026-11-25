@@ -71,7 +71,7 @@
 #nexos-study-modal .ns-drop span{font-size:12px;color:var(--k-text2)}
 #nexos-study-modal .ns-drop input{display:none}
 #nexos-study-modal .ns-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-#nexos-study-modal input[type=text],#nexos-study-modal textarea,#nexos-study-modal select{width:100%;min-width:0;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit}
+#nexos-study-modal input[type=text],#nexos-study-modal input[type=date],#nexos-study-modal input[type=number],#nexos-study-modal input[type=time],#nexos-study-modal textarea,#nexos-study-modal select{width:100%;min-width:0;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit}
 #nexos-study-modal select option{color:#111}
 #nexos-study-modal textarea{resize:none;min-height:44px;max-height:110px;line-height:1.4}
 #nexos-study-modal .ns-btn{min-height:42px;border:1px solid var(--k-line);background:transparent;color:var(--k-text);border-radius:12px;padding:0 18px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
@@ -153,8 +153,13 @@
 
   let modal = null, adapter = null, busy = false, tab = 'tutor';
   let docs = [], usage = null, history = [], thinking = false, pending = null;
-  let quiz = null, deck = null, building = null, revisionData = null, revisionBusy = false;
+  let quiz = null, deck = null, building = null, revisionData = null, revisionBusy = false, planStartTime = '18:00';
   let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
+
+  function localTimeZone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'; }
+    catch (_) { return 'Asia/Kolkata'; }
+  }
 
   const $ = (id) => modal.querySelector('#' + id);
   const setStatus = (text, isBusy) => { const el = modal && modal.querySelector('#ns-status'); if (!el) return; el.textContent = text || ''; el.classList.toggle('ns-busy', !!isBusy); };
@@ -315,18 +320,60 @@
     catch (_) { /* scoring remains usable even if the network is temporarily unavailable */ }
   }
 
+  async function fetchPushSummary() {
+    try {
+      const [cfgRes, prefRes] = await Promise.all([
+        fetch('/api/push/config', { credentials: 'same-origin', cache: 'no-store' }),
+        fetch('/api/push/preferences', { credentials: 'same-origin', cache: 'no-store' }),
+      ]);
+      const cfg = cfgRes.ok ? await cfgRes.json().catch(() => ({})) : {};
+      const pref = prefRes.ok ? await prefRes.json().catch(() => ({})) : {};
+      return { serverEnabled: !!cfg.enabled, userEnabled: pref.enabled !== false, reminderTime: pref.reminderTime || '09:00' };
+    } catch (_) { return null; }
+  }
+
   async function loadRevision() {
     const box = modal && modal.querySelector('#ns-revision');
     if (!box || revisionBusy) return;
     revisionBusy = true;
     box.innerHTML = working('Loading your revision plan');
     try {
-      const [reviews, plans] = await Promise.all([call('GET', '/reviews'), call('GET', '/plans')]);
-      revisionData = { reviews: reviews.items || [], due: reviews.due || 0, plans: plans.plans || [] };
+      const [reviews, plans, pushInfo, calendar] = await Promise.all([
+        call('GET', '/reviews'),
+        call('GET', '/plans'),
+        fetchPushSummary(),
+        call('GET', '/calendar/status').catch(() => ({ connected: false, configured: false })),
+      ]);
+      revisionData = { reviews: reviews.items || [], due: reviews.due || 0, nextDueAt: reviews.nextDueAt || null, plans: plans.plans || [], pushInfo, calendar: calendar || { connected: false, configured: false } };
       renderRevision();
     } catch (e) {
       box.innerHTML = '<div class="ns-empty"><strong>Could not load revision</strong>' + esc(e.message || 'Try again.') + '<br><button class="ns-btn" data-ns="revision-refresh">Retry</button></div>';
     } finally { revisionBusy = false; }
+  }
+
+  function renderStudyHabitCard(plans) {
+    if (!adapter || typeof adapter.getStudyHabit !== 'function') return '';
+    const info = adapter.getStudyHabit() || {};
+    const habit = info.habit || null;
+    const stats = info.stats || { current: 0, best: 0, doneToday: false, goal: 7, weekDone: 0, mode: 'day' };
+    const dailyMins = (plans && plans[0] && plans[0].dailyMinutes) || info.dailyMinutes || 60;
+    const goalDays = stats.goal || 7;
+    const streakLine = stats.current > 0
+      ? '\uD83D\uDD25 ' + stats.current + '-' + (stats.mode === 'week' ? 'week' : 'day') + ' study streak' + (stats.best > stats.current ? ' · best ' + stats.best : '')
+      : 'No study streak yet';
+    const progressLine = stats.doneToday
+      ? 'Today\u2019s goal complete (' + dailyMins + ' min target)' + (stats.mode === 'week' ? ' · ' + stats.weekDone + '/' + goalDays + ' this week' : '')
+      : 'Daily target: ' + dailyMins + ' min' + (stats.mode === 'week' ? ' · ' + stats.weekDone + '/' + goalDays + ' days this week' : ' · pending today');
+    const goalOptions = [7, 6, 5, 4, 3].map((n) => '<option value="' + n + '"' + (n === goalDays ? ' selected' : '') + '>' + (n === 7 ? 'Every day' : n + ' days/wk') + '</option>').join('');
+    return '<div class="ns-miss-item" style="margin-top:0;margin-bottom:14px">' +
+      '<div class="ns-qhead"><strong>Study streak &amp; daily goal</strong><span>' + esc(habit ? habit.name : 'Habits sync') + '</span></div>' +
+      '<div style="font-size:14px;font-weight:600;margin:4px 0">' + esc(streakLine) + '</div>' +
+      '<div class="ns-dm">' + esc(progressLine) + '</div>' +
+      '<div class="ns-actions" style="align-items:center">' +
+        '<button type="button" class="ns-btn ns-small ' + (stats.doneToday ? '' : 'ns-primary') + '" data-ns="study-checkin">' + (stats.doneToday ? '\u2713 Studied today' : 'Mark today\u2019s study done') + '</button>' +
+        '<select id="ns-habit-goal" aria-label="Weekly study goal" style="width:auto;min-height:34px;padding:4px 10px;font-size:12.5px">' + goalOptions + '</select>' +
+        '<button type="button" class="ns-btn ns-small" data-ns="habit-save">' + (habit ? 'Update habit goal' : 'Create study habit') + '</button>' +
+      '</div></div>';
   }
 
   function renderRevision() {
@@ -334,31 +381,113 @@
     if (!box || !revisionData) return;
     const now = Date.now();
     const due = revisionData.reviews.filter((x) => new Date(x.dueAt).getTime() <= now);
+    const upcoming = revisionData.reviews.filter((x) => new Date(x.dueAt).getTime() > now);
     const dateText = (d) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-    box.innerHTML = '<div class="ns-qhead"><strong>Spaced revision</strong><span>' + due.length + ' due now · ' + revisionData.reviews.length + ' tracked</span></div>' +
-      '<p class="ns-p">Missed quiz questions and cards marked “Again” appear here. Review them today, then NexOS schedules the next check for 1, 3, 7, 14 or 30 days.</p>' +
+    const pInfo = revisionData.pushInfo;
+    const pushHint = pInfo
+      ? (pInfo.serverEnabled
+        ? (pInfo.userEnabled ? 'Push alerts active (daily from ' + esc(pInfo.reminderTime) + ' when items are due).' : 'Push alerts are paused in your Settings.')
+        : 'Enable Web Push keys on the server to receive background revision reminders.')
+      : '';
+    box.innerHTML = renderStudyHabitCard(revisionData.plans) +
+      '<div class="ns-qhead"><strong>Spaced revision</strong><span>' + due.length + ' due now · ' + revisionData.reviews.length + ' tracked</span></div>' +
+      '<p class="ns-p">Missed quiz questions and cards marked “Again” appear here. Review them today, then NexOS automatically sets the next due date (1, 3, 7, 14 or 30 days).' + (pushHint ? ' ' + pushHint : '') + '</p>' +
       (due.length ? due.map((x) => '<div class="ns-miss-item"><strong>' + esc(x.topic) + '</strong>' + (x.prompt ? '<p class="ns-p">' + esc(x.prompt) + '</p>' : '') +
         (x.answer ? '<p class="ns-dm">' + esc(x.answer) + '</p>' : '') +
         '<div class="ns-actions"><button class="ns-btn ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="again">Again · 1 day</button><button class="ns-btn ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="hard">Hard</button><button class="ns-btn ns-primary ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="good">Got it</button></div></div>').join('') : '<div class="ns-empty"><strong>You are caught up</strong>No revision items are due right now.</div>') +
-      '<div class="ns-divider" style="height:1px;background:var(--k-line);margin:18px 0"></div><h4 style="margin:0 0 8px">Exam planner</h4>' +
-      '<p class="ns-p">Build a lightweight plan around your exam date and daily study time. Check topics off as you finish them.</p>' +
+      (upcoming.length ? '<details class="ns-miss-item" style="margin-top:10px"><summary style="cursor:pointer;font-weight:600;font-size:13px">Upcoming scheduled revisions (' + upcoming.length + ')</summary><div style="margin-top:8px">' +
+        upcoming.slice(0, 20).map((x) => '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--k-line);font-size:12.5px"><span style="min-width:0;overflow-wrap:anywhere">' + esc(x.topic) + '</span><span class="ns-dm" style="white-space:nowrap">Due ' + esc(dateText(x.dueAt)) + ' · ' + (x.intervalDays || 1) + 'd</span></div>').join('') +
+      '</div></details>' : '') +
+      '<div class="ns-divider" style="height:1px;background:var(--k-line);margin:18px 0"></div><h4 style="margin:0 0 8px">Exam planner &amp; Google Calendar blocks</h4>' +
+      '<p class="ns-p">Build a plan around your exam date and daily study time, then schedule daily revision time-blocks in Google Calendar or your task board.</p>' +
+      (revisionData.calendar && revisionData.calendar.configured
+        ? '<div class="ns-actions" style="margin:6px 0 10px;align-items:center"><span class="ns-dm">Google Calendar API: ' + (revisionData.calendar.connected ? 'Connected' : 'Not connected') + '</span>' +
+          (revisionData.calendar.connected ? '<button type="button" class="ns-btn ns-small" data-ns="calendar-disconnect">Disconnect Calendar</button>' : '<button type="button" class="ns-btn ns-small" data-ns="calendar-connect">Connect Google Calendar</button>') + '</div>'
+        : '') +
       '<div class="ns-fields"><input id="ns-plan-title" type="text" maxlength="100" placeholder="Exam name (e.g. Data Structures)"><input id="ns-plan-subject" type="text" maxlength="60" placeholder="Subject (optional)">' +
       '<input id="ns-plan-date" type="date"><input id="ns-plan-minutes" type="number" min="10" max="600" value="60" placeholder="Minutes per day"></div>' +
       '<textarea id="ns-plan-topics" rows="3" placeholder="Topics, one per line"></textarea><button class="ns-btn ns-primary" data-ns="plan-create" style="width:100%;margin-top:8px">Create exam plan</button>' +
-      revisionData.plans.map((p) => {
+      (revisionData.plans.length ? '<div style="display:flex;align-items:center;gap:8px;margin-top:12px"><label for="ns-plan-start-time" class="ns-dm">Preferred revision block time:</label><input id="ns-plan-start-time" type="time" value="' + esc(planStartTime) + '" style="width:auto;padding:6px 10px"></div>' : '') +
+      (revisionData.plans.map((p) => {
         const complete = new Set(p.completedTopics || []);
         const days = Math.max(0, Math.ceil((new Date(p.examDate).getTime() - now) / 86400000));
         return '<div class="ns-miss-item"><strong>' + esc(p.title) + '</strong><span class="ns-dm"> · ' + days + ' days left · ' + complete.size + '/' + p.topics.length + ' topics · ' + p.dailyMinutes + ' min/day</span>' +
           '<div class="ns-meter"><i style="width:' + Math.round(complete.size / Math.max(1, p.topics.length) * 100) + '%"></i></div>' +
           p.topics.map((topic, i) => '<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px"><input type="checkbox" data-ns="plan-topic" data-id="' + esc(p.id) + '" data-index="' + i + '"' + (complete.has(topic) ? ' checked' : '') + '>' + esc(topic) + '</label>').join('') +
-          '<button class="ns-btn ns-small" data-ns="plan-delete" data-id="' + esc(p.id) + '">Delete plan</button></div>';
-      }).join('') || '<p class="ns-dm">No exam plans yet.</p>';
+          '<div class="ns-actions">' +
+            (revisionData.calendar && revisionData.calendar.connected ? '<button type="button" class="ns-btn ns-primary ns-small" data-ns="plan-calendar-sync" data-id="' + esc(p.id) + '">Sync to Google Calendar</button>' : '') +
+            '<button type="button" class="ns-btn ' + (revisionData.calendar && revisionData.calendar.connected ? '' : 'ns-primary ') + 'ns-small" data-ns="plan-gcal" data-id="' + esc(p.id) + '">Add to Google Calendar</button>' +
+            '<button type="button" class="ns-btn ns-small" data-ns="plan-ics" data-id="' + esc(p.id) + '">Download .ics</button>' +
+            (adapter && typeof adapter.addStudyTasks === 'function' ? '<button type="button" class="ns-btn ns-small" data-ns="plan-tasks" data-id="' + esc(p.id) + '">Add today\u2019s block to Tasks</button>' : '') +
+            '<button type="button" class="ns-btn ns-small" data-ns="plan-delete" data-id="' + esc(p.id) + '">Delete plan</button>' +
+          '</div></div>';
+      }).join('') || '<p class="ns-dm">No exam plans yet.</p>');
+    const stInput = modal.querySelector('#ns-plan-start-time');
+    if (stInput) stInput.addEventListener('change', () => { if (/^([01]\d|2[0-3]):[0-5]\d$/.test(stInput.value)) planStartTime = stInput.value; });
   }
 
   async function rateReview(id, rating) {
-    try { await call('POST', '/reviews/' + encodeURIComponent(id) + '/rate', { rating }); await loadRevision(); }
-    catch (e) { setStatus(e.message || 'Could not save review.'); }
+    try {
+      const out = await call('POST', '/reviews/' + encodeURIComponent(id) + '/rate', { rating, timeZone: localTimeZone() });
+      const dueLabel = out && out.dueAt ? new Date(out.dueAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+      let streakMsg = '';
+      if (adapter && typeof adapter.recordStudyCheckIn === 'function') {
+        const res = adapter.recordStudyCheckIn();
+        if (res && res.stats && res.stats.current > 0) streakMsg = ' Study streak: ' + res.stats.current + '!';
+      }
+      setStatus((dueLabel ? 'Completed — next due ' + dueLabel + ' (' + out.intervalDays + 'd).' : 'Revision updated.') + streakMsg);
+      await loadRevision();
+    } catch (e) { setStatus(e.message || 'Could not save review.'); }
   }
+
+  async function connectCalendar() {
+    try {
+      const out = await call('GET', '/calendar/connect');
+      if (!out.url) throw new Error('Google did not return an authorization URL.');
+      window.location.assign(out.url);
+    } catch (e) { setStatus(e.message || 'Could not connect Google Calendar.'); }
+  }
+
+  async function syncPlanToGoogleCalendar(id) {
+    try {
+      const out = await call('POST', '/plans/' + encodeURIComponent(id) + '/calendar/sync', { startTime: planStartTime, timeZone: localTimeZone() });
+      setStatus('Google Calendar synced: ' + out.created + ' created, ' + out.updated + ' updated, ' + out.deleted + ' removed.');
+    } catch (e) { setStatus(e.message || 'Could not sync Google Calendar.'); }
+  }
+
+  async function openPlanGoogleCalendar(id) {
+    try {
+      const tz = localTimeZone();
+      const data = await call('GET', '/plans/' + encodeURIComponent(id) + '/schedule?startTime=' + encodeURIComponent(planStartTime) + '&tz=' + encodeURIComponent(tz));
+      if (!data.googleCalendarUrl) { setStatus('No upcoming revision blocks to schedule.'); return; }
+      window.open(data.googleCalendarUrl, '_blank', 'noopener,noreferrer');
+      setStatus('Opened Google Calendar with your daily ' + data.startTime + ' revision time-block.');
+    } catch (e) { setStatus(e.message || 'Could not build Google Calendar event.'); }
+  }
+
+  function downloadPlanIcs(id) {
+    const tz = localTimeZone();
+    window.open('/api/study/plans/' + encodeURIComponent(id) + '/calendar.ics?startTime=' + encodeURIComponent(planStartTime) + '&tz=' + encodeURIComponent(tz), '_blank', 'noopener');
+    setStatus('Downloading .ics schedule for Google Calendar / Apple Calendar.');
+  }
+
+  async function addPlanBlockToTasks(id) {
+    if (!adapter || typeof adapter.addStudyTasks !== 'function') return;
+    try {
+      const tz = localTimeZone();
+      const data = await call('GET', '/plans/' + encodeURIComponent(id) + '/schedule?startTime=' + encodeURIComponent(planStartTime) + '&tz=' + encodeURIComponent(tz));
+      const first = data.blocks && data.blocks[0];
+      if (!first) { setStatus('No revision blocks available.'); return; }
+      const r = adapter.addStudyTasks([{
+        title: `${first.title} (${first.startTime}–${first.endTime})`,
+        description: first.description,
+        priority: 'high',
+        due: first.date,
+      }]);
+      setStatus(r && r.added ? 'Added today\u2019s revision time-block to your Tasks & Calendar.' : 'Today\u2019s revision block is already on your task board.');
+    } catch (e) { setStatus(e.message || 'Could not add block to tasks.'); }
+  }
+
   async function createPlan() {
     const title = $('ns-plan-title').value, subject = $('ns-plan-subject').value;
     const examDate = $('ns-plan-date').value, dailyMinutes = Number($('ns-plan-minutes').value);
@@ -497,18 +626,38 @@
     'make-quiz': () => make('quiz'),
     'make-cards': () => make('cards'),
     pick: (t) => { if (quiz && quiz.picks[quiz.i] === undefined) { quiz.picks[quiz.i] = Number(t.getAttribute('data-i')); renderQuiz(); } },
-    'quiz-next': () => { if (!quiz) return; if (quiz.i + 1 < quiz.items.length) quiz.i++; else { quiz.done = true; quiz.items.forEach((q, i) => { if (quiz.picks[i] !== q.answer) saveRevision({ topic: q.question, prompt: 'Correct answer: ' + q.options[q.answer], answer: q.explanation || '' }); }); } renderQuiz(); },
+    'quiz-next': () => { if (!quiz) return; if (quiz.i + 1 < quiz.items.length) quiz.i++; else { quiz.done = true; quiz.items.forEach((q, i) => { if (quiz.picks[i] !== q.answer) saveRevision({ topic: q.question, prompt: 'Correct answer: ' + q.options[q.answer], answer: q.explanation || '' }); }); if (adapter && typeof adapter.recordStudyCheckIn === 'function') adapter.recordStudyCheckIn(); } renderQuiz(); },
     'quiz-retry': () => { if (!quiz) return; const items = quiz.items.filter((q, i) => quiz.picks[i] !== q.answer); quiz = { items, i: 0, picks: [], done: false }; renderQuiz(); },
     'quiz-new': () => { quiz = null; setStatus(''); renderQuiz(); },
     flip: () => { if (deck && !deck.done) { deck.flipped = !deck.flipped; renderCards(); } },
-    'card-known': () => { if (deck && deck.flipped) nextCard(true); },
+    'card-known': () => { if (deck && deck.flipped) { nextCard(true); if (deck.done && adapter && typeof adapter.recordStudyCheckIn === 'function') adapter.recordStudyCheckIn(); } },
     'card-again': () => { if (deck && deck.flipped) { const c = deck.cards[deck.i]; saveRevision({ topic: c.front, prompt: c.front, answer: c.back }); nextCard(false); } },
     'cards-retry': () => { if (!deck) return; deck = { cards: deck.missed.slice(), i: 0, flipped: false, known: 0, missed: [], done: false }; renderCards(); },
     'cards-new': () => { deck = null; setStatus(''); renderCards(); },
     'revision-refresh': () => loadRevision(),
     'rate-review': (el) => rateReview(el.getAttribute('data-id'), el.getAttribute('data-rating')),
     'plan-create': () => createPlan(),
+    'calendar-connect': () => connectCalendar(),
+    'calendar-disconnect': async () => { try { await call('DELETE', '/calendar/connection'); setStatus('Google Calendar disconnected.'); await loadRevision(); } catch (e) { setStatus(e.message); } },
+    'plan-calendar-sync': (el) => syncPlanToGoogleCalendar(el.getAttribute('data-id')),
+    'plan-gcal': (el) => openPlanGoogleCalendar(el.getAttribute('data-id')),
+    'plan-ics': (el) => downloadPlanIcs(el.getAttribute('data-id')),
+    'plan-tasks': (el) => addPlanBlockToTasks(el.getAttribute('data-id')),
     'plan-delete': async (el) => { try { await call('DELETE', '/plans/' + encodeURIComponent(el.getAttribute('data-id'))); await loadRevision(); } catch (e) { setStatus(e.message); } },
+    'study-checkin': () => {
+      if (!adapter || typeof adapter.recordStudyCheckIn !== 'function') return;
+      const res = adapter.recordStudyCheckIn();
+      setStatus(res && res.stats ? ('Today\u2019s study goal marked complete! Streak: ' + res.stats.current + '.') : 'Today\u2019s study goal marked complete.');
+      renderRevision();
+    },
+    'habit-save': () => {
+      if (!adapter || typeof adapter.ensureStudyHabit !== 'function') return;
+      const goalEl = modal.querySelector('#ns-habit-goal');
+      const goal = goalEl ? Number(goalEl.value) : 7;
+      adapter.ensureStudyHabit({ goal });
+      setStatus('Study habit synced with your Habits tracker.');
+      renderRevision();
+    },
   };
 
   async function refresh() {
@@ -594,17 +743,18 @@
     }
   }
 
-  function open(a) {
+  function open(a, opts) {
     adapter = a; build();
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
     quiz = null; deck = null; building = null; revisionData = null;
     qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
     modal.dataset.open = '1';
     if (a.isGuest()) { renderGuest(); return; }
-    tab = 'tutor';
+    const requestedTab = opts && TABS.includes(opts.tab) ? opts.tab : 'tutor';
+    tab = requestedTab;
     renderMain();
     setStatus('Loading your library.', true);
-    refresh().then(() => { setStatus(''); if (!docs.length) setTab('library'); else renderChat(); })
+    refresh().then(() => { setStatus(''); if (!docs.length && requestedTab === 'tutor') setTab('library'); else if (tab === 'tutor') renderChat(); })
       .catch((e) => setStatus((e && e.message) || 'Could not load your library.'));
     const card = modal.querySelector('.ns-card'); if (card) card.focus();
   }
