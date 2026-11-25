@@ -20,7 +20,7 @@ Returns server health. No login needed.
 
 **Response 200:**
 ```json
-{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.3.0" }
+{ "status": "ok", "db": "connected", "timestamp": "2026-11-10T10:30:00.000Z", "version": "4.4.0" }
 ```
 `db` is `connected` or `idle`; `version` is the `version` in `package.json`.
 
@@ -224,18 +224,32 @@ Asks the tutor a question about the user's material. **Limits:** shares the per-
 ```
 `docId` is optional and limits the search to one document (`404 NOT_FOUND` if it is not the user's). `history` is optional: up to the last 6 turns are used for follow-up questions. The question is 2 to 600 characters.
 
-The server finds the best matching sections with a MongoDB text index (words from the question; no embeddings) and sends up to 6 of them to Gemini with an instruction to answer only from them. When nothing matches, no Gemini call is made.
+**Small material is sent whole (4.4.0):** if the chosen scope has at most 66 sections (about 80,000 characters), every section is sent to Gemini in reading order, so a question that shares no words with the notes can still be answered. **Larger material is searched:** the best sections (up to 8) are found with a MongoDB text index (words from the question; no embeddings). If that finds fewer than 2 sections, one extra Gemini call asks for related keywords and the search is repeated with them; if the keyword call fails the request carries on without it. Either way Gemini is told to answer only from the excerpts. When there is nothing to read, no answer call is made.
 
 **Response 200 (found):**
 ```json
 { "found": true, "answer": "Plants make food by photosynthesis ... [1]",
   "sources": [ { "n": 1, "title": "Biology ch 2", "page": 4, "heading": "", "section": 7, "snippet": "Photosynthesis takes place in the chloroplasts..." } ] }
 ```
-`sources` lists the sections the answer cites (all retrieved sections if it cites none). `page` is `null` for TXT and Markdown files.
+`sources` lists the sections the answer cites; if it cites none, a search answer lists all retrieved sections and a whole-material answer lists none. Each source also carries `excerpt` (up to 600 characters of the section, 4.4.0). `mode` is `"full"` (whole material sent) or `"search"`. `page` is `null` for TXT and Markdown files.
 
 **Response 200 (not found):** `{ "found": false, "answer": "I couldn't find that in your study material. ...", "sources": [] }`. This is also returned when the model reports that the sections do not contain the answer.
 
 **Errors:** `400 BAD_REQUEST`, `404 NOT_FOUND`, and the usual AI errors (`503 AI_BUSY`, `502 AI_ERROR`, `429 RATE_LIMIT`, `429 DAILY_LIMIT`).
+
+---
+
+### `POST /api/study/quiz` and `POST /api/study/flashcards` (4.4.0)
+
+Writes practice material from the user's own sections. **Limits:** the same per-user AI limits as `/api/study/ask` (one Gemini call per request).
+
+**Request body:** `{ "count": 5, "level": "medium", "docId": "665f...", "topic": "osmosis" }`. `count` is clamped to 3 to 10 for a quiz (default 5) and 5 to 20 for flashcards (default 10); `level` is `easy`, `medium` (default) or `hard` and applies to quizzes only; `docId` and `topic` are optional. Without a topic the sections are spread evenly across the scope (up to 40); with a topic the best 12 matching sections are used.
+
+**Response 200 (quiz):** `{ "level": "medium", "questions": [ { "question": "...", "options": ["...", "...", "...", "..."], "answer": 2, "explanation": "...", "source": { "title": "Biology", "page": 4, "heading": "", "section": 7 } } ] }`. The options are shuffled on the server and `answer` is the 0-based index of the right one. Questions that are malformed (not exactly 4 distinct options, a bad answer index) are dropped.
+
+**Response 200 (flashcards):** `{ "cards": [ { "front": "...", "back": "...", "source": { ... } } ] }`. `source` is `null` when the model gave no valid excerpt number.
+
+**Errors:** `400 NO_CONTEXT` (too little text to write from), `404 NO_CONTEXT` (nothing matches the topic), `404 NOT_FOUND` (not the user's document), `502 AI_ERROR` (the model's reply could not be used), and the usual AI and rate-limit errors. Nothing is saved: quiz and deck progress stays in the browser.
 
 ---
 
@@ -293,6 +307,9 @@ There is no standalone mode. All AI calls go through the backend, which calls Go
 
 ## Changes in 4.3.0
 - No new routes. A habit in the workspace document may now carry `archived: true` (paused) and `remindAt` ("HH:MM" in the user's time zone). The existing push sweep also sends a habit reminder (`kind: "habit"`, `habitId`) when `remindAt` has passed, the habit is not paused or done today, and it is within three hours of that time. It follows the same on/off setting and push subscription as task alerts, and de-duplicates with the same `sentKeys` list.
+
+## Changes in 4.4.0
+- `POST /api/study/ask` now sends small material whole, adds one related-keywords call when a keyword search finds too little, and returns `excerpt` and `mode`. New routes `POST /api/study/quiz` and `POST /api/study/flashcards`.
 
 ## Corrections in this revision
 - `GET /api/version` was listed here earlier, but the server has no such route. Use `GET /api/health`, which includes `version`.

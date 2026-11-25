@@ -109,6 +109,7 @@ function makePdf(pageTexts) {
     };
   };
   const Doc = makeModel('doc'), Chunk = makeModel('chunk');
+  S.LIMITS.FULL_CONTEXT_CHUNKS = 0; S.LIMITS.EXPAND_QUERY = false; // these checks cover keyword search; 4.4.0 tests cover whole-material answers and keyword expansion
   const geminiCalls = [];
   let geminiReply = 'Photosynthesis uses light in chloroplasts [1].';
   const router = S.createStudyRouter({
@@ -245,15 +246,15 @@ function makePdf(pageTexts) {
   assert.ok(server_.indexOf("app.use('/api/study'") < server_.indexOf("res.status(404).json({ error: 'Not found'"), 'study routes come before the API 404');
   assert.ok(server_.includes("req.path === '/api/study/docs'") && server_.includes("'/complete', '/study'"), 'the study upload skips the small parser, and study routes wait for the database');
   assert.ok(server_.includes('studyUploadLimiter') && /StudyChunk\.deleteMany\(\{ userId: req\.userId \}\)[\s\S]{0,120}StudyDocument\.deleteMany/.test(server_), 'upload has its own limit and deleting the account removes study data');
-  assert.ok(classic.includes('id="nexos-study-btn"') && classic.includes('study.js?v=4.3.0') && classic.indexOf('study.js?v=') < classic.indexOf('app.js?v='), 'Classic has the entry and loads study.js');
+  assert.ok(classic.includes('id="nexos-study-btn"') && classic.includes('study.js?v=4.4.0') && classic.indexOf('study.js?v=') < classic.indexOf('app.js?v='), 'Classic has the entry and loads study.js');
   assert.ok(classicJs.includes('function openStudyStudio') && classicJs.includes("getElementById('nexos-study-btn')"), 'Classic binds the entry');
-  assert.ok(ent.includes('onclick="openStudyStudio()"') && ent.includes('function openStudyStudio') && ent.includes('study.js?v=4.3.0'), 'Enterprise has the entry and loads study.js');
-  assert.ok(sw.includes("'/study.js?v=4.3.0'") && sw.includes("nexos-shell-v35"), 'service worker precaches study.js');
+  assert.ok(ent.includes('onclick="openStudyStudio()"') && ent.includes('function openStudyStudio') && ent.includes('study.js?v=4.4.0'), 'Enterprise has the entry and loads study.js');
+  assert.ok(sw.includes("'/study.js?v=4.4.0'") && sw.includes("nexos-shell-v36"), 'service worker precaches study.js');
   const pkg = JSON.parse(read('package.json')), lock = JSON.parse(read('package-lock.json'));
-  assert.strictEqual(pkg.version, '4.3.0'); assert.strictEqual(lock.version, '4.3.0'); assert.strictEqual(lock.packages[''].version, '4.3.0');
+  assert.strictEqual(pkg.version, '4.4.0'); assert.strictEqual(lock.version, '4.4.0'); assert.strictEqual(lock.packages[''].version, '4.4.0');
   assert.ok(pkg.dependencies['pdfjs-dist'] && lock.packages['node_modules/pdfjs-dist'], 'the PDF reader is a locked dependency');
-  assert.ok(read('README.md').includes('Current source release: 4.3.0'));
-  assert.ok(fs.existsSync(path.join(__dirname, '..', 'RELEASE-NOTES', 'RELEASE-NOTES NexOS 4.0', 'RELEASE-NOTES-4.3.0.md')));
+  assert.ok(read('README.md').includes('Current source release: 4.4.0'));
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'RELEASE-NOTES', 'RELEASE-NOTES NexOS 4.0', 'RELEASE-NOTES-4.4.0.md')));
 
   console.log('NexOS 4.1.0 Study Studio checks passed.');
 })().catch((err) => { console.error(err); process.exit(1); });

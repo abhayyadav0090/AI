@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 4.3.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
+**Current source release: 4.4.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and **Study Studio** (upload your notes and let NexAI tutor you from them), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -126,6 +126,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 - **Action Mode:** describe a goal, review proposed actions (such as creating tasks, updating tasks or creating notes), and apply only the actions you approve.
 - **Day derailed (4.0.0):** a button in Classic and Enterprise for the moment a plan falls apart. Choose how much time you lost (1, 2 or 3 hours, or the rest of the day); NexAI looks at your open tasks due today or earlier and proposes which to move to tomorrow, instead of squeezing the old plan into fewer hours. You tick what to apply and approve. Only due dates change; nothing is deleted.
 - **Guest sample (4.0.0):** guests cannot use NexAI, but Action Mode and Day derailed now open a scripted sample with demo tasks and the same approve/untick interface. It makes no AI call, saves nothing and ends with a Sign in button.
+- **Study Studio, part 2 (4.4.0):** answers are better and there are two new tabs. **Small notebooks (up to about 80,000 characters) are sent to NexAI whole**, so a question that shares no words with your notes can still be answered; larger ones are searched, with one round of related keywords when the first search finds too little. Tap a source chip to read the passage it used. **Quiz** writes multiple-choice questions from your material (3 to 10, easy/medium/hard, optional topic), marks each answer, explains it with its page, and lets you retry the ones you missed. **Cards** makes 5 to 20 flashcards you flip and mark "Got it" or "Again". Progress in a quiz or deck is kept in the dialog only.
 - **Study Studio (4.1.0):** upload a text PDF, TXT or Markdown file (up to 4 MB), then ask NexAI to explain, quiz you or solve a problem from it. The server reads the file, keeps only its text in small sections with page numbers (the original file is not stored), and finds the best sections for each question with a MongoDB text index. NexAI answers only from those sections, shows which document and page it used, and says so when the answer is not in your material. Each user can keep up to 20 documents and 1,500 sections; you can delete any document and its sections at any time. Guests see a scripted sample.
 - **Voice input (3.2.0):** dictate messages, Action Mode instructions and supported task fields in Classic and Enterprise. Where available, the microphone language can be switched between English (India) and Hindi. Dictation fills the input; it does not automatically submit the message or approve an action.
 - **File analysis (3.3.0):** attach up to 3 supported files, with a combined limit of 6 MB, to a main NexAI chat in Classic or Enterprise. Supported types include PDF, PNG, JPG, WEBP and supported text/code files such as TXT, MD, CSV, PY, JS and JAVA. NexAI can describe images, summarise documents and help solve assignments step by step.
@@ -291,7 +292,7 @@ Setup notes:
 ├── lib/
 │   ├── attachments.js          # Server-side file validation for NexAI chat
 │   ├── habit-reminders.js      # Which habit reminders are due now (pure, used by the push scheduler)
-│   └── study.js                # Study Studio: PDF/TXT/MD reading, chunking, text-search tutor, models and routes
+│   └── study.js                # Study Studio: PDF/TXT/MD reading, chunking, tutor (whole-material or keyword search), quiz and flashcard routes, models
 ├── scripts/                    # generate-vapid-keys.js and the regression tests run by npm test
 ├── mds/
 │   ├── API.md                  # API reference
@@ -343,6 +344,8 @@ All routes start with `/api`. Authentication is required for workspace and chat 
 | GET, POST | `/api/study/docs` | List your study documents, or upload one (`{ name, data }`, base64) |
 | DELETE | `/api/study/docs/:id` | Delete a study document and its sections |
 | POST | `/api/study/ask` | Ask the tutor a question about your material; returns the answer and page references, or "not found" |
+| POST | `/api/study/quiz` | Write a multiple-choice quiz from your material (`{ count, level, docId?, topic? }`) |
+| POST | `/api/study/flashcards` | Write flashcards from your material (`{ count, docId?, topic? }`) |
 | GET | `/api/push/config` | Public key the browser needs to subscribe to push reminders |
 | GET, PUT | `/api/push/preferences` | Load and save reminder preferences (on/off, time, time zone) |
 | POST, DELETE | `/api/push/subscribe` | Subscribe or unsubscribe this browser from push reminders |
@@ -392,6 +395,7 @@ NexOS and NexAI were created by Abhay Yadav. For the official portfolio, GitHub,
 - File uploads are limited to 3 files and 6 MB combined per message. Supported files include PDF, PNG, JPG, WEBP and supported text/code formats. **DOCX is not currently supported; export Word documents to PDF first.**
 - File attachments are available in the main NexAI chat. The Enterprise side-panel chat does not provide the same attachment control unless separately added.
 - Files are not retained as permanent chat attachments. To ask follow-up questions about a file later, attach it again.
+- Study Studio quizzes and flashcards are written by Gemini from your material, so check an answer you doubt against the source chip. Each quiz, deck or tutor answer is one Gemini call and counts toward the same per-user limits and your free Gemini quota; a keyword-search answer can use a second call. Quiz and deck progress is not saved.
 - Study Studio reads text PDFs, TXT and Markdown only. Scanned PDFs (pictures of pages), DOCX and PPTX are not supported yet, and the original files are not stored. A file can be up to 4 MB (and 300 PDF pages); each user can keep 20 documents and 1,500 sections. Search matches words from your question, so a question phrased with different words than your notes may report "not found"; try the words your material uses.
 - Guest mode has no NexAI; the Action Mode and Day derailed samples shown to guests are scripted demonstrations.
 - Day derailed moves open tasks to tomorrow only. It does not estimate task durations, so how much it moves depends on NexAI's judgment of what you tell it you lost; always review the proposals.
@@ -490,6 +494,7 @@ One line per release. The linked notes have the details.
 - **4.1.3** — Enterprise sidebar: the Timeblocking and Study Studio icons now use the same plain symbols as the other items. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.3.md)
 - **4.2.0** — Better habits: edit a habit's name, colour and goal (✎ button); current and best streak, 30-day rate, total check-ins and milestone badges on every habit; weekly goals (1 to 7 days a week, counted in weeks); a summary strip above the list. Classic and Enterprise. New `public/habits.js`. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.2.0.md)
 - **4.3.0** — Habits, part 2: pause and resume habits, reorder them, a 12-week heatmap and facts for each habit (▥), and a reminder time per habit sent as a push notification. New `lib/habit-reminders.js`; `server.js` only widens the existing push scheduler. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.3.0.md)
+- **4.4.0** — Study Studio, part 2: small notebooks are answered from the whole material, larger ones by keyword search with related-keyword expansion; tappable sources; new Quiz and Cards tabs (multiple-choice quizzes, flashcards, retry what you missed). New routes `POST /api/study/quiz` and `POST /api/study/flashcards`. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.4.0.md)
 - **4.1.0** — Study Studio: upload a text PDF, TXT or Markdown file and ask NexAI to tutor you from it, with page references and an honest "not found in your material". Sections are stored in new `StudyDocument` and `StudyChunk` collections (the original file is not kept); upload and tutor routes under `/api/study`; new `lib/study.js` and `public/study.js`; new dependency `pdfjs-dist`. Deleting your workspace data also deletes your study data. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.1.0.md)
 - **4.0.0** — Day derailed: tell NexAI how much time you lost and approve which open tasks move to tomorrow (Classic and Enterprise). Guests can now try Action Mode and Day derailed through a scripted sample with demo tasks. New `public/derail.js`; documentation brought up to date (API, architecture). [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.0.0.md)
 

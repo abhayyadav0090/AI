@@ -1,4 +1,4 @@
-/* NexOS 4.1.0 — Study Studio (dialog redesigned in 4.1.1): upload notes, then ask NexAI to tutor you from them.
+/* NexOS 4.1.0 — Study Studio (dialog redesigned in 4.1.1; Quiz and Cards tabs and tappable sources in 4.4.0): upload notes, then ask NexAI to tutor you from them, quiz you and make flashcards.
    Shared by Classic and Enterprise. It draws its own dialog; each page passes a small adapter:
    { isGuest() -> bool, signIn(), toast(msg) }.
    Files are read on the server and only their text chunks are kept (never the original file).
@@ -115,6 +115,34 @@
 @media (max-width:560px){#nexos-study-modal{align-items:flex-end;padding:0}#nexos-study-modal .ns-card{width:100%;height:94vh;border-radius:22px 22px 0 0}#nexos-study-modal .ns-fields{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){#nexos-study-modal .ns-status.ns-busy::before,#nexos-study-modal .ns-dots i{animation:none}}`;
 
+  const CSS2 = `
+#nexos-study-modal{--k-ok:#2e9e5b;--k-bad:#d9453f}
+#nexos-study-modal .ns-tabs{grid-template-columns:repeat(4,1fr)}
+#nexos-study-modal .ns-fields3{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
+#nexos-study-modal .ns-qhead{display:flex;justify-content:space-between;font-size:12.5px;color:var(--k-text2);margin-bottom:2px}
+#nexos-study-modal .ns-qtext{font-size:15.5px;font-weight:600;line-height:1.45;margin:12px 0;overflow-wrap:anywhere}
+#nexos-study-modal .ns-opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;margin-bottom:8px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2);color:var(--k-text);font-size:13.5px;line-height:1.45;cursor:pointer;font-family:inherit}
+#nexos-study-modal .ns-opt b{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;background:var(--k-hover)}
+#nexos-study-modal .ns-opt span{min-width:0;overflow-wrap:anywhere}
+#nexos-study-modal .ns-opt:not([disabled]):hover{border-color:var(--k-accent)}
+#nexos-study-modal .ns-opt.ns-ok{border-color:var(--k-ok);background:color-mix(in srgb,var(--k-ok) 16%,transparent)}
+#nexos-study-modal .ns-opt.ns-bad{border-color:var(--k-bad);background:color-mix(in srgb,var(--k-bad) 16%,transparent)}
+#nexos-study-modal .ns-opt.ns-dim{opacity:.55}
+#nexos-study-modal .ns-opt[disabled]{cursor:default}
+#nexos-study-modal .ns-expl{margin:6px 0 4px;padding:11px 13px;border-radius:14px;background:var(--k-soft);font-size:13px;line-height:1.55}
+#nexos-study-modal .ns-expl strong.ns-yes{color:var(--k-ok)}#nexos-study-modal .ns-expl strong.ns-no{color:var(--k-bad)}
+#nexos-study-modal .ns-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#nexos-study-modal .ns-score{font-size:42px;font-weight:700;text-align:center;margin:10px 0 2px}
+#nexos-study-modal .ns-miss-item{padding:10px 12px;border:1px solid var(--k-line);border-radius:14px;margin-top:8px;font-size:13px;line-height:1.5}
+#nexos-study-modal .ns-flash{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;width:100%;min-height:210px;margin:14px 0 8px;padding:20px;border:1px solid var(--k-line);border-radius:20px;background:var(--k-bg2);color:var(--k-text);font-size:17px;font-weight:600;line-height:1.45;text-align:center;cursor:pointer;font-family:inherit;overflow-wrap:anywhere}
+#nexos-study-modal .ns-flash small{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--k-accent)}
+#nexos-study-modal .ns-flash[data-back="1"]{background:var(--k-soft);border-color:var(--k-accent)}
+#nexos-study-modal .ns-srcd{display:inline-block}
+#nexos-study-modal .ns-srcd[open]{flex-basis:100%}
+#nexos-study-modal .ns-srcd summary{cursor:pointer;list-style:none}
+#nexos-study-modal .ns-srcd summary::-webkit-details-marker{display:none}
+#nexos-study-modal .ns-excerpt{margin-top:6px;padding:9px 11px;border-left:3px solid var(--k-accent);border-radius:6px;background:var(--k-bg);font-size:12px;line-height:1.55;color:var(--k-text2)}
+@media (max-width:560px){#nexos-study-modal .ns-tab{font-size:12.5px}}`;
   const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5zM12 6.5v13"/></svg>';
   const STARTERS = [
     { label: 'Explain simply', text: 'Explain in simple words: ' },
@@ -125,6 +153,8 @@
 
   let modal = null, adapter = null, busy = false, tab = 'tutor';
   let docs = [], usage = null, history = [], thinking = false, pending = null;
+  let quiz = null, deck = null, building = null;
+  let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
 
   const $ = (id) => modal.querySelector('#' + id);
   const setStatus = (text, isBusy) => { const el = modal && modal.querySelector('#ns-status'); if (!el) return; el.textContent = text || ''; el.classList.toggle('ns-busy', !!isBusy); };
@@ -133,7 +163,7 @@
     if (modal) return;
     const style = document.createElement('style');
     style.id = 'nexos-study-styles';
-    style.textContent = CSS;
+    style.textContent = CSS + CSS2;
     document.head.appendChild(style);
     modal = document.createElement('div');
     modal.id = 'nexos-study-modal';
@@ -156,9 +186,18 @@
       else if (act === 'upload') upload();
       else if (act === 'ask') ask();
       else if (act === 'delete') remove(t.getAttribute('data-id'));
+      else if (ACTIONS[act]) ACTIONS[act](t);
       else if (act === 'starter') { const box = $('ns-question'); box.value = STARTERS[Number(t.getAttribute('data-i'))].text; box.focus(); }
     });
     modal.addEventListener('change', (e) => { if (e.target && e.target.id === 'ns-file') pickFile(e.target.files && e.target.files[0]); });
+    const keepOption = (e) => {
+      const t = e.target, key = t && t.dataset && t.dataset.opt;
+      if (!key) return;
+      const o = t.closest('#ns-panel-cards') ? copts : qopts;
+      o[key] = (key === 'count') ? Number(t.value) : t.value;
+    };
+    modal.addEventListener('change', keepOption);
+    modal.addEventListener('input', keepOption);
     modal.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.id === 'ns-question') { e.preventDefault(); ask(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.id === 'ns-drop') { e.preventDefault(); $('ns-file').click(); }
@@ -202,8 +241,12 @@
     });
   }
 
+  /* Each source is a chip; when the server sent the passage, tapping the chip opens it (native <details>, no script). */
   const srcChips = (list) => (list || []).length
-    ? '<div class="ns-srcs">' + list.map((s) => '<span class="ns-src">[' + s.n + '] ' + esc(sourceLabel(s)) + '</span>').join('') + '</div>' : '';
+    ? '<div class="ns-srcs">' + list.map((s) => s.excerpt
+      ? '<details class="ns-srcd"><summary class="ns-src">[' + s.n + '] ' + esc(sourceLabel(s)) + '</summary><div class="ns-excerpt">' + esc(s.excerpt) + '</div></details>'
+      : '<span class="ns-src">[' + s.n + '] ' + esc(sourceLabel(s)) + '</span>').join('') + '</div>' : '';
+  const oneChip = (src) => src ? '<div class="ns-srcs"><span class="ns-src">' + esc(sourceLabel(src)) + '</span></div>' : '';
 
   function renderGuest() {
     $('ns-root').innerHTML =
@@ -218,6 +261,8 @@
   function renderMain() {
     $('ns-root').innerHTML =
       '<div class="ns-tabs" role="tablist"><button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="tutor" id="ns-tab-tutor">Tutor</button>' +
+      '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="quiz" id="ns-tab-quiz">Quiz</button>' +
+      '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="cards" id="ns-tab-cards">Cards</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="library" id="ns-tab-library">Library</button></div>' +
       '<div class="ns-status" id="ns-status" role="status" aria-live="polite"></div>' +
       '<div class="ns-panel" id="ns-panel-tutor">' +
@@ -226,6 +271,8 @@
         '<div class="ns-starters" id="ns-starters">' + STARTERS.map((st, i) => '<button type="button" data-ns="starter" data-i="' + i + '">' + esc(st.label) + '</button>').join('') + '</div>' +
         '<div class="ns-bar"><textarea id="ns-question" maxlength="600" rows="1" placeholder="Ask about your material" aria-label="Question"></textarea>' +
         '<button type="button" class="ns-btn ns-primary" id="ns-ask" data-ns="ask">Ask</button></div></div>' +
+      '<div class="ns-panel" id="ns-panel-quiz"><div class="ns-scroll" id="ns-quiz"></div></div>' +
+      '<div class="ns-panel" id="ns-panel-cards"><div class="ns-scroll" id="ns-cards"></div></div>' +
       '<div class="ns-panel" id="ns-panel-library"><div class="ns-scroll">' +
         '<p class="ns-p">Add notes or a chapter: a text PDF, TXT or Markdown file up to 4 MB. Only the text is kept, not the file. Scanned PDFs (photos of pages) are not supported yet.</p>' +
         '<div class="ns-drop" id="ns-drop" tabindex="0" role="button" aria-label="Choose a file"><strong id="ns-dropname">Tap to choose a file</strong><span id="ns-dropsub">or drag and drop it here</span>' +
@@ -236,17 +283,20 @@
         '<div id="ns-docs"></div></div></div>';
     $('ns-drop').addEventListener('click', () => { if (!busy) $('ns-file').click(); });
     $('ns-question').addEventListener('input', (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 110) + 'px'; });
-    renderDocs(); renderChat(); setTab(tab);
+    renderDocs(); renderChat(); renderQuiz(); renderCards(); setTab(tab);
   }
 
+  const TABS = ['tutor', 'quiz', 'cards', 'library'];
   function setTab(name) {
-    tab = name === 'library' ? 'library' : 'tutor';
-    ['tutor', 'library'].forEach((t) => {
+    tab = TABS.includes(name) ? name : 'tutor';
+    TABS.forEach((t) => {
       const on = t === tab;
       $('ns-tab-' + t).setAttribute('aria-selected', String(on));
       $('ns-panel-' + t).dataset.on = on ? '1' : '0';
     });
     if (tab === 'tutor') renderChat();
+    if (tab === 'quiz') renderQuiz();
+    if (tab === 'cards') renderCards();
   }
 
   function renderDocs() {
@@ -258,6 +308,10 @@
     const scope = $('ns-scope'), keep = scope.value;
     scope.innerHTML = '<option value="">All my material</option>' + docs.map((d) => '<option value="' + esc(d.id) + '">' + esc(d.title) + '</option>').join('');
     if (docs.some((d) => d.id === keep)) scope.value = keep;
+    if (!docs.some((d) => d.id === qopts.docId)) qopts.docId = '';
+    if (!docs.some((d) => d.id === copts.docId)) copts.docId = '';
+    if (!quiz) renderQuiz();
+    if (!deck) renderCards();
     if (usage) {
       $('ns-usage').textContent = usage.docs + ' of ' + usage.maxDocs + ' documents \u00b7 ' + usage.chunks + ' of ' + usage.maxChunks + ' sections used';
       $('ns-meter').style.width = Math.min(100, Math.round(usage.chunks / usage.maxChunks * 100)) + '%';
@@ -283,6 +337,105 @@
     }).join('') + (thinking ? '<div class="ns-msg ns-ai"><span class="ns-dots" aria-label="NexAI is reading your material"><i></i><i></i><i></i></span></div>' : '') + '</div>';
     chat.scrollTop = chat.scrollHeight;
   }
+
+  /* ---------- Quiz and Cards (4.4.0). Progress lives in this dialog only; nothing is saved. ---------- */
+  const LETTERS = 'ABCD';
+  const scopeOptions = (selected) => '<option value="">All my material</option>' + docs.map((d) => '<option value="' + esc(d.id) + '"' + (d.id === selected ? ' selected' : '') + '>' + esc(d.title) + '</option>').join('');
+  const emptyLibrary = (what) => '<div class="ns-empty"><strong>Your library is empty</strong>Add a chapter or your notes first. ' + what + '.<br><button type="button" class="ns-btn ns-primary" data-ns="tab" data-tab="library">Add your first document</button></div>';
+  const meter = (done, total) => '<div class="ns-meter"><i style="width:' + Math.round(done / Math.max(1, total) * 100) + '%"></i></div>';
+
+  function setupForm(kind, o) {
+    const counts = kind === 'quiz' ? [3, 5, 8, 10] : [5, 10, 15, 20];
+    const noun = kind === 'quiz' ? ' questions' : ' cards';
+    return '<p class="ns-p">' + (kind === 'quiz'
+      ? 'NexAI writes multiple-choice questions from your material, marks each answer and explains it with the page it came from.'
+      : 'NexAI turns your material into flashcards. Flip each card, then mark whether you knew it.') + '</p>' +
+      '<div class="ns-fields3"><select data-opt="docId" aria-label="Material">' + scopeOptions(o.docId) + '</select>' +
+      '<select data-opt="count" aria-label="How many">' + counts.map((n) => '<option value="' + n + '"' + (n === o.count ? ' selected' : '') + '>' + n + noun + '</option>').join('') + '</select>' +
+      (kind === 'quiz' ? '<select data-opt="level" aria-label="Difficulty">' + ['easy', 'medium', 'hard'].map((l) => '<option value="' + l + '"' + (l === o.level ? ' selected' : '') + '>' + l[0].toUpperCase() + l.slice(1) + '</option>').join('') + '</select>' : '') + '</div>' +
+      '<input type="text" data-opt="topic" maxlength="120" placeholder="Topic (optional), for example photosynthesis" aria-label="Topic" value="' + esc(o.topic) + '">' +
+      '<button type="button" class="ns-btn ns-primary" data-ns="make-' + kind + '" style="width:100%;margin-top:10px">' + (kind === 'quiz' ? 'Make my quiz' : 'Make my flashcards') + '</button>';
+  }
+  const working = (title) => '<div class="ns-empty"><strong>' + title + '</strong>NexAI is reading your material. This takes a few seconds.</div>';
+
+  function renderQuiz() {
+    const box = modal && modal.querySelector('#ns-quiz');
+    if (!box) return;
+    if (!docs.length) { box.innerHTML = emptyLibrary('Then NexAI can quiz you on it'); return; }
+    if (building === 'quiz') { box.innerHTML = working('Writing your quiz'); return; }
+    if (!quiz) { box.innerHTML = setupForm('quiz', qopts); return; }
+    const n = quiz.items.length;
+    const right = quiz.picks.filter((p, i) => p === quiz.items[i].answer).length;
+    if (quiz.done) {
+      const missed = quiz.items.filter((q, i) => quiz.picks[i] !== q.answer);
+      box.innerHTML = '<div class="ns-score">' + right + ' / ' + n + '</div><p class="ns-p" style="text-align:center">' +
+        (right === n ? 'Perfect. Try a harder level or another chapter.' : right >= n * 0.7 ? 'Good work. Review what you missed below.' : 'Keep going. The questions you missed are below.') + '</p>' +
+        missed.map((q) => '<div class="ns-miss-item"><strong>' + esc(q.question) + '</strong><br>Answer: ' + esc(q.options[q.answer]) + (q.explanation ? '<br><span class="ns-dm">' + esc(q.explanation) + '</span>' : '') + oneChip(q.source) + '</div>').join('') +
+        '<div class="ns-actions">' + (missed.length ? '<button type="button" class="ns-btn ns-primary" data-ns="quiz-retry">Retry the ' + missed.length + ' I missed</button>' : '') +
+        '<button type="button" class="ns-btn" data-ns="quiz-new">New quiz</button></div>';
+      return;
+    }
+    const q = quiz.items[quiz.i], picked = quiz.picks[quiz.i], answered = picked !== undefined;
+    box.innerHTML = '<div class="ns-qhead"><span>Question ' + (quiz.i + 1) + ' of ' + n + '</span><span>' + right + ' right</span></div>' + meter(quiz.i + (answered ? 1 : 0), n) +
+      '<div class="ns-qtext">' + esc(q.question) + '</div>' +
+      q.options.map((o, k) => '<button type="button" class="ns-opt' + (answered ? (k === q.answer ? ' ns-ok' : k === picked ? ' ns-bad' : ' ns-dim') : '') + '" data-ns="pick" data-i="' + k + '"' + (answered ? ' disabled' : '') + '><b>' + LETTERS[k] + '</b><span>' + esc(o) + '</span></button>').join('') +
+      (answered ? '<div class="ns-expl"><strong class="' + (picked === q.answer ? 'ns-yes">Correct.' : 'ns-no">Not quite.') + '</strong> ' +
+        (picked === q.answer ? '' : 'The answer is ' + LETTERS[q.answer] + '. ') + esc(q.explanation) + oneChip(q.source) + '</div>' +
+        '<div class="ns-actions"><button type="button" class="ns-btn ns-primary" data-ns="quiz-next">' + (quiz.i + 1 < n ? 'Next question' : 'See my score') + '</button></div>' : '');
+  }
+
+  function renderCards() {
+    const box = modal && modal.querySelector('#ns-cards');
+    if (!box) return;
+    if (!docs.length) { box.innerHTML = emptyLibrary('Then NexAI can make flashcards from it'); return; }
+    if (building === 'cards') { box.innerHTML = working('Making your flashcards'); return; }
+    if (!deck) { box.innerHTML = setupForm('cards', copts); return; }
+    const n = deck.cards.length;
+    if (deck.done) {
+      box.innerHTML = '<div class="ns-score">' + deck.known + ' / ' + n + '</div><p class="ns-p" style="text-align:center">' + (deck.missed.length ? 'cards you knew. Go over the ' + deck.missed.length + ' you missed again.' : 'You knew every card.') + '</p>' +
+        '<div class="ns-actions">' + (deck.missed.length ? '<button type="button" class="ns-btn ns-primary" data-ns="cards-retry">Review the ' + deck.missed.length + ' I missed</button>' : '') +
+        '<button type="button" class="ns-btn" data-ns="cards-new">New deck</button></div>';
+      return;
+    }
+    const c = deck.cards[deck.i];
+    box.innerHTML = '<div class="ns-qhead"><span>Card ' + (deck.i + 1) + ' of ' + n + '</span><span>' + deck.known + ' known</span></div>' + meter(deck.i, n) +
+      '<button type="button" class="ns-flash" data-ns="flip" data-back="' + (deck.flipped ? 1 : 0) + '" aria-label="Flip card"><small>' + (deck.flipped ? 'Answer' : 'Question') + '</small><span>' + esc(deck.flipped ? c.back : c.front) + '</span></button>' +
+      (deck.flipped ? oneChip(c.source) + '<div class="ns-actions"><button type="button" class="ns-btn" data-ns="card-again">Again</button><button type="button" class="ns-btn ns-primary" data-ns="card-known">Got it</button></div>'
+        : '<p class="ns-dm" style="text-align:center">Tap the card to see the answer.</p>');
+  }
+
+  async function make(kind) {
+    if (busy) return;
+    busy = true; building = kind;
+    kind === 'quiz' ? renderQuiz() : renderCards();
+    const o = kind === 'quiz' ? qopts : copts;
+    try {
+      const out = await call('POST', kind === 'quiz' ? '/quiz' : '/flashcards', { docId: o.docId || undefined, count: o.count, level: kind === 'quiz' ? o.level : undefined, topic: o.topic || undefined });
+      if (kind === 'quiz') quiz = { items: out.questions, i: 0, picks: [], done: false };
+      else deck = { cards: out.cards, i: 0, flipped: false, known: 0, missed: [], done: false };
+      setStatus('');
+    } catch (e) { setStatus((e && e.message) || 'NexAI could not build that right now.'); }
+    finally { busy = false; building = null; kind === 'quiz' ? renderQuiz() : renderCards(); }
+  }
+  const nextCard = (isKnown) => {
+    const c = deck.cards[deck.i];
+    if (isKnown) deck.known++; else deck.missed.push(c);
+    if (deck.i + 1 < deck.cards.length) { deck.i++; deck.flipped = false; } else deck.done = true;
+    renderCards();
+  };
+  const ACTIONS = {
+    'make-quiz': () => make('quiz'),
+    'make-cards': () => make('cards'),
+    pick: (t) => { if (quiz && quiz.picks[quiz.i] === undefined) { quiz.picks[quiz.i] = Number(t.getAttribute('data-i')); renderQuiz(); } },
+    'quiz-next': () => { if (!quiz) return; if (quiz.i + 1 < quiz.items.length) quiz.i++; else quiz.done = true; renderQuiz(); },
+    'quiz-retry': () => { if (!quiz) return; const items = quiz.items.filter((q, i) => quiz.picks[i] !== q.answer); quiz = { items, i: 0, picks: [], done: false }; renderQuiz(); },
+    'quiz-new': () => { quiz = null; setStatus(''); renderQuiz(); },
+    flip: () => { if (deck && !deck.done) { deck.flipped = !deck.flipped; renderCards(); } },
+    'card-known': () => { if (deck && deck.flipped) nextCard(true); },
+    'card-again': () => { if (deck && deck.flipped) nextCard(false); },
+    'cards-retry': () => { if (!deck) return; deck = { cards: deck.missed.slice(), i: 0, flipped: false, known: 0, missed: [], done: false }; renderCards(); },
+    'cards-new': () => { deck = null; setStatus(''); renderCards(); },
+  };
 
   async function refresh() {
     const data = await call('GET', '/docs');
@@ -370,6 +523,8 @@
   function open(a) {
     adapter = a; build();
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
+    quiz = null; deck = null; building = null;
+    qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
     modal.dataset.open = '1';
     if (a.isGuest()) { renderGuest(); return; }
     tab = 'tutor';

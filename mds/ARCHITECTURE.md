@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 4.3.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 4.4.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
@@ -43,6 +43,7 @@ Persistence:
 
 ### Voice and attachments
 - **Voice (3.2.0):** the browser's speech recognition fills the input. Results are merged without repeating, and nothing is submitted automatically.
+- **Study Studio answers, quizzes and cards (4.4.0):** `lib/study.js` decides per request how to read the material. If the scope has at most `FULL_CONTEXT_CHUNKS` (66) sections, estimated from the document records without reading text, every section is sent to Gemini in order; otherwise a MongoDB text search finds up to 8 sections, and when it finds fewer than 2 one extra Gemini call returns related keywords for a second search. `/quiz` and `/flashcards` sample up to 40 sections (or 12 topic matches), ask Gemini for JSON, and validate it (4 distinct options, a valid answer index, a valid excerpt number) before sending it; options are shuffled on the server. Quiz and deck progress lives only in the dialog (`public/study.js`), so there is no new collection. Study answers, quizzes and decks are each one Gemini call under the existing AI rate limits.
 - **Habit pause, order, details and reminders (4.3.0):** a paused habit carries `archived: true` and stays in the workspace with all its check-ins; both pages draw only active habits in lists, counts, the plan and NexAI context, and show paused ones under "Paused habits". Order is the order of the `habits` array (`NexHabits.move`). `remindAt` is read by the server's push sweep through `lib/habit-reminders.js`, which reuses `habits.js` so the reminder logic and the on-screen stats agree.
 - **Habit statistics (4.2.0):** `habits.js` holds pure functions over a habit's `checks` map and optional `goal`: current and best streak (days for daily habits, Monday-to-Sunday weeks for weekly goals), 30-day rate, total, this-week count and milestones. Both pages call it when drawing habits and fall back to the stored `streak` if it has not loaded. It never writes data, so the stored `streak` field and NexAI's view of habits are unchanged.
 - **Day derailed and the guest sample (4.0.0):** `derail.js` is shared by Classic and Enterprise. It draws its own dialog and talks to each page through a small adapter (`getTasks`, `applyMoves`, `askAI`, `isGuest`, `signIn`, `toast`). Day derailed sends open tasks due today or earlier (title, priority, stage, date, at most 20) in one `/api/complete` request, keeps only proposals that name task IDs it supplied (at most 8), and after approval changes only the due date to tomorrow. Guests and Enterprise preview never reach the AI: they see scripted sample proposals that save nothing.
