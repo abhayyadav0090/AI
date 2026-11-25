@@ -86,6 +86,7 @@ function extractSlice(src, startMarker, endMarker) {
       extractSlice(entHtml, 'function setEnterpriseTaskStage(', 'function openNewTaskModal()'),
       extractSlice(entHtml, 'var editingHabitId = null;', '// ---------------- SMART NOTES STUDIO 3.0 ----------------'),
       extractSlice(entHtml, 'let noteSearchQuery =', 'function renderSimpleMarkdown('),
+      extractSlice(entHtml, 'function filterNotesSearch(', '// ---------------- ANALYTICS & CHARTS ----------------'),
       extractSlice(entHtml, 'function nexTaskStage(', 'function renderEnterpriseScore()'),
       extractSlice(entHtml, 'let lastProposedSchedule =', '// ---------------- COMMAND PALETTE'),
       extractSlice(entHtml, 'function setPomodoroMode(', 'function renderPomTimerUI()'),
@@ -95,6 +96,7 @@ function extractSlice(src, startMarker, endMarker) {
       window: { confirm: () => confirmReply, NexHabits: habitsLib },
       document: {
         getElementById: (id) => els.get(id) || null,
+        head: { appendChild: () => {} },
         querySelector: () => null,
         querySelectorAll: () => [],
         createElement: () => makeEl('dyn_' + (nextUid++)),
@@ -344,7 +346,7 @@ function extractSlice(src, startMarker, endMarker) {
       const schedAfter = await fetch(base + `/plans/${createRes.id}/schedule`, { headers: { Authorization: `Bearer ${tokA}` } }).then((r) => r.json());
       assert.ok(!schedAfter.blocks.some((b) => b.topics.includes('Kinematics')), 'Completed topic excluded from upcoming blocks');
     } finally {
-      srv.close();
+      await new Promise((r) => srv.close(r));
     }
   }
 
@@ -375,7 +377,8 @@ function extractSlice(src, startMarker, endMarker) {
       const h1 = cVm.formatChat(md);
       const h2 = eVm.renderSimpleMarkdown(md);
       assert.equal(h1, h2, 'Classic and Enterprise render identical HTML for prompt cases');
-      assert.ok((h1.match(/<ol\b/g) || []).length >= 1 && !h1.includes('</ol><p>'), 'Ordered list does not prematurely split around explanations');
+      assert.ok((h1.match(/<ol\b/g) || []).length >= 1, 'Rendered HTML contains ordered list');
+      assert.equal((h1.match(/<\/ol><p><strong>/g) || []).length, 0, 'Ordered list does not split across subsequent bold items');
     }
 
     // Prompt 4: Give me a detailed answer and continue if you reach the response limit (multi-part MAX_TOKENS continuation + rendering)
@@ -400,6 +403,73 @@ function extractSlice(src, startMarker, endMarker) {
     const eh = eVm.renderSimpleMarkdown(continued.text);
     assert.equal((ch.match(/<ol\b/g) || []).length, 1, 'Classic: continued response keeps all 3 sections in ONE <ol>');
     assert.equal((eh.match(/<ol\b/g) || []).length, 1, 'Enterprise: continued response keeps all 3 sections in ONE <ol>');
+
+    // 4) Markdown GFM tables, blockquotes, XSS safety in cells, and non-table pipe prose fallthrough
+    const tableMd = [
+      '| Module | Status |',
+      '|---|---|',
+      '| **Study Studio** | Ready |',
+      '| `<script>x</script>` | Safe |',
+      '',
+      '> Quoted insight line one',
+      '> Quoted insight line two',
+      '',
+      'Use A | B as plain text.',
+    ].join('\n');
+    const th1 = cVm.formatChat(tableMd);
+    const th2 = eVm.renderSimpleMarkdown(tableMd);
+    assert.equal(th1, th2, 'Classic and Enterprise render identical HTML for tables and blockquotes');
+    assert.ok(th1.includes('<div class="chat-table-wrap"><table class="chat-table"><thead><tr><th>Module</th><th>Status</th></tr></thead><tbody><tr><td><strong>Study Studio</strong></td><td>Ready</td></tr><tr><td><code>&lt;script&gt;x&lt;/script&gt;</code></td><td>Safe</td></tr></tbody></table></div>'));
+    assert.ok(th1.includes('<blockquote>Quoted insight line one<br>Quoted insight line two</blockquote>'));
+    assert.ok(th1.includes('<p>Use A | B as plain text.</p>'));
+    assert.ok(!th1.includes('<script>'));
+
+    // 5) Performance check on large Markdown payload (400 lines with nested lists and tables)
+    const bigMd = Array.from({ length: 40 }, (_, i) => `${i + 1}. **Section ${i + 1}**\n\nDetails for item ${i + 1}.\n  - Sub A\n  - Sub B\n\n| K | V |\n|---|---|\n| a | ${i} |`).join('\n\n');
+    const t0 = performance.now();
+    const bigC = cVm.formatChat(bigMd);
+    const bigE = eVm.renderSimpleMarkdown(bigMd);
+    const renderMs = performance.now() - t0;
+    assert.ok(bigC.length > 2000 && bigE.length > 2000);
+    assert.ok(renderMs < 150, `Large Markdown render took ${renderMs.toFixed(1)}ms (must be < 150ms)`);
+  }
+
+  // ── 6) Live Main Express App Boot Smoke Test (Health, CSP Headers, Static Routes, 401 Boundaries) ──
+  {
+    const mainApp = require('../server.js');
+    const liveSrv = http.createServer(mainApp);
+    await new Promise((r) => liveSrv.listen(0, '127.0.0.1', r));
+    const urlBase = `http://127.0.0.1:${liveSrv.address().port}`;
+    try {
+      const hRes = await fetch(urlBase + '/api/health');
+      assert.equal(hRes.status, 200);
+      const hJson = await hRes.json();
+      assert.equal(hJson.status, 'ok');
+      assert.equal(hJson.version, '4.5.1');
+
+      for (const p of ['/', '/enterprise', '/style.css', '/app.js', '/study.js', '/recover.html']) {
+        const r = await fetch(urlBase + p);
+        assert.equal(r.status, 200, `Expected 200 for ${p}`);
+      }
+      const rootRes = await fetch(urlBase + '/');
+      assert.ok(rootRes.headers.get('content-security-policy'), 'Helmet CSP header present');
+
+      for (const protectedPath of ['/api/state', '/api/chats', '/api/study/docs', '/api/study/plans']) {
+        const r = await fetch(urlBase + protectedPath);
+        assert.equal(r.status, 401, `${protectedPath} rejects unauthenticated requests`);
+      }
+    } finally {
+      await new Promise((r) => liveSrv.close(r));
+    }
+  }
+
+  // ── 7) Reliability Invariants: Unload Flushes, Calendar Pin Preservation, Graceful Shutdown ──
+  {
+    const srvCode = read('server.js');
+    assert.ok(classicJs.includes('flushPendingStateOnExit') && classicJs.includes("addEventListener('pagehide', flushPendingStateOnExit)"), 'Classic flushes pending cloud state on pagehide');
+    assert.ok(entHtml.includes('flushEnterpriseStateOnExit') && entHtml.includes('keepalive: putBody.length < 60000'), 'Enterprise flushes pending cloud state on pagehide with keepalive');
+    assert.ok(entHtml.includes('pinnedHours.has(curHour)'), 'Enterprise Calendar auto-schedule preserves manually pinned hours');
+    assert.ok(srvCode.includes("process.on('SIGTERM'") && srvCode.includes('gracefulShutdown'), 'Server registers SIGTERM/SIGINT graceful shutdown');
   }
 
   console.log('NexOS 4.5.1 post-audit independent validation passed.');

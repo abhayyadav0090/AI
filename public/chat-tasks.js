@@ -11,13 +11,15 @@
   const PRONOUN = /\b(these|those|them|above|upar|ye|yeh|yah|inhe|inhen|inko|unhe|unko|ise|isse|sabhi|saare|sare)\b/i;
   const SHORT_PRONOUN = /\b(this|it)\b/i;
   const QUESTION_ABOUT = /\bhow\s+(do|to|can|should)\b|\bkaise\b|\bwhy\b|\bkyun\b|\bkyu\b/i;
-  // What a reply is about. Habit and task cues are kept strict so that a plain bullet list never gets a button.
+  // What a reply is about. Habit and task cues are kept strict so informational lists never get action chips.
   const HABIT_CUE = /\b(habits?|routines?|streaks?|rozana|roz|every\s?day|everyday|each\s+(?:morning|day|evening)|every\s+(?:morning|evening|night))\b/i;
-  const TASK_STRONG = /\b(tasks?|to-?dos?|deadlines?|due|action items?|checklist|assignments?|milestones?|kaam)\b/i;
-  const TASK_LOOSE = /\b(action plan|next steps|step-by-step plan|study plan|to-do|roadmap|today'?s plan|your plan|plan my|schedule for)\b/i;
+  const TASK_STRONG = /\b(tasks?|to-?dos?|deadlines?|due\s+(?:date|by|on|today|tomorrow|this\s+\w+|next\s+\w+|mon\w*|tue\w*|wed\w*|thu\w*|fri\w*|sat\w*|sun\w*|\d{4}-\d{2}-\d{2})|action items?|checklist|kaam)\b/i;
+  const TASK_LOOSE = /\b(action plan|step-by-step plan|study plan|to-do list|today'?s plan|your (?:daily |weekly )?plan|plan my|schedule for)\b/i;
+  const EXPLICIT_LIST_HEADER = /^(?:#+\s*)?(?:here\s+(?:is|are)\s+)?(?:your\s+)?(?:tasks?|to-?do(?:\s+list)?|action\s+(?:plan|items?)|checklist|habits?|routines?|daily routine and tasks)\b[^.!?\n]*:\s*$/im;
   const SAVE_VERB = /\b(save|add|keep|store|put|rakh|rakho|bana|banao)\b/i;
   const NOTE_TARGET = /\b(?:as|in|to|into)\s+(?:a\s+|my\s+|the\s+)?notes?\b|\bnotes?\s+(?:me|mein|main|m)\b|\bnote\s+(?:bana|banao)/i;
-  const NON_TASK_LABEL = /^(?:hook|body|headline|caption|opening|closing|intro|introduction|conclusion|cta|call to action|hashtags?|tone|tip|note|notes|example|examples|why|why it matters|option\s*\d*|length|audience|target audience|subject|format|summary|key takeaway|takeaway|overview|background|pros|cons|benefit|benefits|advantage|challenge|result|outcome)\s*[:\-–—]/i;
+  const NOTE_DRAFT_REQUEST = /\b(?:make|write|create|draft|prepare|summarize|turn\s+(?:this|that|it)\s+into)\b[^.?!\n]{0,40}\b(?:notes?|summary|study\s+guide|cheat\s*sheet)\b/i;
+  const NON_TASK_LABEL = /^(?:hook|body|headline|caption|opening|closing|intro|introduction|conclusion|cta|call to action|hashtags?|tone|tip|note|notes|example|examples|definition|meaning|overview|purpose|what it is|how it works|use case|use cases|feature|features|benefit|benefits|advantage|advantages|pros|cons|why|why it matters|profile tip|profile tips|suggestion|suggestions|advice|option\s*\d*|length|audience|target audience|subject|format|summary|key takeaway|takeaway|background|challenge|result|outcome|networking|job search|job hunting|job search & internships|content sharing|content sharing & learning|upskilling|upskilling & knowledge|recruiting|personal branding|career growth)(?:\s*[:\-–—]|\s*$)/i;
   const ACTION_VERB = /^(?:add|apply|ask|audit|book|build|buy|call|cancel|check|clean|close|complete|confirm|connect|contact|create|debug|define|deliver|deploy|design|do|download|draft|edit|email|enroll|establish|explore|file|fill|finalize|find|finish|fix|follow|format|gather|generate|get|go|implement|improve|install|interview|join|keep|launch|learn|list|log|make|measure|meet|message|migrate|monitor|move|network|note|open|optimize|order|organize|outline|pay|pick|plan|polish|post|practice|prepare|prioritize|publish|read|refactor|register|remove|renew|reply|research|reset|resolve|respond|review|revise|run|save|schedule|search|send|set|setup|share|ship|sign|solve|sort|start|study|submit|summarize|sync|take|test|track|try|update|upgrade|upload|verify|visit|watch|write)\b/i;
   const INCOMPLETE_MARKER = /_\(The reply (?:was cut off because the connection stalled|reached the maximum output length)[^)]*\)_\s*$/i;
 
@@ -83,13 +85,39 @@
     return ACTION_VERB.test(title);
   }
 
+  function isInformationalQuestion(userMsg) {
+    const m = String(userMsg || '').trim();
+    if (!m) return false;
+    if (TASK_STRONG.test(m) || TASK_LOOSE.test(m) || HABIT_CUE.test(m) || /\b(?:plan|schedule|checklist)\b/i.test(m) || wantsAdd(m)) return false;
+    if (/(?:^\s*(?:what|who|when|where|why|how|explain|define|describe|tell me about|overview of|difference between|hello\b)|what\s+(?:is|are|it\s+is|does)\b|\bexplain\b|\bin\s+detail\b|\bwith\s+examples?\b)/i.test(m)) {
+      return true;
+    }
+    return wordCount(m) <= 3 && !VERB.test(m);
+  }
+
+  function hasExplicitActionSignal(reply, userMsg) {
+    const raw = String(reply || '');
+    const msg = String(userMsg || '');
+    if (TASK_STRONG.test(msg) || TASK_LOOSE.test(msg) || HABIT_CUE.test(msg) || /\b(?:plan|schedule|checklist)\b/i.test(msg) || wantsAdd(msg)) return true;
+    if (/^\s*(?:[-*•–]|\d{1,2}[.)])\s+\[[ xX]\]/m.test(raw)) return true;
+    if (EXPLICIT_LIST_HEADER.test(raw)) return true;
+    const firstNonEmpty = (raw.split(/\r?\n/).find((l) => l.trim()) || '').trim();
+    if (/^(?:tasks?|to-?do(?:\s+list)?|action\s+(?:plan|items?)|daily routine and tasks|try these habits|do this)\s*:/i.test(firstNonEmpty)) return true;
+    return false;
+  }
+
   /* Pull clear actionable list items out of a reply as task drafts. Never calls the network. */
   function extract(text, opts) {
     opts = opts || {};
     const max = opts.max || 10;
     const raw = String(text || '');
     const incomplete = isIncompleteReply(raw, opts);
-    const explicitCue = Boolean(opts.explicitCue) || TASK_STRONG.test(raw) || HABIT_CUE.test(raw) || TASK_STRONG.test(opts.userMsg || '') || HABIT_CUE.test(opts.userMsg || '');
+    if (opts.forActions && incomplete) return [];
+    const userMsg = String(opts.userMsg || '');
+    const userActionAsk = Boolean(opts.explicitCue) || TASK_STRONG.test(userMsg) || TASK_LOOSE.test(userMsg) || HABIT_CUE.test(userMsg) || /\b(?:plan|schedule|checklist)\b/i.test(userMsg);
+    const hasHeaderOrCheckbox = EXPLICIT_LIST_HEADER.test(raw) || /^\s*(?:[-*•–]|\d{1,2}[.)])\s+\[[ xX]\]/m.test(raw) || /^(?:tasks?|to-?do(?:\s+list)?|action\s+(?:plan|items?)|daily routine and tasks|try these habits|do this)\s*:/im.test(raw);
+    if (opts.forActions && isInformationalQuestion(userMsg) && !hasHeaderOrCheckbox) return [];
+    const explicitCue = Boolean(opts.explicitCue) || userActionAsk || hasHeaderOrCheckbox;
     const out = [];
     const seen = new Set();
     let last = null;
@@ -130,6 +158,11 @@
   function classify(reply, userMsg, count) {
     if (!count) return 'none';
     reply = String(reply || ''); userMsg = String(userMsg || '');
+    if (isInformationalQuestion(userMsg) && !hasExplicitActionSignal(reply, userMsg)) return 'none';
+    if (!hasExplicitActionSignal(reply, userMsg)) {
+      const lead = reply.split(/\r?\n/).slice(0, 3).join(' ');
+      if (/\b(?:is a|is an|refers to|networking platform|used for|overview|summary|meaning|definition)\b/i.test(lead)) return 'none';
+    }
     const h = HABIT_CUE.test(reply) || HABIT_CUE.test(userMsg);
     const t = TASK_STRONG.test(reply) || TASK_STRONG.test(userMsg);
     if (h && t) {
@@ -140,7 +173,7 @@
     }
     if (h) return 'habit';
     if (t) return 'task';
-    return count >= 2 && TASK_LOOSE.test(reply + ' ' + userMsg) ? 'task' : 'none';
+    return count >= 2 && (TASK_LOOSE.test(reply + ' ' + userMsg) || hasExplicitActionSignal(reply, userMsg)) ? 'task' : 'none';
   }
   function looksLikeTasks(reply, userMsg, opts) {
     const k = classify(reply, userMsg, extract(reply, Object.assign({ userMsg }, opts || {})).length);
@@ -289,23 +322,29 @@
   }
 
   /* Remember the reply text on its bubble and add the one-tap buttons it deserves:
-     Add N tasks / Add N habits (or both when it is unclear) and Save as note only for complete replies. */
+     Add N tasks / Add N habits (only for complete, genuinely actionable lists) and Save as note only when explicitly drafted as a note. */
   function attach(bubble, replyText, userMsg, ctx) {
     if (!bubble || !bubble.dataset) return;
     bubble.dataset.nxReply = String(replyText || '');
-    const incomplete = isIncompleteReply(replyText, ctx);
+    const incomplete = isIncompleteReply(replyText, ctx) || Boolean(bubble.dataset && bubble.dataset.nxIncomplete === '1');
     bubble.dataset.nxIncomplete = incomplete ? '1' : '0';
     const incompleteReason = (ctx && ctx.incompleteReason) || (bubble.dataset && bubble.dataset.nxIncompleteReason) || '';
+    bubble.dataset.nxIncompleteReason = incomplete ? String(incompleteReason) : '';
     bubble.querySelectorAll('.nx-addtasks').forEach((n) => n.remove());
     bubble.querySelectorAll('.nx-incomplete-bar').forEach((n) => n.remove());
-    if (incomplete) renderIncompleteBar(bubble, { incomplete: true, incompleteReason, onContinue: ctx && ctx.onContinue });
-    const items = extract(replyText, { today: ctx.today(), userMsg, incomplete });
+    if (incomplete) {
+      renderIncompleteBar(bubble, { incomplete: true, incompleteReason, onContinue: ctx && ctx.onContinue });
+      return;
+    }
+    const items = extract(replyText, { today: ctx.today(), userMsg, incomplete: false, forActions: true });
     const kind = classify(replyText, userMsg, items.length);
     const buttons = [];
     const add = (k, label, secondary) => buttons.push(makeButton(label, secondary, () => runKind(k, items, replyText, ctx), ctx, k));
     if (kind === 'task' || kind === 'both') add('task', `＋ ${kind === 'both' ? 'As' : 'Add'} ${plural(items.length, 'task')}`);
     if (kind === 'habit' || kind === 'both') add('habit', `＋ ${kind === 'both' ? 'As' : 'Add'} ${plural(items.length, 'habit')}`);
-    if (!incomplete && String(replyText || '').trim().length >= NOTE_MIN) add('note', 'Save as note', true);
+    if (NOTE_DRAFT_REQUEST.test(String(userMsg || '')) && String(replyText || '').trim().length >= 80) {
+      add('note', 'Save as note', true);
+    }
     if (buttons.length) buildBar(bubble, buttons);
   }
 
@@ -315,6 +354,12 @@
   /* Handle that command here, without NexAI. Returns true when handled (caller must not send it on). */
   function tryDirectAdd(message, replyText, ctx) {
     const incomplete = isIncompleteReply(replyText, ctx);
+    if (incomplete && (wantsNote(message) || wantsAdd(message))) {
+      const msg = 'That response is incomplete, so I did not create actions or notes from it yet. Say "continue" or click Continue to finish it first.';
+      if (ctx.toast) ctx.toast(msg);
+      if (ctx.say) ctx.say(msg);
+      return true;
+    }
     const intent = resolveIntent(message, replyText, { today: ctx && ctx.today ? ctx.today() : '', incomplete });
     if (!intent) return false;
     if (intent.kind === 'note' && incomplete) {

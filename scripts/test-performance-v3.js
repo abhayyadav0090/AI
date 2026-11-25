@@ -23,7 +23,7 @@ assert.ok(releaseNotes.startsWith('# NexOS 3.3.0'), '3.3.0 release notes should 
 assert.ok(server.includes("'/bootstrap'"), 'bootstrap must pass through the database connection middleware');
 assert.ok(server.includes("app.get('/api/bootstrap', requireAuth"), 'authenticated bootstrap endpoint must exist');
 assert.ok(server.includes("res.setHeader('Cache-Control', 'private, no-store')"), 'personalized bootstrap data must not be cached');
-assert.ok(server.includes(".select('data updatedAt').lean()"), 'workspace reads should use lean, projected data and update timestamps');
+assert.ok(server.includes(".select('data updatedAt rev').lean()"), 'workspace reads should use lean, projected data, revision, and update timestamps');
 assert.ok(server.includes('workspaceUpdatedAt'), 'bootstrap should expose the server workspace revision');
 assert.ok(server.includes('frameSrc: ["\'self\'", "https://accounts.google.com"]'), 'same-origin Recently Deleted iframe must be permitted by CSP');
 assert.ok(server.includes('updatedAt: doc?.updatedAt || null'), 'state reads and writes should expose server update timestamps');

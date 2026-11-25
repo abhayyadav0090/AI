@@ -45,7 +45,14 @@ const LEGACY_PENDING_SYNC_KEY = 'nexos_pending_sync_v2';
 let CACHE_KEY = LEGACY_CACHE_KEY;
 let PENDING_SYNC_KEY = LEGACY_PENDING_SYNC_KEY;
 let CACHE_REVISION_KEY = 'nexos_cache_revision_v1';
+let CACHE_BASE_KEY = 'nexos_cache_base_v1';
 let stateLoadedOk = false;
+let classicServerRev = null;
+let classicBaseCanon = null;
+let pushInFlight = null;
+let pushQueued = false;
+let saveRetryCount = 0;
+let saveRetryTimer = null;
 let clockTimer = null;
 let dueNotificationTimer = null;
 let state = {
@@ -202,6 +209,156 @@ function setAccountStorageKeys(user) {
   CACHE_KEY = `nexos_cache_v2_user_${suffix}`;
   PENDING_SYNC_KEY = `nexos_pending_sync_v2_user_${suffix}`;
   CACHE_REVISION_KEY = `${CACHE_KEY}_server_revision_v1`;
+  CACHE_BASE_KEY = `${CACHE_KEY}_sync_base_v1`;
+}
+
+function stableSyncKey(value) {
+  return JSON.stringify(value, (k, v) => (v && typeof v === 'object' && !Array.isArray(v))
+    ? Object.keys(v).sort().reduce((o, key) => { o[key] = v[key]; return o; }, {}) : v);
+}
+
+function pickClassicShared(root) {
+  const r = root && typeof root === 'object' ? root : {};
+  return {
+    tasks: Array.isArray(r.tasks) ? r.tasks : [],
+    habits: Array.isArray(r.habits) ? r.habits : [],
+    notes: Array.isArray(r.notes) ? r.notes : [],
+    pomodoroLog: Array.isArray(r.pomodoroLog) ? r.pomodoroLog : []
+  };
+}
+
+function readClassicSyncBase() {
+  try {
+    const raw = localStorage.getItem(CACHE_BASE_KEY);
+    return raw ? pickClassicShared(JSON.parse(raw)) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function setClassicSyncBase(root) {
+  classicBaseCanon = pickClassicShared(root || {});
+  try { localStorage.setItem(CACHE_BASE_KEY, JSON.stringify(classicBaseCanon)); } catch (_) {}
+}
+
+function mergeRecordFields(r, l, b) {
+  if (!b) return { ...r, ...l };
+  const merged = { ...r };
+  for (const k of Object.keys(l)) {
+    if (!Object.prototype.hasOwnProperty.call(b, k) || stableSyncKey(l[k]) !== stableSyncKey(b[k])) {
+      merged[k] = l[k];
+    }
+  }
+  for (const k of Object.keys(b)) {
+    if (!Object.prototype.hasOwnProperty.call(l, k) && Object.prototype.hasOwnProperty.call(r, k) && stableSyncKey(r[k]) === stableSyncKey(b[k])) {
+      delete merged[k];
+    }
+  }
+  return merged;
+}
+
+function mergeRecordsById(remote, local, base) {
+  const index = arr => {
+    const map = new Map();
+    (Array.isArray(arr) ? arr : []).forEach(x => { if (x && x.id != null) map.set(String(x.id), x); });
+    return map;
+  };
+  const R = index(remote), L = index(local), B = index(base);
+  const out = [], seen = new Set();
+  for (const [id, l] of L) {
+    seen.add(id);
+    const r = R.get(id), b = B.get(id);
+    const editedHere = !b || stableSyncKey(l) !== stableSyncKey(b);
+    if (r) out.push(editedHere ? mergeRecordFields(r, l, b) : r);
+    else if (!b || editedHere) out.push(l);
+  }
+  for (const [id, r] of R) {
+    if (!seen.has(id) && !B.has(id)) out.push(r);
+  }
+  return out;
+}
+
+function mergePomodoroLogs(remote, local, base) {
+  const key = l => `${l.date}|${l.minutes}|${l.taskId || ''}`;
+  const counts = new Map();
+  (Array.isArray(base) ? base : []).forEach(l => counts.set(key(l), (counts.get(key(l)) || 0) + 1));
+  const seen = new Map(), added = [];
+  (Array.isArray(local) ? local : []).forEach(l => {
+    const n = (seen.get(key(l)) || 0) + 1;
+    seen.set(key(l), n);
+    if (n > (counts.get(key(l)) || 0)) added.push(l);
+  });
+  return [...(Array.isArray(remote) ? remote : []), ...added];
+}
+
+function mergeClassicWorkspace(remoteRoot, localRoot, baseCanon) {
+  const r = remoteRoot && typeof remoteRoot === 'object' ? remoteRoot : {};
+  const l = localRoot && typeof localRoot === 'object' ? localRoot : {};
+  const base = pickClassicShared(baseCanon || {});
+  const remote = pickClassicShared(r);
+  const local = pickClassicShared(l);
+  const merged = { ...r, ...l };
+
+  if (r.enterpriseWorkspace && typeof r.enterpriseWorkspace === 'object') {
+    merged.enterpriseWorkspace = r.enterpriseWorkspace;
+  }
+  if (r.seeded || r.profile) {
+    const remoteAt = Number(r.profile?.at) || 0;
+    const localAt = Number(l.profile?.at) || 0;
+    if (!l.profile || remoteAt >= localAt) {
+      merged.profile = r.profile || l.profile || null;
+      merged.seeded = Boolean(r.seeded || l.seeded);
+    }
+  }
+  merged.tasks = mergeRecordsById(remote.tasks, local.tasks, base.tasks);
+  merged.habits = mergeRecordsById(remote.habits, local.habits, base.habits);
+  merged.notes = mergeRecordsById(remote.notes, local.notes, base.notes);
+  merged.pomodoroLog = mergePomodoroLogs(remote.pomodoroLog, local.pomodoroLog, base.pomodoroLog);
+
+  const nowDate = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
+  const todayLog = merged.pomodoroLog.filter(entry => entry && entry.date === nowDate);
+  merged.pomodoroStats = {
+    ...(r.pomodoroStats && typeof r.pomodoroStats === 'object' ? r.pomodoroStats : {}),
+    ...(l.pomodoroStats && typeof l.pomodoroStats === 'object' ? l.pomodoroStats : {}),
+    totalToday: todayLog.reduce((sum, entry) => sum + Math.max(0, Number(entry.minutes) || 0), 0),
+    sessionsToday: todayLog.length,
+    longestStreak: Math.max(Number(r.pomodoroStats?.longestStreak) || 0, Number(l.pomodoroStats?.longestStreak) || 0),
+    lastDate: todayLog.length ? nowDate : ((l.pomodoroStats && l.pomodoroStats.lastDate) || (r.pomodoroStats && r.pomodoroStats.lastDate) || '')
+  };
+
+  const liveIds = {
+    task: new Set(merged.tasks.map(t => String(t.id))),
+    habit: new Set(merged.habits.map(h => String(h.id))),
+    note: new Set(merged.notes.map(n => String(n.id)))
+  };
+  merged.trash = sanitizeTrash([...(Array.isArray(l.trash) ? l.trash : []), ...(Array.isArray(r.trash) ? r.trash : [])])
+    .filter(entry => !liveIds[entry.kind]?.has(String(entry.item?.id)));
+
+  merged.dueNotificationsSeen = {
+    ...(r.dueNotificationsSeen && typeof r.dueNotificationsSeen === 'object' ? r.dueNotificationsSeen : {}),
+    ...(l.dueNotificationsSeen && typeof l.dueNotificationsSeen === 'object' ? l.dueNotificationsSeen : {})
+  };
+  merged.currentNoteId = merged.notes.some(n => n.id === l.currentNoteId)
+    ? l.currentNoteId
+    : (merged.notes.some(n => n.id === r.currentNoteId) ? r.currentNoteId : (merged.notes[0]?.id || null));
+  return merged;
+}
+
+function renderAfterRemoteMerge() {
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (!/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
+    try {
+      if (typeof renderDashboard === 'function') renderDashboard();
+      if (typeof renderKanban === 'function') renderKanban();
+      if (typeof renderHabits === 'function') renderHabits();
+      if (typeof renderNotes === 'function') renderNotes();
+      if (typeof renderAnalytics === 'function') renderAnalytics();
+      if (typeof updateContextPanel === 'function') updateContextPanel();
+    } catch (_) {}
+  } else if (typeof updateStats === 'function') {
+    try { updateStats(); } catch (_) {}
+  }
+  notify('Synced updates from another tab.', { type: 'info' });
 }
 
 function cacheState() {
@@ -231,10 +388,11 @@ async function loadState(bootstrapPayload = null) {
   }
   stateLoadedOk = false;
   try {
-    let saved, serverRevision = null;
+    let saved, serverRevision = null, serverRev = 0;
     if (bootstrapPayload && Object.prototype.hasOwnProperty.call(bootstrapPayload, 'state')) {
       saved = bootstrapPayload.state;
       serverRevision = bootstrapPayload.workspaceUpdatedAt || null;
+      serverRev = Number.isInteger(bootstrapPayload.workspaceRev) ? bootstrapPayload.workspaceRev : (saved ? 1 : 0);
       stateLoadedOk = true;
     } else {
       const res = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
@@ -242,15 +400,26 @@ async function loadState(bootstrapPayload = null) {
       const payload = await res.json();
       saved = payload.state;
       serverRevision = payload.updatedAt || null;
+      serverRev = Number.isInteger(payload.rev) ? payload.rev : (saved ? 1 : 0);
       stateLoadedOk = true;
     }
+    classicServerRev = serverRev;
 
     const cached = localStorage.getItem(CACHE_KEY);
     const hasPendingLocalChanges = localStorage.getItem(PENDING_SYNC_KEY) === '1';
 
-    // Same-account pending edits take priority over the last confirmed server snapshot.
+    // Same-account pending edits take priority over the last confirmed server snapshot,
+    // merging with any concurrent changes written by another tab/device.
     if (hasPendingLocalChanges && cached) {
-      state = normalizeState(JSON.parse(cached), true);
+      const localParsed = normalizeState(JSON.parse(cached), true);
+      if (saved && typeof saved === 'object') {
+        const storedBase = readClassicSyncBase() || pickClassicShared({});
+        state = normalizeState(mergeClassicWorkspace(saved, localParsed, storedBase), true);
+        setClassicSyncBase(saved);
+      } else {
+        state = localParsed;
+        setClassicSyncBase({});
+      }
       await pushState();
       return;
     }
@@ -262,13 +431,17 @@ async function loadState(bootstrapPayload = null) {
       const remoteMs = Date.parse(serverRevision || '');
       const cachedMs = Date.parse(cachedRevision || '');
       if (cached && Number.isFinite(remoteMs) && Number.isFinite(cachedMs) && cachedMs > remoteMs) {
-        state = normalizeState(JSON.parse(cached), true);
+        const localParsed = normalizeState(JSON.parse(cached), true);
+        const storedBase = readClassicSyncBase() || pickClassicShared({});
+        state = normalizeState(mergeClassicWorkspace(saved, localParsed, storedBase), true);
+        setClassicSyncBase(saved);
         stateLoadedOk = true;
         try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
         await pushState();
         return;
       }
       state = normalizeState(saved, true);
+      setClassicSyncBase(saved);
       if (serverRevision) rememberServerRevision(serverRevision);
       clearPendingSyncFlag();
       cacheState();
@@ -277,6 +450,7 @@ async function loadState(bootstrapPayload = null) {
 
     // A cache in this account's own namespace is safe to recover if the server record
     // is missing. Attempt to upload it, retaining it locally if that upload fails.
+    setClassicSyncBase({});
     if (cached) {
       state = normalizeState(JSON.parse(cached), true);
       try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
@@ -341,30 +515,95 @@ function saveState() {
   saveTimer = setTimeout(pushState, 600);
 }
 
-async function pushState() {
-  if (wipingLocalData || !currentUser || currentUser.guest || !stateLoadedOk) return false;
+function scheduleClassicRetrySave() {
+  if (saveRetryTimer || saveRetryCount >= 5 || wipingLocalData || !currentUser || currentUser.guest) return;
+  const delay = Math.min(30000, 5000 * Math.pow(2, saveRetryCount));
+  saveRetryCount++;
+  saveRetryTimer = setTimeout(() => {
+    saveRetryTimer = null;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    if (stateLoadedOk && currentUser && !isGuest() && localStorage.getItem(PENDING_SYNC_KEY) === '1') {
+      pushState();
+    }
+  }, delay);
+}
+
+async function performPushAttempt() {
+  const MAX_CONFLICT_RETRIES = 3;
   try {
-    const body = JSON.stringify({ state });
-    const res = await fetch('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body,
-      keepalive: body.length < 60000
-    });
-    if (res.status === 401) { handleSessionExpired(); throw new Error('status 401'); }
-    if (!res.ok) throw new Error('status ' + res.status);
-    const result = await res.json().catch(() => ({}));
-    if (result.updatedAt) rememberServerRevision(result.updatedAt);
-    cacheState();
-    clearPendingSyncFlag();
-    if (window.NexUI) NexUI.setSync('saved');
-    return true;
+    for (let attempt = 0; attempt < MAX_CONFLICT_RETRIES; attempt++) {
+      const payloadObj = classicServerRev !== null ? { state, expectedRev: classicServerRev } : { state };
+      const body = JSON.stringify(payloadObj);
+      if (body.length > 1800000) {
+        console.warn(`Classic workspace JSON size is ${(body.length / 1024).toFixed(0)} KB (approaching 2 MB limit).`);
+      }
+      const res = await fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body,
+        keepalive: body.length < 60000
+      });
+      if (res.status === 401) { handleSessionExpired(); throw new Error('status 401'); }
+      if (res.status === 409) {
+        const conflict = await res.json().catch(() => ({}));
+        const remote = conflict.state && typeof conflict.state === 'object' ? conflict.state : null;
+        const remoteRev = Number.isInteger(conflict.rev) ? conflict.rev : (remote ? 1 : 0);
+        const base = classicBaseCanon || readClassicSyncBase() || pickClassicShared({});
+        if (remote) {
+          state = normalizeState(mergeClassicWorkspace(remote, state, base), true);
+        }
+        classicServerRev = remoteRev;
+        setClassicSyncBase(remote || {});
+        cacheState();
+        renderAfterRemoteMerge();
+        if (attempt === MAX_CONFLICT_RETRIES - 1) {
+          try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
+          if (window.NexUI) NexUI.setSync('offline');
+          scheduleClassicRetrySave();
+          return false;
+        }
+        continue;
+      }
+      if (!res.ok) throw new Error('status ' + res.status);
+      const result = await res.json().catch(() => ({}));
+      classicServerRev = Number.isInteger(result.rev)
+        ? result.rev
+        : (classicServerRev !== null ? classicServerRev + 1 : 1);
+      setClassicSyncBase(state);
+      saveRetryCount = 0;
+      if (saveRetryTimer) { clearTimeout(saveRetryTimer); saveRetryTimer = null; }
+      if (result.updatedAt) rememberServerRevision(result.updatedAt);
+      cacheState();
+      clearPendingSyncFlag();
+      if (window.NexUI) NexUI.setSync('saved');
+      return true;
+    }
+    return false;
   } catch (e) {
     if (window.NexUI && !sessionExpiredShown) NexUI.setSync('offline');
     try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch (_) {}
     console.warn('State save failed; local cache retained.', e);
+    if (!sessionExpiredShown && e.message !== 'status 401') scheduleClassicRetrySave();
     return false;
+  }
+}
+
+async function pushState() {
+  if (wipingLocalData || !currentUser || currentUser.guest || !stateLoadedOk) return false;
+  if (pushInFlight) { pushQueued = true; return pushInFlight; }
+  pushInFlight = (async () => {
+    let ok = true;
+    do {
+      pushQueued = false;
+      ok = await performPushAttempt();
+    } while (ok && pushQueued && !wipingLocalData);
+    return ok;
+  })();
+  try {
+    return await pushInFlight;
+  } finally {
+    pushInFlight = null;
   }
 }
 
@@ -387,13 +626,18 @@ window.addEventListener('online', () => { retrySync(); if (stateLoadedOk && loca
 setInterval(() => { if (document.visibilityState === 'visible') { if (!stateLoadedOk) retrySync(); else if (currentUser && !isGuest() && localStorage.getItem(PENDING_SYNC_KEY) === '1') pushState(); } }, 30000);
 
 // Save right away if the user switches tab or closes the page.
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && saveTimer) {
+function flushPendingStateOnExit() {
+  if (typeof flushNoteEdits === 'function') flushNoteEdits();
+  if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
     pushState();
   }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPendingStateOnExit();
 });
+window.addEventListener('pagehide', flushPendingStateOnExit);
 
 // ═══════════════════════════ AUTH ═══════════════════════════
 async function checkLogin() {
@@ -839,9 +1083,12 @@ async function finishQuickStart(skip) {
     // Answered on another screen or tab in the meantime? Use that, so the starter items are never written twice.
     try {
       const res = await fetch('/api/state', { credentials: 'same-origin' });
-      const saved = res.ok ? (await res.json()).state : null;
+      const payload = res.ok ? await res.json() : null;
+      const saved = payload ? payload.state : null;
       if (saved && (saved.seeded || saved.profile)) {
         state = normalizeState(saved, true);
+        classicServerRev = Number.isInteger(payload.rev) ? payload.rev : 1;
+        setClassicSyncBase(saved);
         cacheState();
         closeQuickStart();
         applyProfileTimer();
@@ -1592,8 +1839,8 @@ function skipPomodoro() {
 }
 
 function renderPomTimer() {
-  const total = pomDurations[pomState.mode] * 60;
-  const pct = pomState.remaining / total;
+  const total = Math.max(1, (pomDurations[pomState.mode] || 25) * 60);
+  const pct = Math.min(1, Math.max(0, pomState.remaining / total));
   const circum = 879;
   const offset = circum * (1 - pct);
   const ring = document.getElementById('pomo-ring-progress');
@@ -2286,9 +2533,9 @@ HABITS (today):
 NOTES (recent titles):
 ${recentNotes.map(n => `- "${n.title}"`).join('\n') || 'None'}
 
-Be concise, warm, and actionable. Use emojis sparingly. Format responses clearly.
+Be concise, warm, and helpful. Use emojis sparingly. Format responses clearly.
 
-You can only give advice. You cannot change the user's tasks, habits or notes, so tell them what to do in the app instead of saying you did it.`;
+Only reference workspace tasks, habits, or notes when the user's question relates to them; for general conceptual questions, answer directly without injecting workspace data. You can only give advice. You cannot change the user's tasks, habits or notes, so tell them what to do in the app instead of saying you did it.`;
 }
 
 async function initChat() {
@@ -2438,7 +2685,7 @@ function renderMessages(messages) {
         lastIncomplete = Boolean(m.incomplete); lastReason = m.incompleteReason || '';
         if (m.incomplete && window.NexChatTasks) {
           const b = div?.querySelector('.msg-bubble');
-          if (b) { b.dataset.nxIncomplete = '1'; NexChatTasks.renderIncompleteBar(b, { incomplete: true, incompleteReason: m.incompleteReason, onContinue: continueClassicChat }); }
+          if (b) { b.dataset.nxIncomplete = '1'; b.dataset.nxIncompleteReason = m.incompleteReason || ''; NexChatTasks.renderIncompleteBar(b, { incomplete: true, incompleteReason: m.incompleteReason, onContinue: continueClassicChat }); }
         }
       } else lastUser = m.content;
     });
@@ -2562,9 +2809,9 @@ async function sendMessage() {
     removeTyping();
     const replyDiv = streamedBubble || appendChatMsg('assistant', data.text);
     const replyBubble = replyDiv?.querySelector('.msg-bubble');
-    if (replyBubble && data.incomplete) {
-      replyBubble.dataset.nxIncomplete = '1';
-      replyBubble.dataset.nxIncompleteReason = data.incompleteReason || '';
+    if (replyBubble) {
+      replyBubble.dataset.nxIncomplete = data.incomplete ? '1' : '0';
+      replyBubble.dataset.nxIncompleteReason = data.incomplete ? (data.incompleteReason || '') : '';
     }
     attachNexChatTasks(replyDiv, data.text, msg);
     if (data.chatId) activeChatId = data.chatId;
@@ -2648,6 +2895,10 @@ function formatChat(text) {
     if ((m = /^\u0000(\d+)\u0000$/.exec(trimmed))) return { kind: 'code', indent: 0, idx: Number(m[1]) };
     if (/^(?:---+|___+|\*\*\*+)$/.test(trimmed)) return { kind: 'hr', indent: 0 };
     if ((m = /^(#{1,6})\s+(.+)$/.exec(trimmed))) return { kind: 'heading', indent: 0, level: m[1].length, text: m[2] };
+    if ((m = /^&gt;\s?(.*)$/.exec(trimmed))) return { kind: 'quote', indent: 0, text: m[1] };
+    if (/^\|.*\|$/.test(trimmed) || (trimmed.includes('|') && /^\|?\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)*\s*\|?\s*$/.test(trimmed))) {
+      return { kind: 'tableRow', indent: 0, text: trimmed };
+    }
     if ((m = /^(\s*)[-*•\u2022]\s+\[([ xX])\]\s+(.+)$/.exec(line))) {
       return { kind: 'check', indent: m[1].replace(/\t/g, '  ').length, checked: m[2].toLowerCase() === 'x', text: m[3] };
     }
@@ -2722,11 +2973,41 @@ function formatChat(text) {
     stack.length = 0;
   };
 
+  const parseTableCells = (rowText) => {
+    const clean = String(rowText || '').trim().replace(/^\|/, '').replace(/\|$/, '');
+    return clean.split('|').map((cell) => cell.trim());
+  };
+  const isTableSep = (rowText) => /^\|?\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)*\s*\|?\s*$/.test(String(rowText || '').trim());
+
   for (let i = 0; i < parsed.length; i++) {
     const ln = parsed[i];
     if (ln.kind === 'blank') {
       flushPara();
       sawBlank = true;
+      continue;
+    }
+    if (ln.kind === 'tableRow' && i + 1 < parsed.length && parsed[i + 1].kind === 'tableRow' && isTableSep(parsed[i + 1].text)) {
+      closeAll();
+      const headers = parseTableCells(ln.text);
+      const rows = [];
+      let r = i + 2;
+      while (r < parsed.length && parsed[r].kind === 'tableRow' && !isTableSep(parsed[r].text)) {
+        rows.push(parseTableCells(parsed[r].text));
+        r++;
+      }
+      root.push({ type: 'table', headers, rows });
+      i = r - 1;
+      sawBlank = false;
+      continue;
+    }
+    if (ln.kind === 'quote' && !(stack.length && stack[0].tag === 'ol' && canContinueOl(i + 1, stack[0]))) {
+      closeAll();
+      const qLines = [ln.text];
+      let q = i + 1;
+      while (q < parsed.length && parsed[q].kind === 'quote') { qLines.push(parsed[q].text); q++; }
+      root.push({ type: 'quote', lines: qLines });
+      i = q - 1;
+      sawBlank = false;
       continue;
     }
     if (ln.kind === 'heading' || ln.kind === 'hr') {
@@ -2812,6 +3093,12 @@ function formatChat(text) {
   const renderNodes = (nodes) => nodes.map((node) => {
     if (node.type === 'code') return blocks[node.idx] || '';
     if (node.type === 'hr') return '<hr>';
+    if (node.type === 'quote') return `<blockquote>${node.lines.map(inline).join('<br>')}</blockquote>`;
+    if (node.type === 'table') {
+      const ths = node.headers.map((h) => `<th>${inline(h)}</th>`).join('');
+      const trs = node.rows.map((row) => `<tr>${node.headers.map((_, idx) => `<td>${inline(row[idx] || '')}</td>`).join('')}</tr>`).join('');
+      return `<div class="chat-table-wrap"><table class="chat-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+    }
     if (node.type === 'heading') return `<p class="chat-heading">${inline(node.text)}</p>`;
     if (node.type === 'para') return `<p>${node.lines.map(inline).join('<br>')}</p>`;
     if (node.type === 'list') {

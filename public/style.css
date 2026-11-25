@@ -607,6 +607,12 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .msg-bubble code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 5px; border-radius: 5px; background: rgba(127, 127, 127, 0.16); }
 .msg-bubble pre.chat-code code { padding: 0; background: none; font-size: inherit; }
 .msg-bubble hr { border: none; border-top: 1px solid var(--glass-border); margin: 10px 0; }
+.msg-bubble blockquote { margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--accent-violet); color: var(--text-secondary); background: rgba(127, 127, 127, 0.08); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.chat-table-wrap { margin: 8px 0; overflow-x: auto; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); }
+.chat-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.chat-table th, .chat-table td { padding: 7px 10px; border-bottom: 1px solid var(--glass-border); vertical-align: top; }
+.chat-table th { font-weight: 600; background: rgba(127, 127, 127, 0.12); color: var(--text-primary); }
+.chat-table tr:last-child td { border-bottom: none; }
 .msg-bubble a { color: var(--accent, #4f8cff); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; pointer-events: auto; overflow-wrap: anywhere; }
 .msg-bubble a:hover { text-decoration-thickness: 2px; }
 .msg-bubble a:focus-visible { outline: 2px solid var(--accent, #4f8cff); outline-offset: 3px; border-radius: 3px; }

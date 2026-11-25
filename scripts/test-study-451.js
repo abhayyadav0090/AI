@@ -41,6 +41,13 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
     assert.equal(blocks[0].startTime, '18:30');
     assert.equal(blocks[0].endTime, '20:00');
     assert.ok(!blocks.some((b) => b.topics.includes('Processes')), 'completed topic is skipped');
+    const preDst = planner.localDateTimeInZoneUtc('2026-03-07', '18:00', 'America/New_York');
+    const onDst = planner.localDateTimeInZoneUtc('2026-03-08', '18:00', 'America/New_York');
+    assert.equal(preDst.toISOString(), '2026-03-07T23:00:00.000Z', '18:00 EST (UTC-5) before spring-forward');
+    assert.equal(onDst.toISOString(), '2026-03-08T22:00:00.000Z', '18:00 EDT (UTC-4) on DST day stays 18:00 wall-clock');
+    const laPlanNoon = planner.localDateTimeInZoneUtc('2026-03-20', '12:00', 'America/Los_Angeles');
+    assert.equal(planner.zonedDateKey(laPlanNoon, 'America/Los_Angeles'), '2026-03-20', 'Western timezone date-only examDate preserves exact calendar day');
+
     const url = planner.buildGoogleCalendarUrl(blocks[0], { timeZone: 'Asia/Kolkata', recurDaily: true, recurUntilDateKey: '2026-12-01' });
     assert.ok(url.startsWith('https://calendar.google.com/calendar/render?'));
     assert.ok(url.includes('action=TEMPLATE') && url.includes('20261125T183000%2F20261125T200000') && url.includes('RRULE%3AFREQ%3DDAILY'));
