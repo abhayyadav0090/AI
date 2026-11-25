@@ -2,60 +2,83 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Privacy: NexOS</title>
 <meta name="robots" content="index,follow">
+<meta name="description" content="Plain-language summary of what data NexOS stores and how it is used.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
-<link rel="stylesheet" href="/design.css">
+<link rel="stylesheet" href="/style.css?v=4.5.1">
+<link rel="stylesheet" href="/design.css?v=4.5.1">
 <script>(function(){var r=document.documentElement,u={};try{u=JSON.parse(localStorage.getItem('nexos_ui_v1')||'{}')}catch(e){}r.dataset.design=(u.design==='apple'||u.design==='microsoft')?'apple':'google';var t=u.theme==='light'||u.theme==='dark'?u.theme:'system';r.dataset.theme=(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))?'dark':'light';})();</script>
+<style>
+.legal-nav{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:22px}
+.legal-nav a{font-size:14px;min-height:36px;display:inline-flex;align-items:center}
+.legal-nav .legal-back{margin-bottom:0;margin-right:auto}
+.legal-nav a:focus-visible,.legal-page a:focus-visible{outline:2px solid var(--accent-fill,var(--accent-violet));outline-offset:2px}
+.privacy-card{padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--bg-card);margin:14px 0 22px}
+.privacy-card h2{margin-top:0}
+.privacy-card p:last-child,.privacy-card ul:last-child{margin-bottom:0}
+@media(max-width:560px){.legal-page{padding:26px 16px 56px}.privacy-card{padding:14px 15px}}
+</style>
 </head>
 <body>
 <main class="legal-page">
-  <a class="legal-back" href="/">&larr; Back to NexOS</a>
-  <h1>Privacy</h1>
-  <p class="legal-meta">Last updated: 19 October 2026</p>
+  <nav class="legal-nav" aria-label="Page navigation">
+    <a class="legal-back" href="/">&larr; Back to NexOS</a>
+    <a href="/contact.html">About &amp; Contact</a>
+    <a href="/recover.html">Recovery Center</a>
+  </nav>
+  <p class="legal-meta">NexOS · Privacy</p>
+  <h1>Privacy Policy</h1>
+  <p class="legal-meta">Last updated: 26 November 2026</p>
 
-  <p>NexOS is a personal productivity workspace built by one developer. This page explains, in plain words, what the app stores and where it goes.</p>
+  <p>NexOS is a personal productivity workspace created by an independent developer. This page describes what data the application actually collects and stores based on its implemented codebase.</p>
 
-  <h2>Guest mode</h2>
-  <p>If you choose <strong>Continue as guest</strong>, your tasks, habits, notes and timer history are saved only in this browser on your device. They are not sent to the NexOS server. AI features are not available in guest mode. If you clear your browser data, guest data is lost, so use the Export button to keep a backup.</p>
+  <section class="privacy-card" aria-labelledby="p-guest">
+    <h2 id="p-guest">Guest &amp; local preview mode</h2>
+    <p>If you use <strong>Continue as guest</strong> (or Enterprise local preview), your tasks, habits, notes, timer sessions, and settings are stored only in browser <code>localStorage</code> on your device. They are not sent to the NexOS backend, and server-backed AI and Study Studio uploads are unavailable. Clearing browser storage removes local workspace data unless exported as JSON first.</p>
+  </section>
 
-  <h2>If you sign in with Google</h2>
-  <p>NexOS receives your name, email address, profile picture and Google account ID from Google. It does not receive your Google password and does not ask for access to your Gmail, Drive, contacts or calendar.</p>
-  <p>When signed in, NexOS stores this in a MongoDB Atlas database:</p>
-  <ul>
-    <li>your name, email address and profile picture</li>
-    <li>your tasks, habits, notes, focus timer history and settings</li>
-    <li>your saved NexAI chats</li>
-  </ul>
+  <section class="privacy-card" aria-labelledby="p-account">
+    <h2 id="p-account">Google Sign-In &amp; cloud storage</h2>
+    <p>When you sign in with Google, NexOS receives your name, email address, profile picture, and Google account identifier via Google Identity verification. Sign-in does not access your Gmail messages or Google Drive files.</p>
+    <p>For signed-in accounts, NexOS stores in MongoDB Atlas:</p>
+    <ul>
+      <li><strong>Account identity:</strong> name, email address, profile picture URL, and session-revocation timestamp.</li>
+      <li><strong>Workspace state:</strong> tasks, habits, notes, focus logs, recently deleted items (30-day list), and UI preferences.</li>
+      <li><strong>NexAI conversations:</strong> saved chat messages (and uploaded chat attachment text extracted for the reply).</li>
+      <li><strong>Study Studio:</strong> extracted text chunks and metadata (not original uploaded PDF binary files), spaced revision cards, exam plans, and saved mindmaps.</li>
+      <li><strong>Reminders (optional):</strong> Web Push endpoint/encryption keys and reminder time preference when you enable browser alerts.</li>
+      <li><strong>Google Calendar sync (optional):</strong> if you connect Google Calendar inside Study Studio, an encrypted OAuth refresh token is stored solely to sync study blocks until disconnected.</li>
+    </ul>
+  </section>
 
-  <h2>AI features (Google Gemini)</h2>
-  <p>When you use NexAI or another AI feature, NexOS sends your message and a short summary of your workspace (task and note titles, habit names, focus time) to the Google Gemini API to create a reply. Do not type passwords or other sensitive information into NexAI. Google's own terms apply to that processing. On free API plans, Google may use submitted content to improve its products.</p>
+  <section class="privacy-card" aria-labelledby="p-ai">
+    <h2 id="p-ai">AI processing (Google Gemini)</h2>
+    <p>When you message NexAI or generate Study Studio answers, quizzes, flashcards, or mindmaps, the server sends your prompt (plus recent chat turns and a summary of workspace context, or relevant extracted study chunks) to Google Gemini over HTTPS. Avoid entering passwords or sensitive credentials into AI prompts. How Google retains or processes upstream API inputs depends on the deployment’s configured Gemini API plan and Google’s terms.</p>
+  </section>
 
-  <h2>Cookies and browser storage</h2>
-  <ul>
-    <li>One sign-in cookie (httpOnly) that keeps you signed in for up to 7 days.</li>
-    <li>Browser storage on your device for a backup copy of your workspace and for guest mode.</li>
-  </ul>
+  <section class="privacy-card" aria-labelledby="p-cookies">
+    <h2 id="p-cookies">Cookies &amp; browser caches</h2>
+    <ul>
+      <li>One signed <code>httpOnly</code> JWT cookie (<code>token</code>) valid for 7 days to keep you signed in.</li>
+      <li>Browser <code>localStorage</code> and PWA Service Worker cache for fast startup, offline editing caches, and theme preferences. API responses are bypassed by the Service Worker.</li>
+    </ul>
+  </section>
 
-  <h2>What NexOS does not do</h2>
-  <ul>
-    <li>No advertising and no tracking scripts.</li>
-    <li>No selling or sharing of your data with third parties, except the services named above that run the app (Google sign-in, MongoDB Atlas, Google Gemini and the hosting provider).</li>
-  </ul>
+  <section class="privacy-card" aria-labelledby="p-choices">
+    <h2 id="p-choices">Data control &amp; deletion</h2>
+    <ul>
+      <li>Use <strong>Recovery Center</strong> (<code>/recover.html</code>) or Settings export at any time to download a JSON backup or restore items.</li>
+      <li>Deleting account data in Settings runs server cleanup removing your workspace state, NexAI chats, Study documents/chunks/reviews/exam plans/mindmaps, Google Calendar link, and Web Push subscriptions, and revokes existing session cookies. Your basic Google sign-in user record remains so you can log in cleanly later; contact the creator via <a href="/contact.html">About &amp; Contact</a> if you want that identity row erased as well.</li>
+      <li>No third-party ad networks or analytics trackers are embedded in NexOS HTML pages. Hosting server access logs are governed by the server hosting provider.</li>
+    </ul>
+  </section>
 
-  <h2>Your choices</h2>
-  <ul>
-    <li>Use the Export button at any time to download all your workspace data.</li>
-    <li>Open <strong>Settings</strong> in the sidebar to download your data, change your display name or delete your data. Deleting permanently removes your workspace data, NexAI chats and reminder subscriptions and signs you out on every device. Your sign-in record (name, email, profile picture and Google account ID) stays in the database so you can sign in again; contact the site owner to have it erased as well.</li>
-    <li>In guest mode, use <strong>Settings &rarr; Clear guest data</strong> to remove everything NexOS saved in this browser.</li>
-  </ul>
-
-  <p class="legal-meta">NexOS is a hobby and portfolio project provided as is, without any guarantee of availability.</p>
+  <p class="legal-meta">NexOS is an independent portfolio and personal productivity project provided as is. Deployment infrastructure policies (hosting and database provider retention) cannot be verified from source code alone.</p>
 </main>
 </body>
 </html>

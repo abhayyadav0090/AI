@@ -235,7 +235,7 @@ const chatSchema = new mongoose.Schema({
 chatSchema.index({ userId: 1, updatedAt: -1 });
 const Chat = mongoose.model('Chat', chatSchema);
 // 4.1.0: Study Studio keeps extracted text chunks in their own collections, never inside the 2 MB workspace document.
-const { StudyDocument, StudyChunk } = study.defineModels(mongoose);
+const { StudyDocument, StudyChunk, StudyMindmap } = study.defineModels(mongoose);
 const studyPlanner = require('./lib/study-planner');
 const { StudyReview, StudyExamPlan, StudyCalendarConnection } = studyPlanner.defineModels(mongoose);
 
@@ -380,6 +380,7 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   await Chat.deleteMany({ userId: req.userId });
   await StudyChunk.deleteMany({ userId: req.userId });
   await StudyDocument.deleteMany({ userId: req.userId });
+  await StudyMindmap.deleteMany({ userId: req.userId });
   await StudyReview.deleteMany({ userId: req.userId });
   await StudyExamPlan.deleteMany({ userId: req.userId });
   await StudyCalendarConnection.deleteOne({ userId: req.userId });
@@ -1354,7 +1355,7 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
 
 // 4.1.0: Study Studio (library and document-grounded tutor), see lib/study.js.
 app.use('/api/study', study.createStudyRouter({
-  StudyDocument, StudyChunk, StudyReview, requireAuth, uploadLimiter: studyUploadLimiter, aiLimiter, aiDailyLimiter,
+  StudyDocument, StudyChunk, StudyReview, StudyMindmap, requireAuth, uploadLimiter: studyUploadLimiter, aiLimiter, aiDailyLimiter,
   askGemini: (opts) => (opts && opts.maxAttempts === 1
     ? askGemini(opts)
     : nexaiReliability.askWithAutoContinuation({

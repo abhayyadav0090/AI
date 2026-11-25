@@ -120,13 +120,29 @@
   .copies h2 { font-size: 17px; font-weight: 700; }
   .copies .help { margin: 4px 0 12px; color: var(--muted); font-size: 13px; }
 
-  .actions { margin-top: 26px; display: flex; }
+  /* Workspace backup & restore card */
+  .backup-card { margin-top: 28px; padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); display: grid; gap: 12px; }
+  .backup-card h2 { font-size: 17px; font-weight: 700; }
+  .backup-help { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .backup-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .backup-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .backup-textarea { width: 100%; min-height: 86px; max-height: 220px; resize: vertical; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); color: var(--text); padding: 10px 12px; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .backup-textarea:focus-visible { outline: 3px solid var(--emerald-line); outline-offset: 2px; }
+  .backup-preview { padding: 12px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--emerald-line); font-size: 13px; display: grid; gap: 8px; }
+  .backup-preview-meta { color: var(--muted); font-size: 12.5px; }
+  .btn.emerald { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 18px; border: 0; border-radius: 999px; background: var(--emerald); color: var(--on-emerald); }
+  .btn.emerald:hover { background: var(--emerald-hover); }
+  .btn.emerald[disabled], .btn.ghost[disabled] { opacity: .5; cursor: default; }
+  .btn.danger-outline { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 18px; border-radius: 999px; color: var(--bad-text); background: var(--bad-bg); border: 1px solid var(--bad-line); }
+
+  .actions { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   @media (max-width: 520px) {
     body { padding: max(22px, env(safe-area-inset-top)) 14px max(32px, env(safe-area-inset-bottom)); }
     .top-icon { width: 42px; height: 42px; border-radius: 14px; }
     h1 { font-size: 21px; }
     .item { grid-template-columns: auto minmax(0, 1fr); padding: 13px; }
     .item .restore { grid-column: 1 / -1; width: 100%; min-height: 46px; }
+    .backup-row .btn, .backup-row label.btn { width: 100%; justify-content: center; }
     .actions .btn { width: 100%; justify-content: center; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -157,7 +173,32 @@
     <div id="list" class="stack"></div>
   </section>
 
-  <div class="actions"><a class="btn ghost" id="back" href="/">Back to NexOS</a></div>
+  <section class="backup-card" id="backup-section" aria-labelledby="backup-title">
+    <h2 id="backup-title">Workspace Backup &amp; Restore</h2>
+    <p class="backup-help">Download a validated JSON snapshot of your tasks, habits, notes, focus logs, and settings, or restore from an exported NexOS backup file.</p>
+    <div id="backup-status" class="status" role="status" aria-live="polite" hidden></div>
+    <div class="backup-row">
+      <button type="button" class="btn emerald" id="backup-download">Download backup (.json)</button>
+      <label class="btn ghost" for="backup-file-input">Choose backup file</label>
+      <input type="file" id="backup-file-input" class="backup-file" accept=".json,application/json">
+    </div>
+    <label for="backup-json-paste" class="backup-help" style="margin-top:2px">Or paste backup JSON below to inspect it before restoring:</label>
+    <textarea id="backup-json-paste" class="backup-textarea" placeholder="{ &quot;tasks&quot;: [...], &quot;habits&quot;: [...], &quot;notes&quot;: [...] }"></textarea>
+    <div class="backup-row">
+      <button type="button" class="btn ghost" id="backup-validate-btn">Validate &amp; preview backup</button>
+    </div>
+    <div id="backup-preview" class="backup-preview" hidden>
+      <strong id="backup-preview-title">Backup ready</strong>
+      <div id="backup-preview-counts" class="backup-preview-meta"></div>
+      <div id="backup-preview-warnings" class="backup-preview-meta" hidden></div>
+      <div class="backup-row">
+        <button type="button" class="btn emerald" id="backup-merge-btn">Safe merge with workspace</button>
+        <button type="button" class="btn danger-outline" id="backup-replace-btn">Replace workspace</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="actions"><a class="btn ghost" id="back" href="/">Back to NexOS</a><a class="btn ghost" href="/privacy.html">Privacy</a><a class="btn ghost" href="/contact.html">Contact</a></div>
 </main>
 <script>
 (async function () {
@@ -273,16 +314,317 @@
       const prev = found.get(String(h.id)); if (!prev || ticked.length > prev.ticked.length) found.set(String(h.id), { habit: h, ticked });
     }
   }
-  if (!account) return;
-  const have = new Set((account.habits || []).map(h => String(h.id)));
-  const inTrash = new Set((account.trash || []).filter(e => e && e.kind === 'habit' && e.item).map(e => String(e.item.id)));
-  const missing = [...found.values()].filter(f => !have.has(String(f.habit.id)) && !inTrash.has(String(f.habit.id))).sort((a, b) => b.ticked.length - a.ticked.length);
-  if (!missing.length) return;
-  copies.hidden = false;
-  for (const f of missing) {
-    const h = f.habit, last = f.ticked.length ? f.ticked[f.ticked.length - 1] : null;
-    list.appendChild(card({ kind: 'habit', title: h.name, parts: [f.ticked.length ? `${f.ticked.length} day${f.ticked.length === 1 ? '' : 's'} ticked, last on ${last}` : 'No days ticked'], left: null, label: 'Restore', onClick: () => addBack('habit', { id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 }) }));
+  if (account) {
+    const have = new Set((account.habits || []).map(h => String(h.id)));
+    const inTrash = new Set((account.trash || []).filter(e => e && e.kind === 'habit' && e.item).map(e => String(e.item.id)));
+    const missing = [...found.values()].filter(f => !have.has(String(f.habit.id)) && !inTrash.has(String(f.habit.id))).sort((a, b) => b.ticked.length - a.ticked.length);
+    if (missing.length) {
+      copies.hidden = false;
+      for (const f of missing) {
+        const h = f.habit, last = f.ticked.length ? f.ticked[f.ticked.length - 1] : null;
+        list.appendChild(card({ kind: 'habit', title: h.name, parts: [f.ticked.length ? `${f.ticked.length} day${f.ticked.length === 1 ? '' : 's'} ticked, last on ${last}` : 'No days ticked'], left: null, label: 'Restore', onClick: () => addBack('habit', { id: String(h.id), name: h.name, color: typeof h.color === 'string' ? h.color : '#4285F4', checks: h.checks && typeof h.checks === 'object' ? h.checks : {}, streak: Number(h.streak) || 0 }) }));
+      }
+    }
   }
+
+  // ---- Workspace JSON Backup Export, Validation, Safe Merge & Replace Restore ----
+  const bStatus = document.getElementById('backup-status');
+  const bFile = document.getElementById('backup-file-input');
+  const bPaste = document.getElementById('backup-json-paste');
+  const bPreview = document.getElementById('backup-preview');
+  const bTitle = document.getElementById('backup-preview-title');
+  const bCounts = document.getElementById('backup-preview-counts');
+  const bWarnings = document.getElementById('backup-preview-warnings');
+  const bDownloadBtn = document.getElementById('backup-download');
+  const bValidateBtn = document.getElementById('backup-validate-btn');
+  const bMergeBtn = document.getElementById('backup-merge-btn');
+  const bReplaceBtn = document.getElementById('backup-replace-btn');
+  let validatedBackup = null;
+
+  const sayBackup = (text, cls) => {
+    bStatus.hidden = false;
+    bStatus.textContent = text;
+    bStatus.className = 'status ' + (cls || '');
+  };
+
+  function validateAndSanitizeBackup(rawText) {
+    if (typeof rawText !== 'string' || !rawText.trim()) throw new Error('Paste backup JSON or select a .json file first.');
+    if (rawText.length > 1950000) throw new Error('Backup exceeds the 1.95 MB workspace limit.');
+    let parsed;
+    try { parsed = JSON.parse(rawText); } catch (_) { throw new Error('Invalid JSON: the backup file could not be parsed.'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Backup must be a JSON object.');
+
+    // Support wrapped `{ nexosBackupVersion, state }`, `/api/state` envelope `{ state }`, or raw Classic/Enterprise workspace JSON.
+    let src = (parsed.state && typeof parsed.state === 'object' && !Array.isArray(parsed.state)) ? parsed.state : parsed;
+    const knownStructure = ['tasks', 'habits', 'notes', 'pomodoroLog', 'enterpriseWorkspace', 'dailyPlan', 'profile'];
+    if (!knownStructure.some((k) => Object.prototype.hasOwnProperty.call(src, k))) {
+      throw new Error('This file does not look like a NexOS workspace backup.');
+    }
+
+    let skipped = 0;
+    const safeId = (v, fallbackPrefix, idx) => {
+      const s = String(v == null ? '' : v).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
+      return s || `${fallbackPrefix}_${Date.now().toString(36)}_${idx}`;
+    };
+    const validCols = new Set(['todo', 'inprogress', 'review', 'done']);
+    const validPriorities = new Set(['low', 'medium', 'high']);
+
+    // Enterprise-only backups have `stage` rather than `col` -> normalize smoothly into shared root shape.
+    const normalizeCol = (t) => {
+      const s = String(t.col || t.stage || 'todo').toLowerCase();
+      if (s === 'in_progress' || s === 'in-progress') return 'inprogress';
+      return validCols.has(s) ? s : 'todo';
+    };
+
+    const tasks = [];
+    const taskIds = new Set();
+    for (let i = 0; i < (Array.isArray(src.tasks) ? src.tasks.length : 0); i++) {
+      const t = src.tasks[i];
+      if (!t || typeof t !== 'object' || Array.isArray(t)) { skipped++; continue; }
+      let id = safeId(t.id, 'bk_t', i);
+      if (taskIds.has(id)) id = `${id}_${i}`;
+      taskIds.add(id);
+      const priority = validPriorities.has(String(t.priority || '').toLowerCase()) ? String(t.priority).toLowerCase() : 'medium';
+      const due = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || t.dueDate || '')) ? String(t.due || t.dueDate) : '';
+      tasks.push({
+        id,
+        title: String(t.title || 'Untitled task').slice(0, 160),
+        desc: String(t.desc || t.description || '').slice(0, 4000),
+        col: normalizeCol(t),
+        priority,
+        due,
+        created: Number.isFinite(Number(t.created)) ? Number(t.created) : Date.now(),
+        ...(Number.isFinite(Number(t.doneAt)) ? { doneAt: Number(t.doneAt) } : {}),
+        ...(Array.isArray(t.tags) ? { tags: t.tags.slice(0, 20).map((x) => String(x).slice(0, 40)) } : {}),
+        ...(Array.isArray(t.subtasks) ? { subtasks: t.subtasks.slice(0, 30).filter((st) => st && typeof st === 'object').map((st, si) => ({ id: safeId(st.id, 'st', si), text: String(st.text || st.title || '').slice(0, 200), title: String(st.title || st.text || '').slice(0, 200), done: Boolean(st.done ?? st.completed), completed: Boolean(st.completed ?? st.done) })) } : {}),
+      });
+    }
+
+    const habits = [];
+    const habitIds = new Set();
+    for (let i = 0; i < (Array.isArray(src.habits) ? src.habits.length : 0); i++) {
+      const h = src.habits[i];
+      if (!h || typeof h !== 'object' || Array.isArray(h)) { skipped++; continue; }
+      let id = safeId(h.id, 'bk_h', i);
+      if (habitIds.has(id)) id = `${id}_${i}`;
+      habitIds.add(id);
+      const checks = {};
+      if (h.checks && typeof h.checks === 'object' && !Array.isArray(h.checks)) {
+        for (const [k, v] of Object.entries(h.checks)) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(k) && v === true) checks[k] = true;
+        }
+      }
+      habits.push({
+        id,
+        name: String(h.name || 'Untitled habit').slice(0, 80),
+        color: /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(h.color || '')) ? String(h.color) : '#4285F4',
+        checks,
+        streak: Math.max(0, Number(h.streak) || 0),
+        ...(h.archived ? { archived: true } : {}),
+        ...(h.goal ? { goal: Math.min(7, Math.max(1, Number(h.goal) || 7)) } : {}),
+      });
+    }
+
+    const notes = [];
+    const noteIds = new Set();
+    for (let i = 0; i < (Array.isArray(src.notes) ? src.notes.length : 0); i++) {
+      const n = src.notes[i];
+      if (!n || typeof n !== 'object' || Array.isArray(n)) { skipped++; continue; }
+      let id = safeId(n.id, 'bk_n', i);
+      if (noteIds.has(id)) id = `${id}_${i}`;
+      noteIds.add(id);
+      notes.push({
+        id,
+        title: String(n.title || 'Untitled Note').slice(0, 140),
+        content: String(n.content || '').slice(0, 60000),
+        tags: Array.isArray(n.tags) ? n.tags.slice(0, 30).map((x) => String(x).slice(0, 40)) : [],
+        pinned: Boolean(n.pinned),
+        created: Number.isFinite(Number(n.created)) ? Number(n.created) : Date.now(),
+      });
+    }
+
+    const pomodoroLog = (Array.isArray(src.pomodoroLog) ? src.pomodoroLog : [])
+      .filter((l) => l && typeof l === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || '')) && Number.isFinite(Number(l.minutes)) && Number(l.minutes) >= 0 && Number(l.minutes) <= 600)
+      .slice(0, 3000)
+      .map((l) => ({ date: String(l.date), minutes: Number(l.minutes), ...(l.taskId ? { taskId: String(l.taskId).slice(0, 80) } : {}) }));
+
+    const cleanState = {
+      tasks,
+      habits,
+      notes,
+      pomodoroLog,
+      pomodoroStats: src.pomodoroStats && typeof src.pomodoroStats === 'object' ? src.pomodoroStats : { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
+      theme: ['light', 'dark', 'system'].includes(src.theme) ? src.theme : 'system',
+      design: src.design === 'apple' || src.design === 'microsoft' ? 'apple' : 'google',
+      currentNoteId: notes.some((n) => n.id === src.currentNoteId) ? src.currentNoteId : (notes[0]?.id || null),
+      seeded: Boolean(src.seeded),
+      ...(src.profile && typeof src.profile === 'object' ? { profile: src.profile } : {}),
+      ...(src.enterpriseWorkspace && typeof src.enterpriseWorkspace === 'object' ? { enterpriseWorkspace: src.enterpriseWorkspace } : {}),
+    };
+
+    return {
+      state: cleanState,
+      skipped,
+      exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : null,
+      counts: { tasks: tasks.length, habits: habits.length, notes: notes.length, sessions: pomodoroLog.length },
+    };
+  }
+
+  function mergeWorkspaceBackups(currentState, restoredState) {
+    const cur = currentState && typeof currentState === 'object' ? currentState : {};
+    const inc = restoredState && typeof restoredState === 'object' ? restoredState : {};
+    const mergeArr = (a, b) => {
+      const m = new Map();
+      (Array.isArray(a) ? a : []).forEach((item) => { if (item && item.id != null) m.set(String(item.id), item); });
+      (Array.isArray(b) ? b : []).forEach((item) => {
+        if (item && item.id != null && !m.has(String(item.id))) m.set(String(item.id), item);
+      });
+      return [...m.values()];
+    };
+    const baseLogs = Array.isArray(cur.pomodoroLog) ? cur.pomodoroLog : [];
+    const seenCounts = new Map();
+    baseLogs.forEach((l) => { const k = `${l.date}|${l.minutes}|${l.taskId || ''}`; seenCounts.set(k, (seenCounts.get(k) || 0) + 1); });
+    const extraLogs = [];
+    const incCounts = new Map();
+    (Array.isArray(inc.pomodoroLog) ? inc.pomodoroLog : []).forEach((l) => {
+      const k = `${l.date}|${l.minutes}|${l.taskId || ''}`;
+      const c = (incCounts.get(k) || 0) + 1;
+      incCounts.set(k, c);
+      if (c > (seenCounts.get(k) || 0)) extraLogs.push(l);
+    });
+    return {
+      ...inc,
+      ...cur,
+      tasks: mergeArr(cur.tasks, inc.tasks),
+      habits: mergeArr(cur.habits, inc.habits),
+      notes: mergeArr(cur.notes, inc.notes),
+      pomodoroLog: [...baseLogs, ...extraLogs],
+    };
+  }
+
+  function showPreview(res) {
+    validatedBackup = res;
+    bPreview.hidden = false;
+    bTitle.textContent = res.exportedAt ? 'Validated backup (' + new Date(res.exportedAt).toLocaleString() + ')' : 'Validated NexOS backup';
+    bCounts.textContent = `${res.counts.tasks} tasks · ${res.counts.habits} habits · ${res.counts.notes} notes · ${res.counts.sessions} focus sessions`;
+    if (res.skipped > 0) {
+      bWarnings.hidden = false;
+      bWarnings.textContent = `${res.skipped} corrupted/invalid record${res.skipped === 1 ? '' : 's'} will be skipped cleanly.`;
+    } else {
+      bWarnings.hidden = true;
+      bWarnings.textContent = '';
+    }
+    sayBackup('Backup validated. Review the summary below and choose Merge or Replace.', 'good');
+  }
+
+  async function runValidation(rawText) {
+    validatedBackup = null;
+    bPreview.hidden = true;
+    try { showPreview(validateAndSanitizeBackup(rawText)); }
+    catch (err) { sayBackup(err.message || 'Could not validate backup.', 'bad'); }
+  }
+
+  if (bFile) {
+    bFile.addEventListener('change', () => {
+      const file = bFile.files && bFile.files[0];
+      if (!file) return;
+      if (file.size > 1950000) { sayBackup('Selected file exceeds 1.95 MB limit.', 'bad'); return; }
+      const reader = new FileReader();
+      reader.onload = () => { bPaste.value = String(reader.result || ''); runValidation(bPaste.value); };
+      reader.onerror = () => sayBackup('Could not read the selected file.', 'bad');
+      reader.readAsText(file);
+    });
+  }
+  if (bValidateBtn) bValidateBtn.addEventListener('click', () => runValidation(bPaste.value));
+
+  if (bDownloadBtn) {
+    bDownloadBtn.addEventListener('click', async () => {
+      bDownloadBtn.disabled = true;
+      sayBackup('Preparing backup download…', '');
+      try {
+        let exportState = null, mode = 'guest';
+        try {
+          const res = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' });
+          if (res.ok) { const p = await res.json(); if (p && p.state) { exportState = p.state; mode = 'account'; } }
+        } catch (_) {}
+        if (!exportState) {
+          for (const key of knownKeys) {
+            try {
+              const raw = JSON.parse(localStorage.getItem(key) || 'null');
+              if (raw && (Array.isArray(raw.tasks) || Array.isArray(raw.habits) || Array.isArray(raw.notes))) { exportState = raw; break; }
+            } catch (_) {}
+          }
+        }
+        if (!exportState) { sayBackup('No workspace data found to export yet.', 'bad'); return; }
+        const doc = { nexosBackupVersion: 1, exportedAt: new Date().toISOString(), mode, state: exportState };
+        const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nexos-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        sayBackup('Backup JSON downloaded.', 'good');
+      } finally { bDownloadBtn.disabled = false; }
+    });
+  }
+
+  async function applyBackupRestore(mode) {
+    if (!validatedBackup) return;
+    if (mode === 'replace' && !window.confirm('Replace your current workspace items with this backup? This overwrites current tasks, habits, and notes.')) return;
+    bMergeBtn.disabled = true;
+    bReplaceBtn.disabled = true;
+    sayBackup('Restoring backup…', '');
+    try {
+      // Signed-in restore with atomic expectedRev + 409 retry
+      const checkRes = await fetch('/api/state', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+      if (checkRes && checkRes.ok) {
+        const currentPayload = await checkRes.json().catch(() => ({}));
+        let targetRev = Number.isInteger(currentPayload.rev) ? currentPayload.rev : (currentPayload.state ? 1 : 0);
+        let remoteState = currentPayload.state || {};
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const nextState = mode === 'merge' ? mergeWorkspaceBackups(remoteState, validatedBackup.state) : validatedBackup.state;
+          const putRes = await fetch('/api/state', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: nextState, expectedRev: targetRev }),
+          });
+          if (putRes.status === 409) {
+            const c = await putRes.json().catch(() => ({}));
+            remoteState = c.state || {};
+            targetRev = Number.isInteger(c.rev) ? c.rev : 1;
+            continue;
+          }
+          if (!putRes.ok) throw new Error('Server returned status ' + putRes.status);
+          if (embedded) parent.postMessage({ type: 'nexos-recover-changed' }, location.origin);
+          sayBackup(mode === 'merge' ? 'Backup merged into your NexOS account!' : 'Workspace restored from backup!', 'good');
+          return;
+        }
+        throw new Error('Workspace updated in another tab during restore; try again.');
+      }
+
+      // Signed-out / guest local restore fallback
+      let currentGuest = null;
+      try { currentGuest = JSON.parse(localStorage.getItem('nexos_guest_state_v1') || 'null'); } catch (_) {}
+      const nextGuest = mode === 'merge' ? mergeWorkspaceBackups(currentGuest || {}, validatedBackup.state) : validatedBackup.state;
+      localStorage.setItem('nexos_guest_state_v1', JSON.stringify(nextGuest));
+      localStorage.setItem('nexos_guest_mode_v1', '1');
+      if (embedded) parent.postMessage({ type: 'nexos-recover-changed' }, location.origin);
+      sayBackup('Restored into guest browser storage. Open NexOS to view it.', 'good');
+    } catch (err) {
+      sayBackup(err.message || 'Restore failed. Please try again.', 'bad');
+    } finally {
+      bMergeBtn.disabled = false;
+      bReplaceBtn.disabled = false;
+    }
+  }
+  if (bMergeBtn) bMergeBtn.addEventListener('click', () => applyBackupRestore('merge'));
+  if (bReplaceBtn) bReplaceBtn.addEventListener('click', () => applyBackupRestore('replace'));
+
+  window.NexRecover = { validateAndSanitizeBackup, mergeWorkspaceBackups };
 })();
 </script>
 </body>

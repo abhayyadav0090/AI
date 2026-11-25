@@ -44,6 +44,48 @@
     sources: [{ n: 1, title: 'Sample notes: Biology, Chapter 2', page: 4, snippet: 'Photosynthesis takes place in the chloroplasts, where chlorophyll absorbs light...' }]
   };
 
+  const SAMPLE_MINDMAP = {
+    id: 'sample-mm',
+    title: 'Photosynthesis (Sample)',
+    topic: 'Photosynthesis',
+    sourceTitle: 'Sample notes: Biology, Chapter 2',
+    root: {
+      id: 'mm_root',
+      label: 'Photosynthesis',
+      summary: 'Process by which plants convert light energy into chemical energy.',
+      sourceRef: { title: 'Sample notes: Biology, Chapter 2', page: 4, excerpt: 'Photosynthesis takes place in the chloroplasts, where chlorophyll absorbs light energy to convert CO2 and H2O into glucose and oxygen.' },
+      children: [
+        {
+          id: 'mm_1',
+          label: 'Chloroplast & Chlorophyll',
+          summary: 'Light-capturing site inside plant cells.',
+          sourceRef: { title: 'Sample notes: Biology, Chapter 2', page: 4 },
+          children: [
+            { id: 'mm_1a', label: 'Thylakoid membranes', summary: 'Capture photons cleanly.' },
+            { id: 'mm_1b', label: 'Stroma', summary: 'Fluid site for sugar synthesis.' }
+          ]
+        },
+        {
+          id: 'mm_2',
+          label: 'Light-Dependent Reactions',
+          summary: 'Split water into O2 and generate ATP + NADPH.',
+          sourceRef: { title: 'Sample notes: Biology, Chapter 2', page: 5 },
+          children: [
+            { id: 'mm_2a', label: 'Inputs: Light + H2O' },
+            { id: 'mm_2b', label: 'Outputs: O2, ATP, NADPH' }
+          ]
+        },
+        {
+          id: 'mm_3',
+          label: 'Calvin Cycle',
+          summary: 'Uses ATP & NADPH to fix CO2 into glucose.',
+          sourceRef: { title: 'Sample notes: Biology, Chapter 2', page: 6 },
+          children: []
+        }
+      ]
+    }
+  };
+
   /* Colours come from whichever page is open: Classic (--surface, --text, --accent ...) or Enterprise (--bg-surface-elevated, --text-main ...). */
   const CSS = `
 #nexos-study-modal{--k-bg:var(--surface,var(--bg-surface-elevated,#1c1c1e));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));position:fixed;inset:0;z-index:2100;display:none;align-items:center;justify-content:center;padding:16px;background:var(--scrim,rgba(0,0,0,.55));font-family:inherit}
@@ -117,7 +159,32 @@
 
   const CSS2 = `
 #nexos-study-modal{--k-ok:#2e9e5b;--k-bad:#d9453f}
-#nexos-study-modal .ns-tabs{grid-template-columns:repeat(5,1fr)}
+#nexos-study-modal .ns-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}
+#nexos-study-modal[data-tab="mindmap"] .ns-card{width:min(940px,100%)}
+#nexos-study-modal .ns-mm-toolbar{display:grid;grid-template-columns:minmax(130px,1fr) minmax(130px,1fr) auto;gap:8px;margin-bottom:8px}
+#nexos-study-modal .ns-mm-actions-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+#nexos-study-modal .ns-mm-saved{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+#nexos-study-modal .ns-mm-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);font-size:12px;cursor:pointer;font-family:inherit}
+#nexos-study-modal .ns-mm-chip[data-active="1"]{background:var(--k-soft);border-color:var(--k-accent);color:var(--k-accent);font-weight:600}
+#nexos-study-modal .ns-mm-stage{position:relative;height:330px;min-height:260px;border:1px solid var(--k-line);border-radius:16px;background:var(--k-bg2);background-image:radial-gradient(var(--k-line) 1px,transparent 1px);background-size:20px 20px;overflow:hidden;touch-action:none;user-select:none;cursor:grab}
+#nexos-study-modal .ns-mm-stage[data-pan="1"]{cursor:grabbing}
+#nexos-study-modal .ns-mm-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+#nexos-study-modal .ns-mm-links{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+#nexos-study-modal .ns-mm-links path{fill:none;stroke:var(--k-accent);stroke-opacity:.42;stroke-width:2}
+#nexos-study-modal .ns-mm-node{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:8px 10px;border-radius:12px;border:1.5px solid var(--k-line);background:var(--k-bg);color:var(--k-text);font-size:12px;line-height:1.3;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+#nexos-study-modal .ns-mm-node[data-depth="0"]{background:var(--k-accent);color:var(--k-on);border-color:transparent;font-weight:700}
+#nexos-study-modal .ns-mm-node[data-selected="1"]{outline:2.5px solid var(--k-accent);outline-offset:2px}
+#nexos-study-modal .ns-mm-node[data-depth="0"][data-selected="1"]{outline-color:var(--k-text)}
+#nexos-study-modal .ns-mm-nhead{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+#nexos-study-modal .ns-mm-ntitle{font-weight:600;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#nexos-study-modal .ns-mm-toggle{flex:none;width:20px;height:20px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;font-size:12px;line-height:1;display:grid;place-items:center;cursor:pointer;opacity:.85}
+#nexos-study-modal .ns-mm-nsrc{font-size:10.5px;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nexos-study-modal .ns-mm-hud{position:absolute;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--k-bg);border:1px solid var(--k-line);box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:2}
+#nexos-study-modal .ns-mm-hud button{min-height:28px;min-width:28px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:var(--k-text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+#nexos-study-modal .ns-mm-hud button:hover{background:var(--k-hover)}
+#nexos-study-modal .ns-mm-inspector{margin-top:10px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2)}
+#nexos-study-modal .ns-mm-editgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+@media (max-width:560px){#nexos-study-modal .ns-tabs{grid-template-columns:repeat(3,1fr)}#nexos-study-modal .ns-tab{font-size:12px;min-height:34px}#nexos-study-modal .ns-mm-toolbar,#nexos-study-modal .ns-mm-editgrid{grid-template-columns:1fr}#nexos-study-modal .ns-mm-stage{height:270px}}
 #nexos-study-modal .ns-fields3{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
 #nexos-study-modal .ns-qhead{display:flex;justify-content:space-between;font-size:12.5px;color:var(--k-text2);margin-bottom:2px}
 #nexos-study-modal .ns-qtext{font-size:15.5px;font-weight:600;line-height:1.45;margin:12px 0;overflow-wrap:anywhere}
@@ -141,8 +208,7 @@
 #nexos-study-modal .ns-srcd[open]{flex-basis:100%}
 #nexos-study-modal .ns-srcd summary{cursor:pointer;list-style:none}
 #nexos-study-modal .ns-srcd summary::-webkit-details-marker{display:none}
-#nexos-study-modal .ns-excerpt{margin-top:6px;padding:9px 11px;border-left:3px solid var(--k-accent);border-radius:6px;background:var(--k-bg);font-size:12px;line-height:1.55;color:var(--k-text2)}
-@media (max-width:560px){#nexos-study-modal .ns-tab{font-size:12.5px}}`;
+#nexos-study-modal .ns-excerpt{margin-top:6px;padding:9px 11px;border-left:3px solid var(--k-accent);border-radius:6px;background:var(--k-bg);font-size:12px;line-height:1.55;color:var(--k-text2)}`;
   const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5zM12 6.5v13"/></svg>';
   const STARTERS = [
     { label: 'Explain simply', text: 'Explain in simple words: ' },
@@ -155,6 +221,8 @@
   let docs = [], usage = null, history = [], thinking = false, pending = null;
   let quiz = null, deck = null, building = null, revisionData = null, revisionBusy = false, planStartTime = '18:00';
   let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
+  let mindmapList = [], mindmapCurrent = null, mindmapSelectedId = null, mindmapDirty = false, mindmapEditing = false, mindmapBusy = false;
+  let mindmapOpts = { docId: '', topic: '' }, mindmapView = { scale: 1, tx: 20, ty: 20 }, guestPreviewTab = 'tutor', mmSeq = 0;
 
   function localTimeZone() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'; }
@@ -259,14 +327,123 @@
       : '<span class="ns-src">[' + s.n + '] ' + esc(sourceLabel(s)) + '</span>').join('') + '</div>' : '';
   const oneChip = (src) => src ? '<div class="ns-srcs"><span class="ns-src">' + esc(sourceLabel(src)) + '</span></div>' : '';
 
+  function cloneMindmapTree(node) {
+    return node ? JSON.parse(JSON.stringify(node)) : null;
+  }
+
+  function countMindmapNodes(node) {
+    if (!node || typeof node !== 'object') return 0;
+    let total = 1;
+    if (Array.isArray(node.children)) node.children.forEach((c) => { total += countMindmapNodes(c); });
+    return total;
+  }
+
+  function findMindmapNode(node, id, parent = null, depth = 0) {
+    if (!node || typeof node !== 'object') return null;
+    if (String(node.id) === String(id)) return { node, parent, depth };
+    const kids = Array.isArray(node.children) ? node.children : [];
+    for (let i = 0; i < kids.length; i++) {
+      const hit = findMindmapNode(kids[i], id, node, depth + 1);
+      if (hit) return { ...hit, index: hit.parent === node ? i : hit.index };
+    }
+    return null;
+  }
+
+  function setAllMindmapCollapsed(node, collapsed, depth = 0) {
+    if (!node || typeof node !== 'object') return;
+    if (depth >= 1) node.collapsed = Boolean(collapsed);
+    if (Array.isArray(node.children)) node.children.forEach((c) => setAllMindmapCollapsed(c, collapsed, depth + 1));
+  }
+
+  /* Deterministic non-overlapping left-to-right tidy tree layout. */
+  function layoutMindmapTree(root) {
+    if (!root || typeof root !== 'object') return { nodes: [], links: [], minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
+    const NODE_W = 176, NODE_H = 58, COL_GAP = 54, ROW_GAP = 14;
+    const nodes = [], links = [];
+    const measureUnits = (n) => {
+      const kids = (!n.collapsed && Array.isArray(n.children)) ? n.children : [];
+      if (!kids.length) return 1;
+      return kids.reduce((sum, c) => sum + measureUnits(c), 0);
+    };
+    const place = (n, depth, topUnit, parentLayout) => {
+      const units = measureUnits(n);
+      const kids = (!n.collapsed && Array.isArray(n.children)) ? n.children : [];
+      const x = depth * (NODE_W + COL_GAP);
+      const y = (topUnit + units / 2) * (NODE_H + ROW_GAP) - NODE_H / 2;
+      const item = {
+        id: String(n.id),
+        node: n,
+        depth,
+        parentId: parentLayout ? parentLayout.id : null,
+        x, y, w: NODE_W, h: NODE_H,
+        hasChildren: Array.isArray(n.children) && n.children.length > 0,
+        childCount: Array.isArray(n.children) ? n.children.length : 0,
+        collapsed: Boolean(n.collapsed),
+      };
+      nodes.push(item);
+      if (parentLayout) links.push({ from: parentLayout, to: item });
+      let cursor = topUnit;
+      for (const c of kids) {
+        const cUnits = measureUnits(c);
+        place(c, depth + 1, cursor, item);
+        cursor += cUnits;
+      }
+    };
+    place(root, 0, 0, null);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of nodes) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x + p.w > maxX) maxX = p.x + p.w;
+      if (p.y + p.h > maxY) maxY = p.y + p.h;
+    }
+    return { nodes, links, minX, minY, maxX, maxY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
+  }
+
+  function applyMindmapTransform(stage) {
+    const world = stage && stage.querySelector('.ns-mm-world');
+    if (world) world.style.transform = `translate(${mindmapView.tx.toFixed(1)}px,${mindmapView.ty.toFixed(1)}px) scale(${mindmapView.scale.toFixed(3)})`;
+    const pct = modal && modal.querySelector('#ns-mm-zoom-label');
+    if (pct) pct.textContent = Math.round(mindmapView.scale * 100) + '%';
+  }
+
+  function fitMindmapToStage(layout, stage) {
+    if (!stage || !layout || !layout.nodes.length) return;
+    const sw = Math.max(260, stage.clientWidth || 620);
+    const sh = Math.max(220, stage.clientHeight || 320);
+    const pad = 28;
+    const sx = (sw - pad * 2) / layout.width;
+    const sy = (sh - pad * 2) / layout.height;
+    const scale = Math.max(0.42, Math.min(1.15, Math.min(sx, sy)));
+    mindmapView.scale = scale;
+    mindmapView.tx = (sw - layout.width * scale) / 2 - layout.minX * scale;
+    mindmapView.ty = (sh - layout.height * scale) / 2 - layout.minY * scale;
+    applyMindmapTransform(stage);
+  }
+
+  function resetMindmapView(stage) {
+    mindmapView = { scale: 1, tx: 22, ty: 24 };
+    applyMindmapTransform(stage);
+  }
+
   function renderGuest() {
+    const guestMap = mindmapCurrent || cloneMindmapTree(SAMPLE_MINDMAP.root);
+    if (!mindmapCurrent) mindmapCurrent = guestMap;
+    if (!mindmapSelectedId) mindmapSelectedId = guestMap.id;
     $('ns-root').innerHTML =
-      '<div class="ns-scroll"><p class="ns-p">Upload your notes or a chapter, then ask NexAI questions. It answers only from your material, shows the page it used, and says so when the answer is not there. This is a sample: nothing is uploaded and no AI is called.</p>' +
-      '<div class="ns-doc"><div class="ns-dt">' + esc(SAMPLE.material) + '</div></div>' +
-      '<div class="ns-log" style="margin-top:12px"><div class="ns-msg ns-user">' + esc(SAMPLE.question) + '</div>' +
-      '<div class="ns-msg ns-ai">' + formatAnswer(SAMPLE.answer) + srcChips(SAMPLE.sources) + '</div></div></div>' +
+      '<div class="ns-starters" style="padding:4px 16px 6px">' +
+        '<button type="button" data-ns="guest-mode" data-g="tutor"' + (guestPreviewTab === 'tutor' ? ' style="border-color:var(--k-accent);color:var(--k-accent);font-weight:600"' : '') + '>Tutor sample</button>' +
+        '<button type="button" data-ns="guest-mode" data-g="mindmap"' + (guestPreviewTab === 'mindmap' ? ' style="border-color:var(--k-accent);color:var(--k-accent);font-weight:600"' : '') + '>Mindmap preview</button>' +
+      '</div>' +
+      (guestPreviewTab === 'mindmap'
+        ? '<div class="ns-scroll"><p class="ns-p">Explore how Study Studio organizes uploaded chapters into an editable concept map. Sign in to generate and save mindmaps from your own PDFs.</p><div id="ns-mindmap-host"></div></div>'
+        : '<div class="ns-scroll"><p class="ns-p">Upload your notes or a chapter, then ask NexAI questions. It answers only from your material, shows the page it used, and says so when the answer is not there. This is a sample: nothing is uploaded and no AI is called.</p>' +
+          '<div class="ns-doc"><div class="ns-dt">' + esc(SAMPLE.material) + '</div></div>' +
+          '<div class="ns-log" style="margin-top:12px"><div class="ns-msg ns-user">' + esc(SAMPLE.question) + '</div>' +
+          '<div class="ns-msg ns-ai">' + formatAnswer(SAMPLE.answer) + srcChips(SAMPLE.sources) + '</div></div></div>') +
       '<div class="ns-foot"><button type="button" class="ns-btn ns-primary" data-ns="signin">Sign in with Google to use your notes</button>' +
       '<button type="button" class="ns-btn" data-ns="close">Close</button></div>';
+    if (guestPreviewTab === 'mindmap') renderMindmapBody(modal.querySelector('#ns-mindmap-host'), true);
   }
 
   function renderMain() {
@@ -274,6 +451,7 @@
       '<div class="ns-tabs" role="tablist"><button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="tutor" id="ns-tab-tutor">Tutor</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="quiz" id="ns-tab-quiz">Quiz</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="cards" id="ns-tab-cards">Cards</button>' +
+      '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="mindmap" id="ns-tab-mindmap">Mindmap</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="revision" id="ns-tab-revision">Revision</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="library" id="ns-tab-library">Library</button></div>' +
       '<div class="ns-status" id="ns-status" role="status" aria-live="polite"></div>' +
@@ -285,6 +463,7 @@
         '<button type="button" class="ns-btn ns-primary" id="ns-ask" data-ns="ask">Ask</button></div></div>' +
       '<div class="ns-panel" id="ns-panel-quiz"><div class="ns-scroll" id="ns-quiz"></div></div>' +
       '<div class="ns-panel" id="ns-panel-cards"><div class="ns-scroll" id="ns-cards"></div></div>' +
+      '<div class="ns-panel" id="ns-panel-mindmap"><div class="ns-scroll" id="ns-mindmap"></div></div>' +
       '<div class="ns-panel" id="ns-panel-revision"><div class="ns-scroll" id="ns-revision"></div></div>' +
       '<div class="ns-panel" id="ns-panel-library"><div class="ns-scroll">' +
         '<p class="ns-p">Add notes or a chapter: a text PDF, TXT or Markdown file up to 4 MB. Only the text is kept, not the file. Scanned PDFs (photos of pages) are not supported yet.</p>' +
@@ -296,12 +475,13 @@
         '<div id="ns-docs"></div></div></div>';
     $('ns-drop').addEventListener('click', () => { if (!busy) $('ns-file').click(); });
     $('ns-question').addEventListener('input', (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 110) + 'px'; });
-    renderDocs(); renderChat(); renderQuiz(); renderCards(); setTab(tab);
+    renderDocs(); renderChat(); renderQuiz(); renderCards(); renderMindmap(); setTab(tab);
   }
 
-  const TABS = ['tutor', 'quiz', 'cards', 'revision', 'library'];
+  const TABS = ['tutor', 'quiz', 'cards', 'mindmap', 'revision', 'library'];
   function setTab(name) {
     tab = TABS.includes(name) ? name : 'tutor';
+    if (modal) modal.dataset.tab = tab;
     TABS.forEach((t) => {
       const on = t === tab;
       $('ns-tab-' + t).setAttribute('aria-selected', String(on));
@@ -310,6 +490,7 @@
     if (tab === 'tutor') renderChat();
     if (tab === 'quiz') renderQuiz();
     if (tab === 'cards') renderCards();
+    if (tab === 'mindmap') { renderMindmap(); if (adapter && !adapter.isGuest() && !mindmapList.length && !mindmapBusy) loadMindmapsList(); }
     if (tab === 'revision') loadRevision();
   }
 
@@ -596,6 +777,339 @@
         '<div class="ns-actions"><button type="button" class="ns-btn ns-primary" data-ns="quiz-next">' + (quiz.i + 1 < n ? 'Next question' : 'See my score') + '</button></div>' : '');
   }
 
+  function renderMindmap() {
+    const box = modal && modal.querySelector('#ns-mindmap');
+    if (!box) return;
+    renderMindmapBody(box, false);
+  }
+
+  function renderMindmapBody(box, isGuestView) {
+    if (!box) return;
+    if (mindmapBusy) { box.innerHTML = working('Building your mindmap'); return; }
+    const controls = isGuestView ? '' : (
+      '<p class="ns-p">Turn uploaded notes or a focus topic into a structured, editable concept map with page references.</p>' +
+      '<div class="ns-mm-toolbar">' +
+        '<select id="ns-mm-doc" aria-label="Study material">' + scopeOptions(mindmapOpts.docId) + '</select>' +
+        '<input type="text" id="ns-mm-topic" maxlength="120" placeholder="Focus topic (optional)" aria-label="Focus topic" value="' + esc(mindmapOpts.topic) + '">' +
+        '<button type="button" class="ns-btn ns-primary ns-small" data-ns="mm-generate"' + (!docs.length ? ' disabled' : '') + '>Generate Mindmap</button>' +
+      '</div>' +
+      '<div class="ns-mm-actions-row">' +
+        '<button type="button" class="ns-btn ns-small" data-ns="mm-blank">New blank map</button>' +
+        (mindmapCurrent ? '<button type="button" class="ns-btn ns-primary ns-small" data-ns="mm-save">' + (mindmapCurrent.savedId ? (mindmapDirty ? 'Save changes*' : 'Saved ✓') : 'Save mindmap') + '</button>' : '') +
+        (mindmapCurrent && mindmapCurrent.savedId ? '<button type="button" class="ns-btn ns-small" data-ns="mm-save-new">Save as new</button><button type="button" class="ns-btn ns-small" data-ns="mm-delete-saved">Delete map</button>' : '') +
+      '</div>' +
+      (mindmapList.length ? '<div class="ns-mm-saved" aria-label="Saved mindmaps">' + mindmapList.map((m) =>
+        '<button type="button" class="ns-mm-chip" data-ns="mm-open" data-id="' + esc(m.id) + '" data-active="' + (mindmapCurrent && mindmapCurrent.savedId === m.id ? '1' : '0') + '">' +
+        esc(m.title) + ' <span class="ns-dm">(' + (m.nodeCount || 1) + ')</span></button>'
+      ).join('') + '</div>' : '')
+    );
+
+    const rootTree = mindmapCurrent ? mindmapCurrent.root : null;
+    if (!rootTree) {
+      box.innerHTML = controls + (!docs.length && !isGuestView
+        ? emptyLibrary('Then NexAI can turn your notes into a mindmap, or start with a blank map above')
+        : '<div class="ns-empty"><strong>Build your first mindmap</strong>Pick a document or enter a focus topic above and click <b>Generate Mindmap</b>, or click <b>New blank map</b>.</div>');
+      bindMindmapToolbarInputs(box);
+      return;
+    }
+
+    const layout = layoutMindmapTree(rootTree);
+    const totalNodes = countMindmapNodes(rootTree);
+    if (!mindmapSelectedId || !findMindmapNode(rootTree, mindmapSelectedId)) mindmapSelectedId = rootTree.id;
+    const hit = findMindmapNode(rootTree, mindmapSelectedId);
+    const sel = hit ? hit.node : rootTree;
+    const selDepth = hit ? hit.depth : 0;
+
+    const linksSvg = layout.links.map((l) => {
+      const x1 = l.from.x + l.from.w, y1 = l.from.y + l.from.h / 2;
+      const x2 = l.to.x, y2 = l.to.y + l.to.h / 2;
+      const mx = (x1 + x2) / 2;
+      return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+    }).join('');
+
+    const nodesHtml = layout.nodes.map((n) => {
+      const refText = n.node.sourceRef ? sourceLabel(n.node.sourceRef) : '';
+      return '<div class="ns-mm-node" role="treeitem" tabindex="0" data-ns="mm-select" data-id="' + esc(n.id) + '" data-depth="' + n.depth + '" data-selected="' + (n.id === mindmapSelectedId ? '1' : '0') + '" style="left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;min-height:' + n.h + 'px">' +
+        '<div class="ns-mm-nhead"><span class="ns-mm-ntitle">' + esc(n.node.label) + '</span>' +
+        (n.hasChildren ? '<button type="button" class="ns-mm-toggle" data-ns="mm-toggle" data-id="' + esc(n.id) + '" aria-label="' + (n.collapsed ? 'Expand ' : 'Collapse ') + esc(n.node.label) + '">' + (n.collapsed ? '+' : '−') + '</button>' : '') +
+        '</div>' +
+        (refText ? '<div class="ns-mm-nsrc">' + esc(refText) + '</div>' : (n.collapsed ? '<div class="ns-mm-nsrc">' + n.childCount + ' hidden</div>' : '')) +
+      '</div>';
+    }).join('');
+
+    const srcRefHtml = sel.sourceRef
+      ? '<div class="ns-srcs" style="margin-top:6px"><span class="ns-src">Source: ' + esc(sourceLabel(sel.sourceRef)) + '</span>' +
+        (sel.sourceRef.excerpt ? '<div class="ns-excerpt" style="width:100%">' + esc(sel.sourceRef.excerpt) + '</div>' : '') + '</div>'
+      : '';
+
+    const inspector = '<div class="ns-mm-inspector">' +
+      '<div class="ns-qhead"><strong>' + esc(sel.label) + '</strong><span>' + totalNodes + ' / 65 nodes' + (mindmapCurrent.sourceTitle ? ' · ' + esc(mindmapCurrent.sourceTitle) : '') + '</span></div>' +
+      (sel.summary ? '<p class="ns-dm" style="margin-top:4px">' + esc(sel.summary) + '</p>' : '') +
+      srcRefHtml +
+      (mindmapEditing
+        ? '<div class="ns-mm-editgrid">' +
+            '<input type="text" id="ns-mm-edit-label" maxlength="90" value="' + esc(sel.label) + '" aria-label="Node title" placeholder="Node title">' +
+            '<input type="text" id="ns-mm-edit-summary" maxlength="220" value="' + esc(sel.summary || '') + '" aria-label="Node note" placeholder="Short note (optional)">' +
+          '</div><div class="ns-actions" style="margin-top:8px">' +
+            '<button type="button" class="ns-btn ns-primary ns-small" data-ns="mm-edit-apply">Save node</button>' +
+            '<button type="button" class="ns-btn ns-small" data-ns="mm-edit-cancel">Cancel</button>' +
+          '</div>'
+        : '<div class="ns-actions" style="margin-top:8px">' +
+            '<button type="button" class="ns-btn ns-small" data-ns="mm-edit-open">Edit node</button>' +
+            '<button type="button" class="ns-btn ns-small" data-ns="mm-add-child"' + (selDepth >= 3 || totalNodes >= 65 ? ' disabled' : '') + '>+ Sub-branch</button>' +
+            (selDepth > 0 ? '<button type="button" class="ns-btn ns-small" data-ns="mm-add-sibling"' + (totalNodes >= 65 ? ' disabled' : '') + '>+ Sibling</button>' : '') +
+            (Array.isArray(sel.children) && sel.children.length ? '<button type="button" class="ns-btn ns-small" data-ns="mm-toggle" data-id="' + esc(sel.id) + '">' + (sel.collapsed ? 'Expand branch' : 'Collapse branch') + '</button>' : '') +
+            (selDepth > 0 ? '<button type="button" class="ns-btn ns-small" data-ns="mm-del-node">Delete node</button>' : '') +
+          '</div>') +
+    '</div>';
+
+    box.innerHTML = controls +
+      '<div class="ns-mm-stage" id="ns-mm-stage" role="tree" aria-label="Study mindmap canvas">' +
+        '<div class="ns-mm-world"><svg class="ns-mm-links" width="' + Math.max(400, layout.maxX + 80) + '" height="' + Math.max(300, layout.maxY + 80) + '">' + linksSvg + '</svg>' + nodesHtml + '</div>' +
+        '<div class="ns-mm-hud">' +
+          '<button type="button" data-ns="mm-zoom-out" aria-label="Zoom out">−</button>' +
+          '<button type="button" id="ns-mm-zoom-label" data-ns="mm-reset" title="Reset view">100%</button>' +
+          '<button type="button" data-ns="mm-zoom-in" aria-label="Zoom in">+</button>' +
+          '<button type="button" data-ns="mm-fit">Fit</button>' +
+          '<button type="button" data-ns="mm-expand-all">Expand</button>' +
+          '<button type="button" data-ns="mm-collapse-all">Collapse</button>' +
+        '</div>' +
+      '</div>' +
+      inspector;
+
+    bindMindmapToolbarInputs(box);
+    const stage = box.querySelector('#ns-mm-stage');
+    if (mindmapCurrent._needsFit) {
+      mindmapCurrent._needsFit = false;
+      fitMindmapToStage(layout, stage);
+    } else {
+      applyMindmapTransform(stage);
+    }
+    bindMindmapStageInteractions(stage);
+  }
+
+  function bindMindmapToolbarInputs(box) {
+    const docSel = box.querySelector('#ns-mm-doc');
+    const topicIn = box.querySelector('#ns-mm-topic');
+    if (docSel) docSel.addEventListener('change', () => { mindmapOpts.docId = docSel.value; });
+    if (topicIn) topicIn.addEventListener('input', () => { mindmapOpts.topic = topicIn.value; });
+    const editTitle = box.querySelector('#ns-mm-edit-label');
+    if (editTitle) {
+      editTitle.focus();
+      editTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyMindmapNodeEdit(); }
+      });
+    }
+  }
+
+  function bindMindmapStageInteractions(stage) {
+    if (!stage || stage._mmBound) return;
+    stage._mmBound = true;
+    let dragging = false, startX = 0, startY = 0, origTx = 0, origTy = 0;
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button, input, select, .ns-mm-node, .ns-mm-hud')) return;
+      dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      origTx = mindmapView.tx; origTy = mindmapView.ty;
+      stage.dataset.pan = '1';
+      try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      mindmapView.tx = origTx + (e.clientX - startX);
+      mindmapView.ty = origTy + (e.clientY - startY);
+      applyMindmapTransform(stage);
+    });
+    const endPan = () => { dragging = false; stage.dataset.pan = '0'; };
+    stage.addEventListener('pointerup', endPan);
+    stage.addEventListener('pointercancel', endPan);
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = stage.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const prev = mindmapView.scale;
+      const next = Math.max(0.4, Math.min(2, prev * (e.deltaY < 0 ? 1.12 : 0.89)));
+      mindmapView.tx = cx - (cx - mindmapView.tx) * (next / prev);
+      mindmapView.ty = cy - (cy - mindmapView.ty) * (next / prev);
+      mindmapView.scale = next;
+      applyMindmapTransform(stage);
+    }, { passive: false });
+  }
+
+  function rerenderActiveMindmap() {
+    if (adapter && adapter.isGuest()) renderGuest();
+    else renderMindmap();
+  }
+
+  function applyMindmapNodeEdit() {
+    if (!mindmapCurrent || !mindmapCurrent.root) return;
+    const hit = findMindmapNode(mindmapCurrent.root, mindmapSelectedId);
+    if (!hit) return;
+    const labelIn = modal.querySelector('#ns-mm-edit-label');
+    const summaryIn = modal.querySelector('#ns-mm-edit-summary');
+    const nextLabel = String(labelIn ? labelIn.value : '').replace(/\s+/g, ' ').trim().slice(0, 90);
+    if (!nextLabel) { setStatus('Node title cannot be empty.'); return; }
+    hit.node.label = nextLabel;
+    hit.node.summary = String(summaryIn ? summaryIn.value : '').replace(/\s+/g, ' ').trim().slice(0, 220);
+    if (hit.depth === 0) mindmapCurrent.title = nextLabel;
+    mindmapEditing = false;
+    mindmapDirty = true;
+    setStatus('');
+    rerenderActiveMindmap();
+  }
+
+  function addMindmapNode(asSibling) {
+    if (!mindmapCurrent || !mindmapCurrent.root) return;
+    if (countMindmapNodes(mindmapCurrent.root) >= 65) { setStatus('Mindmap reached the 65-node limit.'); return; }
+    const hit = findMindmapNode(mindmapCurrent.root, mindmapSelectedId);
+    if (!hit) return;
+    const targetParent = asSibling ? hit.parent : hit.node;
+    const targetDepth = asSibling ? hit.depth : hit.depth + 1;
+    if (!targetParent || targetDepth >= 4) { setStatus('Maximum 4 levels supported.'); return; }
+    targetParent.collapsed = false;
+    targetParent.children = Array.isArray(targetParent.children) ? targetParent.children : [];
+    const newId = 'mm_u_' + Date.now().toString(36) + '_' + (++mmSeq);
+    targetParent.children.push({ id: newId, label: 'New concept', summary: '', children: [] });
+    mindmapSelectedId = newId;
+    mindmapEditing = true;
+    mindmapDirty = true;
+    setStatus('');
+    rerenderActiveMindmap();
+  }
+
+  function deleteMindmapSelected() {
+    if (!mindmapCurrent || !mindmapCurrent.root) return;
+    const hit = findMindmapNode(mindmapCurrent.root, mindmapSelectedId);
+    if (!hit || !hit.parent) { setStatus('Central topic cannot be deleted (edit its title instead).'); return; }
+    hit.parent.children = (hit.parent.children || []).filter((c) => String(c.id) !== String(hit.node.id));
+    mindmapSelectedId = hit.parent.id;
+    mindmapEditing = false;
+    mindmapDirty = true;
+    setStatus('Removed node.');
+    rerenderActiveMindmap();
+  }
+
+  async function loadMindmapsList() {
+    try {
+      const data = await call('GET', '/mindmaps');
+      mindmapList = Array.isArray(data.mindmaps) ? data.mindmaps : [];
+      if (tab === 'mindmap') renderMindmap();
+    } catch (_) {}
+  }
+
+  async function generateMindmap() {
+    if (busy || mindmapBusy) return;
+    if (!docs.length) { setStatus('Add study material first.'); setTab('library'); return; }
+    const prev = mindmapCurrent;
+    busy = true; mindmapBusy = true;
+    renderMindmap();
+    setStatus('Building a structured mindmap from your notes.', true);
+    try {
+      const out = await call('POST', '/mindmaps/generate', {
+        docId: mindmapOpts.docId || undefined,
+        topic: String(mindmapOpts.topic || '').trim() || undefined,
+      });
+      const draft = out.draft;
+      mindmapCurrent = {
+        savedId: null,
+        title: draft.title || draft.root.label,
+        topic: draft.topic || '',
+        sourceTitle: draft.sourceTitle || '',
+        documentId: draft.documentId || null,
+        root: draft.root,
+        _needsFit: true,
+      };
+      mindmapSelectedId = draft.root.id;
+      mindmapDirty = true;
+      mindmapEditing = false;
+      setStatus('Mindmap generated (' + countMindmapNodes(draft.root) + ' nodes). Click Save mindmap to keep it.');
+    } catch (e) {
+      mindmapCurrent = prev; // Preserve existing map on error!
+      setStatus((e && e.message) || 'Could not generate a mindmap right now.');
+    } finally {
+      busy = false; mindmapBusy = false;
+      renderMindmap();
+    }
+  }
+
+  async function saveCurrentMindmap(asNew) {
+    if (busy || !mindmapCurrent || !mindmapCurrent.root) return;
+    busy = true;
+    setStatus('Saving mindmap.', true);
+    try {
+      const payload = {
+        title: mindmapCurrent.root.label,
+        topic: mindmapCurrent.topic || '',
+        sourceTitle: mindmapCurrent.sourceTitle || '',
+        documentId: mindmapCurrent.documentId || null,
+        root: mindmapCurrent.root,
+      };
+      const out = (mindmapCurrent.savedId && !asNew)
+        ? await call('PUT', '/mindmaps/' + encodeURIComponent(mindmapCurrent.savedId), payload)
+        : await call('POST', '/mindmaps', payload);
+      const saved = out.mindmap;
+      mindmapCurrent.savedId = saved.id;
+      mindmapCurrent.title = saved.title;
+      mindmapCurrent.root = saved.root;
+      mindmapDirty = false;
+      await loadMindmapsList();
+      setStatus('Mindmap saved.');
+    } catch (e) {
+      setStatus((e && e.message) || 'Could not save mindmap.');
+    } finally {
+      busy = false;
+      renderMindmap();
+    }
+  }
+
+  async function openSavedMindmap(id) {
+    if (busy || !id) return;
+    busy = true;
+    setStatus('Opening saved mindmap.', true);
+    try {
+      const out = await call('GET', '/mindmaps/' + encodeURIComponent(id));
+      const m = out.mindmap;
+      mindmapCurrent = {
+        savedId: m.id,
+        title: m.title,
+        topic: m.topic || '',
+        sourceTitle: m.sourceTitle || '',
+        documentId: m.documentId || null,
+        root: m.root,
+        _needsFit: true,
+      };
+      mindmapSelectedId = m.root.id;
+      mindmapDirty = false;
+      mindmapEditing = false;
+      setStatus('');
+    } catch (e) {
+      setStatus((e && e.message) || 'Could not open saved mindmap.');
+    } finally {
+      busy = false;
+      renderMindmap();
+    }
+  }
+
+  async function deleteSavedMindmap() {
+    if (busy || !mindmapCurrent || !mindmapCurrent.savedId) return;
+    if (!window.confirm('Delete "' + mindmapCurrent.title + '"? This cannot be undone.')) return;
+    busy = true;
+    try {
+      await call('DELETE', '/mindmaps/' + encodeURIComponent(mindmapCurrent.savedId));
+      mindmapCurrent = null;
+      mindmapSelectedId = null;
+      mindmapDirty = false;
+      await loadMindmapsList();
+      setStatus('Deleted mindmap.');
+    } catch (e) {
+      setStatus((e && e.message) || 'Could not delete mindmap.');
+    } finally {
+      busy = false;
+      renderMindmap();
+    }
+  }
+
   function renderCards() {
     const box = modal && modal.querySelector('#ns-cards');
     if (!box) return;
@@ -671,6 +1185,34 @@
       setStatus('Study habit synced with your Habits tracker.');
       renderRevision();
     },
+    'guest-mode': (el) => { guestPreviewTab = el.getAttribute('data-g') === 'mindmap' ? 'mindmap' : 'tutor'; if (guestPreviewTab === 'mindmap' && mindmapCurrent) mindmapCurrent._needsFit = true; renderGuest(); },
+    'mm-generate': () => generateMindmap(),
+    'mm-blank': () => {
+      mindmapCurrent = { savedId: null, title: 'Central Topic', topic: '', sourceTitle: '', documentId: null, root: { id: 'mm_root', label: 'Central Topic', summary: '', children: [{ id: 'mm_b1', label: 'Key Concept 1', children: [] }, { id: 'mm_b2', label: 'Key Concept 2', children: [] }] }, _needsFit: true };
+      mindmapSelectedId = 'mm_root'; mindmapDirty = true; mindmapEditing = false; setStatus(''); renderMindmap();
+    },
+    'mm-save': () => saveCurrentMindmap(false),
+    'mm-save-new': () => saveCurrentMindmap(true),
+    'mm-open': (el) => openSavedMindmap(el.getAttribute('data-id')),
+    'mm-delete-saved': () => deleteSavedMindmap(),
+    'mm-select': (el) => { mindmapSelectedId = el.getAttribute('data-id'); mindmapEditing = false; rerenderActiveMindmap(); },
+    'mm-toggle': (el) => {
+      const id = el.getAttribute('data-id') || mindmapSelectedId;
+      const hit = mindmapCurrent && findMindmapNode(mindmapCurrent.root, id);
+      if (hit) { hit.node.collapsed = !hit.node.collapsed; mindmapDirty = true; rerenderActiveMindmap(); }
+    },
+    'mm-edit-open': () => { mindmapEditing = true; rerenderActiveMindmap(); },
+    'mm-edit-cancel': () => { mindmapEditing = false; rerenderActiveMindmap(); },
+    'mm-edit-apply': () => applyMindmapNodeEdit(),
+    'mm-add-child': () => addMindmapNode(false),
+    'mm-add-sibling': () => addMindmapNode(true),
+    'mm-del-node': () => deleteMindmapSelected(),
+    'mm-zoom-in': () => { const st = modal && modal.querySelector('#ns-mm-stage'); mindmapView.scale = Math.min(2, mindmapView.scale * 1.18); applyMindmapTransform(st); },
+    'mm-zoom-out': () => { const st = modal && modal.querySelector('#ns-mm-stage'); mindmapView.scale = Math.max(0.4, mindmapView.scale * 0.85); applyMindmapTransform(st); },
+    'mm-reset': () => { const st = modal && modal.querySelector('#ns-mm-stage'); resetMindmapView(st); },
+    'mm-fit': () => { const st = modal && modal.querySelector('#ns-mm-stage'); if (mindmapCurrent) fitMindmapToStage(layoutMindmapTree(mindmapCurrent.root), st); },
+    'mm-expand-all': () => { if (mindmapCurrent) { setAllMindmapCollapsed(mindmapCurrent.root, false); mindmapCurrent._needsFit = true; rerenderActiveMindmap(); } },
+    'mm-collapse-all': () => { if (mindmapCurrent) { setAllMindmapCollapsed(mindmapCurrent.root, true); mindmapCurrent._needsFit = true; rerenderActiveMindmap(); } },
   };
 
   async function refresh() {
@@ -760,6 +1302,8 @@
     adapter = a; build();
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
     quiz = null; deck = null; building = null; revisionData = null;
+    mindmapList = []; mindmapCurrent = null; mindmapSelectedId = null; mindmapDirty = false; mindmapEditing = false; mindmapBusy = false; guestPreviewTab = 'tutor';
+    mindmapOpts = { docId: '', topic: '' }; mindmapView = { scale: 1, tx: 20, ty: 20 };
     qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
     modal.dataset.open = '1';
     if (a.isGuest()) { renderGuest(); return; }
@@ -786,7 +1330,7 @@
     const card = modal.querySelector('.ns-card'); if (card) card.focus();
   }
 
-  const api = { open, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, MAX_BYTES };
+  const api = { open, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, SAMPLE_MINDMAP, MAX_BYTES, layoutMindmapTree, countMindmapNodes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NexStudy = api;
 })(typeof window !== 'undefined' ? window : globalThis);

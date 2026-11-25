@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="index,follow">
 <meta name="description" content="About NexOS and contact its creator, Abhay Yadav.">
 <title>About &amp; Contact: NexOS</title>
@@ -10,19 +10,48 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=4.4.0">
-<link rel="stylesheet" href="/design.css?v=4.4.0">
+<link rel="stylesheet" href="/style.css?v=4.5.1">
+<link rel="stylesheet" href="/design.css?v=4.5.1">
 <script>(function(){var r=document.documentElement,u={};try{u=JSON.parse(localStorage.getItem('nexos_ui_v1')||'{}')}catch(e){}r.dataset.design=(u.design==='apple'||u.design==='microsoft')?'apple':'google';var t=u.theme==='light'||u.theme==='dark'?u.theme:'system';r.dataset.theme=(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))?'dark':'light';})();</script>
 <style>
-.contact-intro{margin:10px 0 26px}.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0}.contact-card{display:flex;align-items:center;gap:14px;padding:17px;border:1px solid var(--glass-border);border-radius:16px;background:var(--bg-card);text-decoration:none!important;color:var(--text-primary)!important;transition:transform .18s,border-color .18s}.contact-card:hover{transform:translateY(-2px);border-color:var(--accent-violet)}.contact-icon{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:12px;background:var(--bg-surface);font-size:20px}.contact-card strong{display:block;font-size:15px}.contact-card small{display:block;margin-top:3px;color:var(--text-secondary);font-size:12px;line-height:1.45}.contact-note{padding:15px 17px;border:1px solid var(--glass-border);border-radius:14px;background:var(--bg-card)}.contact-note p{margin:0}.contact-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.contact-actions a{display:inline-flex;align-items:center;padding:9px 13px;border:1px solid var(--glass-border);border-radius:10px;text-decoration:none}.contact-actions a:first-child{background:var(--accent-violet);color:white;border-color:transparent}@media(max-width:560px){.contact-grid{grid-template-columns:1fr}.contact-card{padding:14px}}
+.legal-nav{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:22px}
+.legal-nav a{font-size:14px;min-height:36px;display:inline-flex;align-items:center}
+.legal-nav .legal-back{margin-bottom:0;margin-right:auto}
+.contact-intro{margin:10px 0 22px}
+.contact-about{padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--bg-card);margin:18px 0 26px}
+.contact-about h2{margin:0 0 8px;font-size:16px}
+.contact-about p{margin:0;font-size:14.5px;line-height:1.65;color:var(--text-secondary)}
+.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.contact-card{display:flex;align-items:center;gap:14px;padding:17px;border:1px solid var(--glass-border);border-radius:16px;background:var(--bg-card);text-decoration:none!important;color:var(--text-primary)!important;transition:transform .18s,border-color .18s}
+.contact-card:hover{transform:translateY(-2px);border-color:var(--accent-violet)}
+.contact-card:focus-visible,.contact-actions a:focus-visible,.legal-nav a:focus-visible{outline:2px solid var(--accent-fill,var(--accent-violet));outline-offset:2px}
+.contact-icon{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:12px;background:var(--bg-surface);font-size:20px}
+.contact-card strong{display:block;font-size:15px}
+.contact-card small{display:block;margin-top:3px;color:var(--text-secondary);font-size:12.5px;line-height:1.45;overflow-wrap:anywhere}
+.contact-note{padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--bg-card)}
+.contact-note p{margin:0}
+.contact-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.contact-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 15px;border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;font-size:14px;font-weight:500}
+.contact-actions a:first-child{background:var(--accent-fill,var(--accent-violet,#0b57d0));color:var(--on-accent,#ffffff);border-color:transparent;font-weight:600}
+.contact-actions a:first-child:hover{filter:brightness(1.06)}
+@media(max-width:560px){.legal-page{padding:26px 16px 56px}.contact-grid{grid-template-columns:1fr}.contact-card{padding:14px}.contact-actions a{flex:1 1 140px}}
 </style>
 </head>
 <body>
 <main class="legal-page">
-  <a class="legal-back" href="/">&larr; Back to NexOS</a>
+  <nav class="legal-nav" aria-label="Page navigation">
+    <a class="legal-back" href="/">&larr; Back to NexOS</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/recover.html">Recovery Center</a>
+  </nav>
   <p class="legal-meta">NexOS · About &amp; Contact</p>
   <h1>Let's Connect.</h1>
   <p class="contact-intro">NexOS and NexAI are independently created by <strong>Abhay Yadav</strong>. This is the official place to learn more about the creator, explore his work, or get in touch.</p>
+
+  <section class="contact-about" aria-labelledby="about-nexos-heading">
+    <h2 id="about-nexos-heading">About NexOS</h2>
+    <p>NexOS brings Kanban task tracking, Deep Focus Pomodoro sessions, habit streaks, Smart Notes, timeblocking, Study Studio (PDF Q&amp;A, quizzes, flashcards, spaced revision, mindmaps), and NexAI into one synced Classic &amp; Enterprise workspace.</p>
+  </section>
 
   <h2>Creator &amp; professional profiles</h2>
   <div class="contact-grid">
