@@ -22,9 +22,9 @@ function run(src, { enterprise }) {
     saveState() { logs.saved++; }, saveWorkspaceState() { logs.saved++; }, renderHabits() { logs.rendered++; }, renderDashboard() {}, updateStats() {}, updateContextPanel() {}, renderAnalytics() {},
     notify: (m) => logs.toasts.push(m), showToast: (m) => logs.toasts.push(m)
   };
-  const names = ['habitEditBar', 'startEditHabit', 'cancelEditHabit', 'habitEditKey', 'saveEditHabit'].concat(enterprise ? ['habitHexColor'] : []);
+  const names = ['habitEditBar', 'startEditHabit', 'cancelEditHabit', 'habitEditKey', 'applyHabitFields', 'refreshHabitViews', 'saveEditHabit'].concat(enterprise ? ['habitHexColor'] : []);
   vm.createContext(ctx);
-  vm.runInContext('var editingHabitId = null;\n' + names.map((n) => fn(src, n)).join('\n'), ctx);
+  vm.runInContext('var editingHabitId = null; var habitDetailId = null;\n' + names.map((n) => fn(src, n)).join('\n'), ctx);
   return { ctx, els, logs, state };
 }
 for (const enterprise of [false, true]) {

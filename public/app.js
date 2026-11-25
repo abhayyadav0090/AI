@@ -1155,7 +1155,7 @@ function renderDashboard() {
     : '<div class="empty-state">You are all caught up. Add a task to get started.</div>';
 
   const habitList = document.getElementById('dash-habits-list');
-  habitList.innerHTML = state.habits.length ? state.habits.slice(0, 4).map(h => {
+  habitList.innerHTML = activeHabits().length ? activeHabits().slice(0, 4).map(h => {
       const done = !!(h.checks && h.checks[today()]);
       return `<div class="dash-habit-item">
         <button type="button" class="habit-quick ${done ? 'checked' : ''}" style="--hc:${habitColor(h)}" onclick="toggleHabit('${h.id}','${today()}')" aria-pressed="${done}" aria-label="Mark ${escHtml(h.name)} done today">${done ? '\u2713' : ''}</button>
@@ -1205,11 +1205,11 @@ function updateStats() {
   }
   const focusMins = state.pomodoroLog.filter(l => l.date === t0).reduce((s, l) => s + l.minutes, 0);
   document.getElementById('stat-focus-val').textContent = focusMins + 'm';
-  const doneHabits = state.habits.filter(h => h.checks[t0]).length;
-  const pct = state.habits.length ? Math.round((doneHabits / state.habits.length) * 100) : 0;
+  const doneHabits = activeHabits().filter(h => h.checks[t0]).length;
+  const pct = activeHabits().length ? Math.round((doneHabits / activeHabits().length) * 100) : 0;
   document.getElementById('stat-habits-val').textContent = pct + '%';
   const habitSub = document.getElementById('stat-habits-sub');
-  if (habitSub) habitSub.textContent = state.habits.length ? `${doneHabits} of ${state.habits.length} today` : 'No habits yet';
+  if (habitSub) habitSub.textContent = activeHabits().length ? `${doneHabits} of ${activeHabits().length} today` : 'No habits yet';
   document.getElementById('stat-notes-val').textContent = state.notes.length;
 }
 
@@ -1632,6 +1632,8 @@ function addHabit() {
 
 // Edit a habit's name and colour (4.2.0). The edit bar opens under the habit's row; Enter saves, Esc cancels.
 var editingHabitId = null;
+var habitDetailId = null;
+function activeHabits() { return state.habits.filter(h => !h.archived); }
 // Streaks and stats per habit come from habits.js; the old streak line is the fallback if it has not loaded.
 function habitStatsHtml(h, fallbackStreak) {
   if (!window.NexHabits) return `<div class="habit-streak">${fallbackStreak > 0 ? `🔥 ${fallbackStreak} day streak` : 'No streak yet'}</div>`;
@@ -1646,6 +1648,7 @@ function habitEditBar(h) {
     <input type="text" id="habit-edit-name" class="input-inline" maxlength="80" value="${escHtml(h.name)}" aria-label="Habit name" onkeydown="habitEditKey(event,'${h.id}')">
     <select id="habit-edit-color" class="select-inline" aria-label="Habit colour" onkeydown="habitEditKey(event,'${h.id}')">${options}</select>
     ${habitGoalSelect(h)}
+    ${window.NexHabits ? NexHabits.editExtrasHtml(h, { input: 'input-inline', btn: 'btn-secondary' }) : ''}
     <button class="btn-primary" onclick="saveEditHabit('${h.id}')">Save</button>
     <button class="btn-secondary" onclick="cancelEditHabit()">Cancel</button>
   </div>`;
@@ -1658,6 +1661,7 @@ function habitGoalSelect(h) {
 function startEditHabit(id) {
   if (!state.habits.some(h => h.id === id)) return;
   editingHabitId = id;
+  if (habitDetailId === id) habitDetailId = null;
   renderHabits();
   const input = document.getElementById('habit-edit-name');
   if (input) { input.focus(); input.select(); }
@@ -1667,20 +1671,64 @@ function habitEditKey(e, id) {
   if (e.key === 'Enter') { e.preventDefault(); saveEditHabit(id); }
   else if (e.key === 'Escape') { e.preventDefault(); cancelEditHabit(); }
 }
-function saveEditHabit(id) {
-  const habit = state.habits.find(h => h.id === id);
+// Copy the edit bar's fields onto the habit. Returns false (and asks for a name) if the name is empty.
+function applyHabitFields(habit) {
   const input = document.getElementById('habit-edit-name');
-  if (!habit || !input) { cancelEditHabit(); return; }
+  if (!input) return true;
   const name = input.value.trim().slice(0, 80);
-  if (!name) { input.focus(); notify('Give the habit a name.'); return; }
-  const color = document.getElementById('habit-edit-color')?.value;
+  if (!name) { input.focus(); notify('Give the habit a name.'); return false; }
   habit.name = name;
+  const color = document.getElementById('habit-edit-color')?.value;
   if (/^#[0-9a-f]{6}$/i.test(color || '')) habit.color = color;
   const goal = Math.round(Number(document.getElementById('habit-edit-goal')?.value));
   if (goal >= 1 && goal <= 7) habit.goal = goal;
+  const remind = document.getElementById('habit-edit-remind');
+  if (remind) { if (/^([01]\d|2[0-3]):[0-5]\d$/.test(remind.value)) habit.remindAt = remind.value; else delete habit.remindAt; }
+  return true;
+}
+function refreshHabitViews() { saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics(); }
+function saveEditHabit(id) {
+  const habit = state.habits.find(h => h.id === id);
+  if (!habit || !document.getElementById('habit-edit-name')) { cancelEditHabit(); return; }
+  if (!applyHabitFields(habit)) return;
   editingHabitId = null;
-  saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
+  refreshHabitViews();
   notify('Habit updated');
+}
+function moveHabit(id, dir) {
+  const habit = state.habits.find(h => h.id === id);
+  if (!habit || !window.NexHabits || !applyHabitFields(habit)) return;
+  if (!NexHabits.move(state.habits, id, dir)) notify(dir < 0 ? 'Already at the top.' : 'Already at the bottom.');
+  refreshHabitViews();
+}
+function archiveHabit(id) {
+  const habit = state.habits.find(h => h.id === id);
+  if (!habit) return;
+  habit.archived = true;
+  if (editingHabitId === id) editingHabitId = null;
+  if (habitDetailId === id) habitDetailId = null;
+  if (state.dailyPlan?.items) state.dailyPlan.items = state.dailyPlan.items.filter(item => !(item.type === 'habit' && item.id === id));
+  refreshHabitViews();
+  notify('Habit paused. It is under Paused habits.', { action: 'Undo', onAction: () => resumeHabit(id, true) });
+}
+function resumeHabit(id, quiet) {
+  const habit = state.habits.find(h => h.id === id);
+  if (!habit) return;
+  delete habit.archived;
+  refreshHabitViews();
+  if (!quiet) notify('Habit resumed');
+}
+function toggleHabitDetail(id) {
+  habitDetailId = habitDetailId === id ? null : id;
+  if (editingHabitId === id) editingHabitId = null;
+  renderHabits();
+}
+function pausedHabitsHtml(paused) {
+  if (!paused.length) return '';
+  return `<details class="habit-paused"><summary>Paused habits (${paused.length})</summary>${paused.map(h => `
+    <div class="habit-paused-row"><span class="habit-color-dot" style="background:${habitColor(h)}"></span><span class="habit-paused-name">${escHtml(h.name)}</span>
+      <button class="btn-secondary" onclick="resumeHabit('${h.id}')">Resume</button>
+      <button class="habit-delete-btn" onclick="deleteHabit('${h.id}')" title="Delete" aria-label="Delete ${escHtml(h.name)}">✕</button></div>`).join('')}</details>`;
 }
 
 function renderHabits() {
@@ -1696,13 +1744,15 @@ function renderHabits() {
         ${d.label}<br><span style="font-size:13px;font-weight:600">${d.day}</span>
       </div>`).join('');
   }
-  if (window.NexHabits) NexHabits.renderSummary(state.habits, today(), header);
-  if (!state.habits.length) {
-    if (list) list.innerHTML = '<div class="empty-state-lg">Add your first habit above to start tracking!</div>';
+  const live = activeHabits();
+  const paused = state.habits.filter(h => h.archived);
+  if (window.NexHabits) NexHabits.renderSummary(live, today(), header);
+  if (!live.length) {
+    if (list) list.innerHTML = (paused.length ? '<div class="empty-state-lg">All your habits are paused. Resume one below.</div>' : '<div class="empty-state-lg">Add your first habit above to start tracking!</div>') + pausedHabitsHtml(paused);
     renderHeatmap(); return;
   }
   if (list) {
-    list.innerHTML = state.habits.map(h => {
+    list.innerHTML = live.map(h => {
       h.checks = h.checks && typeof h.checks === 'object' ? h.checks : {};
       const streak = calcStreak(h);
       return `<div class="habit-row">
@@ -1713,6 +1763,7 @@ function renderHabits() {
             ${habitStatsHtml(h, streak)}
           </div>
           <button class="habit-edit-btn" onclick="startEditHabit('${h.id}')" title="Edit habit" aria-label="Edit habit ${escHtml(h.name)}">✎</button>
+          <button class="habit-edit-btn" onclick="toggleHabitDetail('${h.id}')" title="Show the last 12 weeks" aria-label="Details for ${escHtml(h.name)}" aria-expanded="${habitDetailId === h.id}">▥</button>
         </div>
         ${days.map(d => `
           <div class="habit-day-cell">
@@ -1725,8 +1776,9 @@ function renderHabits() {
           </div>`).join('')}
         <button class="habit-delete-btn" onclick="deleteHabit('${h.id}')" title="Delete">✕</button>
         ${editingHabitId === h.id ? habitEditBar(h) : ''}
+        ${habitDetailId === h.id && window.NexHabits ? NexHabits.detailHtml(h, today(), habitColor(h)) : ''}
       </div>`;
-    }).join('');
+    }).join('') + pausedHabitsHtml(paused);
   }
   renderHeatmap();
 }
@@ -2095,9 +2147,9 @@ function renderTaskDonut() {
 function renderHabitBars() {
   const container = document.getElementById('habit-bars');
   if (!container) return;
-  if (!state.habits.length) { container.innerHTML = '<div class="empty-state">No habits yet.</div>'; return; }
+  if (!activeHabits().length) { container.innerHTML = '<div class="empty-state">No habits yet.</div>'; return; }
   const totalDays = 30;
-  container.innerHTML = state.habits.map(h => {
+  container.innerHTML = activeHabits().map(h => {
     let done = 0;
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
@@ -2171,8 +2223,8 @@ function buildSystemContext() {
   const tasksActive = state.tasks.filter(t => t.col !== 'done').slice(0, 24);
   const tasksDone = state.tasks.filter(t => t.col === 'done');
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
-  const doneHabits = state.habits.filter(h => h.checks[today()]).slice(0, 12);
-  const pendingHabits = state.habits.filter(h => !h.checks[today()]).slice(0, 12);
+  const doneHabits = activeHabits().filter(h => h.checks[today()]).slice(0, 12);
+  const pendingHabits = activeHabits().filter(h => !h.checks[today()]).slice(0, 12);
   const recentNotes = state.notes.slice(0, 3);
   return `You are NexAI, the intelligent, empathetic assistant inside NexOS, created by Abhay Yadav. You have full context of the user's data.
 
@@ -2189,7 +2241,7 @@ FOCUS:
 HABITS (today):
 - Done: ${doneHabits.map(h => h.name).join(', ') || 'None yet'}
 - Pending: ${pendingHabits.map(h => h.name).join(', ') || 'All done!'}
-- Active habit streaks: ${state.habits.slice(0, 12).map(h => `${h.name}: ${calcStreak(h)}d`).join(', ') || 'None'}
+- Active habit streaks: ${activeHabits().slice(0, 12).map(h => `${h.name}: ${calcStreak(h)}d`).join(', ') || 'None'}
 
 NOTES (recent titles):
 ${recentNotes.map(n => `- "${n.title}"`).join('\n') || 'None'}
@@ -2566,11 +2618,11 @@ function updateContextPanel() {
   const active = state.tasks.filter(t => t.col !== 'done').length;
   const done = state.tasks.filter(t => t.col === 'done').length;
   const focusMins = state.pomodoroLog.filter(l => l.date === today()).reduce((s, l) => s + l.minutes, 0);
-  const doneHabits = state.habits.filter(h => h.checks[today()]).length;
+  const doneHabits = activeHabits().filter(h => h.checks[today()]).length;
   const setCtx = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setCtx('ctx-tasks', `${active} active, ${done} done`);
   setCtx('ctx-focus', `${focusMins} min today`);
-  setCtx('ctx-habits', `${doneHabits}/${state.habits.length} done`);
+  setCtx('ctx-habits', `${doneHabits}/${activeHabits().length} done`);
   setCtx('ctx-notes', `${state.notes.length} notes`);
 }
 
@@ -2578,7 +2630,7 @@ function updateContextPanel() {
 function nexTaskStage(t) { return t ? (t.col || t.stage || '') : ''; }
 function nexDay1Milestones(st) {
   const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
-  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const habits = (Array.isArray(st && st.habits) ? st.habits : []).filter(h => !(h && h.archived));
   const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
   const items = [
     { key: 'habit', label: 'Check off a habit', done: habits.some(h => h && h.checks && Object.values(h.checks).some(Boolean)) },
@@ -2589,7 +2641,7 @@ function nexDay1Milestones(st) {
 }
 function nexProductivityScore(st, todayKey) {
   const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
-  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const habits = (Array.isArray(st && st.habits) ? st.habits : []).filter(h => !(h && h.archived));
   const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
   const doneTasks = tasks.filter(t => nexTaskStage(t) === 'done').length;
   const focusMins = log.filter(l => l && l.date === todayKey).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
@@ -2602,7 +2654,7 @@ function nexProductivityScore(st, todayKey) {
 }
 function nexLocalInsight(st, todayKey, focusMin) {
   const tasks = Array.isArray(st && st.tasks) ? st.tasks : [];
-  const habits = Array.isArray(st && st.habits) ? st.habits : [];
+  const habits = (Array.isArray(st && st.habits) ? st.habits : []).filter(h => !(h && h.archived));
   const log = Array.isArray(st && st.pomodoroLog) ? st.pomodoroLog : [];
   const fm = Number(focusMin) > 0 ? Math.round(Number(focusMin)) : 25;
   const rank = { high: 0, medium: 1, low: 2 };
@@ -3197,7 +3249,7 @@ function buildQuickLocalPlan(silent = false) {
     type: 'task', id: t.id,
     duration: Math.min(180, Math.max(10, Number(t.estimateMinutes) || Number(pomDurations.focus) || 25))
   }));
-  state.habits.forEach(h => items.push({
+  state.habits.filter(h => !h.archived).forEach(h => items.push({
     type: 'habit', id: h.id,
     duration: Math.min(60, Math.max(5, Number(h.estimateMinutes) || 10))
   }));
@@ -3717,7 +3769,7 @@ function nexosActionSnapshot() {
       description: String(task.desc || '').slice(0, 70),
       priority: task.priority, stage: task.col, due: task.due || ''
     })),
-    habits: state.habits.slice(0, 8).map(habit => ({
+    habits: activeHabits().slice(0, 8).map(habit => ({
       id: String(habit.id), name: String(habit.name || '').slice(0, 80),
       doneToday: !!(habit.checks && habit.checks[today()])
     })),

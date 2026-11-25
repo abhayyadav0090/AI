@@ -1,6 +1,6 @@
 # NexOS — Architecture & Design Decisions
 
-Updated for NexOS 4.2.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
+Updated for NexOS 4.3.0. This document describes what the code does today. For request and response shapes see [API.md](API.md).
 
 ## System overview
 
@@ -43,6 +43,7 @@ Persistence:
 
 ### Voice and attachments
 - **Voice (3.2.0):** the browser's speech recognition fills the input. Results are merged without repeating, and nothing is submitted automatically.
+- **Habit pause, order, details and reminders (4.3.0):** a paused habit carries `archived: true` and stays in the workspace with all its check-ins; both pages draw only active habits in lists, counts, the plan and NexAI context, and show paused ones under "Paused habits". Order is the order of the `habits` array (`NexHabits.move`). `remindAt` is read by the server's push sweep through `lib/habit-reminders.js`, which reuses `habits.js` so the reminder logic and the on-screen stats agree.
 - **Habit statistics (4.2.0):** `habits.js` holds pure functions over a habit's `checks` map and optional `goal`: current and best streak (days for daily habits, Monday-to-Sunday weeks for weekly goals), 30-day rate, total, this-week count and milestones. Both pages call it when drawing habits and fall back to the stored `streak` if it has not loaded. It never writes data, so the stored `streak` field and NexAI's view of habits are unchanged.
 - **Day derailed and the guest sample (4.0.0):** `derail.js` is shared by Classic and Enterprise. It draws its own dialog and talks to each page through a small adapter (`getTasks`, `applyMoves`, `askAI`, `isGuest`, `signIn`, `toast`). Day derailed sends open tasks due today or earlier (title, priority, stage, date, at most 20) in one `/api/complete` request, keeps only proposals that name task IDs it supplied (at most 8), and after approval changes only the due date to tomorrow. Guests and Enterprise preview never reach the AI: they see scripted sample proposals that save nothing.
 - **Study Studio (4.1.0):** `study.js` is shared by Classic and Enterprise and draws its own dialog (upload form, document list with delete, a scope selector and the tutor conversation). Each page passes an adapter (`isGuest`, `signIn`, `toast`). It reads the chosen file in the browser as base64, calls the `/api/study` routes, escapes all text before showing it (only `**bold**` and `` `code` `` become tags) and lists the cited sources under each answer. Guests see a scripted sample and make no request. The conversation lives in memory while the dialog is open; nothing from it is saved.
@@ -101,7 +102,7 @@ flowchart LR
 - **Security note:** `pdfjs-dist` 3.11 is pinned because it still ships a CommonJS build. Versions before 4.2.67 have a published advisory about running script from a crafted font when a PDF is rendered; NexOS only extracts text and creates the document with `isEvalSupported: false`, which is the documented mitigation. Moving to a current pdf.js is a good follow-up.
 
 ### Reminders
-A timer inside the server process runs every five minutes, finds users whose reminder time has arrived in their own time zone and sends Web Push messages. Push needs the three `VAPID_*` variables.
+A timer inside the server process runs every five minutes (it also announces per-habit reminders from `lib/habit-reminders.js`, 4.3.0), finds users whose reminder time has arrived in their own time zone and sends Web Push messages. Push needs the three `VAPID_*` variables.
 
 ## Security model
 

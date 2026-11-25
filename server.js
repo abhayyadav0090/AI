@@ -10,6 +10,7 @@ const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
 const { AttachmentError, parseAttachments, ATTACHMENT_SYSTEM_NOTE } = require('./lib/attachments');
 const study = require('./lib/study');
+const { dueHabitReminders, habitReminderKey, habitReminderPayload } = require('./lib/habit-reminders');
 const compression = require('compression');
 const morgan     = require('morgan');
 const path       = require('path');
@@ -592,7 +593,7 @@ async function checkAndSendDueTaskPushes() {
     const userIds = await PushSubscription.distinct('userId', { app: 'nexos' });
     if (!userIds.length) return;
     const prefs = new Map((await PushPreference.find({ userId: { $in: userIds } }).lean()).map((p) => [String(p.userId), p]));
-    const states = await UserState.find({ userId: { $in: userIds } }).select('userId data.tasks').lean();
+    const states = await UserState.find({ userId: { $in: userIds } }).select('userId data.tasks data.habits').lean();
     const now = new Date();
     for (const item of states) {
       const preference = prefs.get(String(item.userId));
@@ -600,12 +601,14 @@ async function checkAndSendDueTaskPushes() {
       const reminderTime = preference?.reminderTime || '09:00';
       const timeZone = validTimeZone(preference?.timeZone) ? preference.timeZone : DEFAULT_TIME_ZONE;
       const todayKey = zonedDateKey(now, timeZone);
-      if (zonedTimeKey(now, timeZone) < reminderTime) continue;
+      const nowTime = zonedTimeKey(now, timeZone);
       const tasks = Array.isArray(item.data && item.data.tasks) ? item.data.tasks : [];
-      const due = tasks.filter((task) => task && task.id != null && task.col !== 'done'
+      // Tasks are announced once the daily reminder time has passed; each habit has its own optional time (4.3.0).
+      const due = nowTime < reminderTime ? [] : tasks.filter((task) => task && task.id != null && task.col !== 'done'
         && typeof task.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.due) && task.due <= todayKey)
         .sort((a, b) => String(a.due).localeCompare(String(b.due)));
-      if (!due.length) continue;
+      const habitsDue = dueHabitReminders(item.data && item.data.habits, todayKey, nowTime);
+      if (!due.length && !habitsDue.length) continue;
       const subscriptions = await PushSubscription.find({ userId: item.userId, app: 'nexos' });
       for (const subscription of subscriptions) {
         let changed = false;
@@ -616,26 +619,33 @@ async function checkAndSendDueTaskPushes() {
         const oldSentKeys = Array.isArray(subscription.sentKeys) ? subscription.sentKeys : [];
         const retained = oldSentKeys.filter((key) => typeof key === 'string' && key.slice(0, 10) >= minKeyDate);
         if (retained.length !== oldSentKeys.length) { subscription.sentKeys = retained; changed = true; }
-        const pendingDue = due.filter((task) => !subscription.sentKeys.includes(taskDueKey(todayKey, task.id))).slice(0, 3);
-        for (const task of pendingDue) {
-          const sentKey = taskDueKey(todayKey, task.id);
-          const isOverdue = task.due < todayKey;
-          try {
-            const result = await sendWebPush(subscription, {
-              title: isOverdue ? 'NexOS task overdue' : 'NexOS task due today',
+        const notices = [
+          ...due.filter((task) => !subscription.sentKeys.includes(taskDueKey(todayKey, task.id))).slice(0, 3).map((task) => ({
+            sentKey: taskDueKey(todayKey, task.id),
+            payload: {
+              title: task.due < todayKey ? 'NexOS task overdue' : 'NexOS task due today',
               body: String(task.title || 'Untitled task').slice(0, 160),
               url: '/', tag: `nexos-task-${String(task.id).slice(0, 80)}`, kind: 'task', taskId: String(task.id),
-            });
+            },
+          })),
+          ...habitsDue.filter((entry) => !subscription.sentKeys.includes(habitReminderKey(todayKey, entry.id))).slice(0, 3).map((entry) => ({
+            sentKey: habitReminderKey(todayKey, entry.id),
+            payload: habitReminderPayload(entry),
+          })),
+        ];
+        for (const notice of notices) {
+          try {
+            const result = await sendWebPush(subscription, notice.payload);
             if (result.expired) {
               await PushSubscription.deleteOne({ _id: subscription._id });
               expired = true;
               break;
             }
-            subscription.sentKeys.push(sentKey);
+            subscription.sentKeys.push(notice.sentKey);
             changed = true;
           } catch (err) {
             // Keep the key unsent so a transient push-service outage can retry next poll.
-            console.warn(`Task push failed for ${subscription.userId}:`, err.message);
+            console.warn(`Push failed for ${subscription.userId}:`, err.message);
           }
         }
         if (changed && !expired) {
