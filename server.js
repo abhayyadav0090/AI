@@ -222,6 +222,8 @@ chatSchema.index({ userId: 1, updatedAt: -1 });
 const Chat = mongoose.model('Chat', chatSchema);
 // 4.1.0: Study Studio keeps extracted text chunks in their own collections, never inside the 2 MB workspace document.
 const { StudyDocument, StudyChunk } = study.defineModels(mongoose);
+const studyPlanner = require('./lib/study-planner');
+const { StudyReview, StudyExamPlan } = studyPlanner.defineModels(mongoose);
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
@@ -359,6 +361,8 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   await Chat.deleteMany({ userId: req.userId });
   await StudyChunk.deleteMany({ userId: req.userId });
   await StudyDocument.deleteMany({ userId: req.userId });
+  await StudyReview.deleteMany({ userId: req.userId });
+  await StudyExamPlan.deleteMany({ userId: req.userId });
   await UserState.deleteMany({ userId: req.userId });
   await PushSubscription.deleteMany({ userId: req.userId, app: 'nexos' });
   await PushPreference.deleteOne({ userId: req.userId });
@@ -1173,8 +1177,13 @@ app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, re
 
 // 4.1.0: Study Studio (library and document-grounded tutor), see lib/study.js.
 app.use('/api/study', study.createStudyRouter({
-  StudyDocument, StudyChunk, requireAuth, uploadLimiter: studyUploadLimiter, aiLimiter, aiDailyLimiter,
+  StudyDocument, StudyChunk, StudyReview, requireAuth, uploadLimiter: studyUploadLimiter, aiLimiter, aiDailyLimiter,
   askGemini, toGeminiContents, sendAIError, isValidId: (id) => mongoose.isValidObjectId(id) && String(id).length === 24,
+}));
+
+app.use('/api/study', studyPlanner.createRouter({
+  mongoose, StudyReview, StudyExamPlan, requireAuth,
+  isValidId: (id) => mongoose.isValidObjectId(id) && String(id).length === 24,
 }));
 
 app.use('/api', (req, res) => {

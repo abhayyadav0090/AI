@@ -117,7 +117,7 @@
 
   const CSS2 = `
 #nexos-study-modal{--k-ok:#2e9e5b;--k-bad:#d9453f}
-#nexos-study-modal .ns-tabs{grid-template-columns:repeat(4,1fr)}
+#nexos-study-modal .ns-tabs{grid-template-columns:repeat(5,1fr)}
 #nexos-study-modal .ns-fields3{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
 #nexos-study-modal .ns-qhead{display:flex;justify-content:space-between;font-size:12.5px;color:var(--k-text2);margin-bottom:2px}
 #nexos-study-modal .ns-qtext{font-size:15.5px;font-weight:600;line-height:1.45;margin:12px 0;overflow-wrap:anywhere}
@@ -153,7 +153,7 @@
 
   let modal = null, adapter = null, busy = false, tab = 'tutor';
   let docs = [], usage = null, history = [], thinking = false, pending = null;
-  let quiz = null, deck = null, building = null;
+  let quiz = null, deck = null, building = null, revisionData = null, revisionBusy = false;
   let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
 
   const $ = (id) => modal.querySelector('#' + id);
@@ -189,7 +189,13 @@
       else if (ACTIONS[act]) ACTIONS[act](t);
       else if (act === 'starter') { const box = $('ns-question'); box.value = STARTERS[Number(t.getAttribute('data-i'))].text; box.focus(); }
     });
-    modal.addEventListener('change', (e) => { if (e.target && e.target.id === 'ns-file') pickFile(e.target.files && e.target.files[0]); });
+    modal.addEventListener('change', (e) => {
+      if (e.target && e.target.id === 'ns-file') pickFile(e.target.files && e.target.files[0]);
+      if (e.target && e.target.matches('[data-ns="plan-topic"]')) {
+        const id = e.target.getAttribute('data-id'), index = e.target.getAttribute('data-index');
+        call('PATCH', '/plans/' + encodeURIComponent(id) + '/topics/' + index, {}).then(() => loadRevision()).catch((err) => setStatus(err.message));
+      }
+    });
     const keepOption = (e) => {
       const t = e.target, key = t && t.dataset && t.dataset.opt;
       if (!key) return;
@@ -263,6 +269,7 @@
       '<div class="ns-tabs" role="tablist"><button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="tutor" id="ns-tab-tutor">Tutor</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="quiz" id="ns-tab-quiz">Quiz</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="cards" id="ns-tab-cards">Cards</button>' +
+      '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="revision" id="ns-tab-revision">Revision</button>' +
       '<button type="button" class="ns-tab" role="tab" data-ns="tab" data-tab="library" id="ns-tab-library">Library</button></div>' +
       '<div class="ns-status" id="ns-status" role="status" aria-live="polite"></div>' +
       '<div class="ns-panel" id="ns-panel-tutor">' +
@@ -273,6 +280,7 @@
         '<button type="button" class="ns-btn ns-primary" id="ns-ask" data-ns="ask">Ask</button></div></div>' +
       '<div class="ns-panel" id="ns-panel-quiz"><div class="ns-scroll" id="ns-quiz"></div></div>' +
       '<div class="ns-panel" id="ns-panel-cards"><div class="ns-scroll" id="ns-cards"></div></div>' +
+      '<div class="ns-panel" id="ns-panel-revision"><div class="ns-scroll" id="ns-revision"></div></div>' +
       '<div class="ns-panel" id="ns-panel-library"><div class="ns-scroll">' +
         '<p class="ns-p">Add notes or a chapter: a text PDF, TXT or Markdown file up to 4 MB. Only the text is kept, not the file. Scanned PDFs (photos of pages) are not supported yet.</p>' +
         '<div class="ns-drop" id="ns-drop" tabindex="0" role="button" aria-label="Choose a file"><strong id="ns-dropname">Tap to choose a file</strong><span id="ns-dropsub">or drag and drop it here</span>' +
@@ -286,7 +294,7 @@
     renderDocs(); renderChat(); renderQuiz(); renderCards(); setTab(tab);
   }
 
-  const TABS = ['tutor', 'quiz', 'cards', 'library'];
+  const TABS = ['tutor', 'quiz', 'cards', 'revision', 'library'];
   function setTab(name) {
     tab = TABS.includes(name) ? name : 'tutor';
     TABS.forEach((t) => {
@@ -297,6 +305,68 @@
     if (tab === 'tutor') renderChat();
     if (tab === 'quiz') renderQuiz();
     if (tab === 'cards') renderCards();
+    if (tab === 'revision') loadRevision();
+  }
+
+
+  async function saveRevision(item) {
+    if (!item || !item.topic) return;
+    try { await call('POST', '/reviews', { topic: item.topic, prompt: item.prompt || '', answer: item.answer || '', documentId: item.documentId || undefined, sourcePage: item.sourcePage || undefined }); }
+    catch (_) { /* scoring remains usable even if the network is temporarily unavailable */ }
+  }
+
+  async function loadRevision() {
+    const box = modal && modal.querySelector('#ns-revision');
+    if (!box || revisionBusy) return;
+    revisionBusy = true;
+    box.innerHTML = working('Loading your revision plan');
+    try {
+      const [reviews, plans] = await Promise.all([call('GET', '/reviews'), call('GET', '/plans')]);
+      revisionData = { reviews: reviews.items || [], due: reviews.due || 0, plans: plans.plans || [] };
+      renderRevision();
+    } catch (e) {
+      box.innerHTML = '<div class="ns-empty"><strong>Could not load revision</strong>' + esc(e.message || 'Try again.') + '<br><button class="ns-btn" data-ns="revision-refresh">Retry</button></div>';
+    } finally { revisionBusy = false; }
+  }
+
+  function renderRevision() {
+    const box = modal && modal.querySelector('#ns-revision');
+    if (!box || !revisionData) return;
+    const now = Date.now();
+    const due = revisionData.reviews.filter((x) => new Date(x.dueAt).getTime() <= now);
+    const dateText = (d) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    box.innerHTML = '<div class="ns-qhead"><strong>Spaced revision</strong><span>' + due.length + ' due now · ' + revisionData.reviews.length + ' tracked</span></div>' +
+      '<p class="ns-p">Missed quiz questions and cards marked “Again” appear here. Review them today, then NexOS schedules the next check for 1, 3, 7, 14 or 30 days.</p>' +
+      (due.length ? due.map((x) => '<div class="ns-miss-item"><strong>' + esc(x.topic) + '</strong>' + (x.prompt ? '<p class="ns-p">' + esc(x.prompt) + '</p>' : '') +
+        (x.answer ? '<p class="ns-dm">' + esc(x.answer) + '</p>' : '') +
+        '<div class="ns-actions"><button class="ns-btn ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="again">Again · 1 day</button><button class="ns-btn ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="hard">Hard</button><button class="ns-btn ns-primary ns-small" data-ns="rate-review" data-id="' + esc(x.id) + '" data-rating="good">Got it</button></div></div>').join('') : '<div class="ns-empty"><strong>You are caught up</strong>No revision items are due right now.</div>') +
+      '<div class="ns-divider" style="height:1px;background:var(--k-line);margin:18px 0"></div><h4 style="margin:0 0 8px">Exam planner</h4>' +
+      '<p class="ns-p">Build a lightweight plan around your exam date and daily study time. Check topics off as you finish them.</p>' +
+      '<div class="ns-fields"><input id="ns-plan-title" type="text" maxlength="100" placeholder="Exam name (e.g. Data Structures)"><input id="ns-plan-subject" type="text" maxlength="60" placeholder="Subject (optional)">' +
+      '<input id="ns-plan-date" type="date"><input id="ns-plan-minutes" type="number" min="10" max="600" value="60" placeholder="Minutes per day"></div>' +
+      '<textarea id="ns-plan-topics" rows="3" placeholder="Topics, one per line"></textarea><button class="ns-btn ns-primary" data-ns="plan-create" style="width:100%;margin-top:8px">Create exam plan</button>' +
+      revisionData.plans.map((p) => {
+        const complete = new Set(p.completedTopics || []);
+        const days = Math.max(0, Math.ceil((new Date(p.examDate).getTime() - now) / 86400000));
+        return '<div class="ns-miss-item"><strong>' + esc(p.title) + '</strong><span class="ns-dm"> · ' + days + ' days left · ' + complete.size + '/' + p.topics.length + ' topics · ' + p.dailyMinutes + ' min/day</span>' +
+          '<div class="ns-meter"><i style="width:' + Math.round(complete.size / Math.max(1, p.topics.length) * 100) + '%"></i></div>' +
+          p.topics.map((topic, i) => '<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px"><input type="checkbox" data-ns="plan-topic" data-id="' + esc(p.id) + '" data-index="' + i + '"' + (complete.has(topic) ? ' checked' : '') + '>' + esc(topic) + '</label>').join('') +
+          '<button class="ns-btn ns-small" data-ns="plan-delete" data-id="' + esc(p.id) + '">Delete plan</button></div>';
+      }).join('') || '<p class="ns-dm">No exam plans yet.</p>';
+  }
+
+  async function rateReview(id, rating) {
+    try { await call('POST', '/reviews/' + encodeURIComponent(id) + '/rate', { rating }); await loadRevision(); }
+    catch (e) { setStatus(e.message || 'Could not save review.'); }
+  }
+  async function createPlan() {
+    const title = $('ns-plan-title').value, subject = $('ns-plan-subject').value;
+    const examDate = $('ns-plan-date').value, dailyMinutes = Number($('ns-plan-minutes').value);
+    const topics = $('ns-plan-topics').value.split(/\n+/).map((x) => x.trim()).filter(Boolean);
+    try {
+      await call('POST', '/plans', { title, subject, examDate, dailyMinutes, topics });
+      setStatus('Exam plan created.'); await loadRevision();
+    } catch (e) { setStatus(e.message || 'Could not create plan.'); }
   }
 
   function renderDocs() {
@@ -427,14 +497,18 @@
     'make-quiz': () => make('quiz'),
     'make-cards': () => make('cards'),
     pick: (t) => { if (quiz && quiz.picks[quiz.i] === undefined) { quiz.picks[quiz.i] = Number(t.getAttribute('data-i')); renderQuiz(); } },
-    'quiz-next': () => { if (!quiz) return; if (quiz.i + 1 < quiz.items.length) quiz.i++; else quiz.done = true; renderQuiz(); },
+    'quiz-next': () => { if (!quiz) return; if (quiz.i + 1 < quiz.items.length) quiz.i++; else { quiz.done = true; quiz.items.forEach((q, i) => { if (quiz.picks[i] !== q.answer) saveRevision({ topic: q.question, prompt: 'Correct answer: ' + q.options[q.answer], answer: q.explanation || '' }); }); } renderQuiz(); },
     'quiz-retry': () => { if (!quiz) return; const items = quiz.items.filter((q, i) => quiz.picks[i] !== q.answer); quiz = { items, i: 0, picks: [], done: false }; renderQuiz(); },
     'quiz-new': () => { quiz = null; setStatus(''); renderQuiz(); },
     flip: () => { if (deck && !deck.done) { deck.flipped = !deck.flipped; renderCards(); } },
     'card-known': () => { if (deck && deck.flipped) nextCard(true); },
-    'card-again': () => { if (deck && deck.flipped) nextCard(false); },
+    'card-again': () => { if (deck && deck.flipped) { const c = deck.cards[deck.i]; saveRevision({ topic: c.front, prompt: c.front, answer: c.back }); nextCard(false); } },
     'cards-retry': () => { if (!deck) return; deck = { cards: deck.missed.slice(), i: 0, flipped: false, known: 0, missed: [], done: false }; renderCards(); },
     'cards-new': () => { deck = null; setStatus(''); renderCards(); },
+    'revision-refresh': () => loadRevision(),
+    'rate-review': (el) => rateReview(el.getAttribute('data-id'), el.getAttribute('data-rating')),
+    'plan-create': () => createPlan(),
+    'plan-delete': async (el) => { try { await call('DELETE', '/plans/' + encodeURIComponent(el.getAttribute('data-id'))); await loadRevision(); } catch (e) { setStatus(e.message); } },
   };
 
   async function refresh() {
@@ -523,7 +597,7 @@
   function open(a) {
     adapter = a; build();
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
-    quiz = null; deck = null; building = null;
+    quiz = null; deck = null; building = null; revisionData = null;
     qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
     modal.dataset.open = '1';
     if (a.isGuest()) { renderGuest(); return; }
