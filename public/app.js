@@ -1239,11 +1239,12 @@ function toggleTheme() {
 (() => {
   let locked = false, savedY = 0, savedX = 0;
   const sync = () => {
+    const externalLock = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
     const open = !!document.querySelector('.modal-overlay.is-open, .modal-overlay-backdrop.open, .nexos-recover-overlay');
-    if (open && !locked) {
+    if (open && !locked && !externalLock) {
       savedY = window.scrollY || document.documentElement.scrollTop || 0; savedX = window.scrollX || 0; locked = true;
       document.body.style.position = 'fixed'; document.body.style.top = `-${savedY}px`; document.body.style.left = `-${savedX}px`; document.body.style.width = '100%';
-    } else if (!open && locked) {
+    } else if (!open && locked && !externalLock) {
       locked = false; document.body.style.position = ''; document.body.style.top = ''; document.body.style.left = ''; document.body.style.width = '';
       window.scrollTo(savedX, savedY);
     }
@@ -1281,6 +1282,7 @@ function syncClassicAIFit() {
 }
 
 function switchView(name) {
+  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close();
   const previousView = document.querySelector('.view.active')?.id;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2217,6 +2219,7 @@ function renderNoteEditor() {
     editorNoteId = note.id;
     noteDirty = false;
   }
+  if (contentEl && !summarizingNoteId) contentEl.disabled = false;
   if (pinBtn) { pinBtn.classList.toggle('on', !!note.pinned); pinBtn.setAttribute('aria-pressed', String(!!note.pinned)); }
   if (tagsRow) {
     note.tags = Array.isArray(note.tags) ? note.tags : [];
@@ -2310,24 +2313,41 @@ function filterNotes(filter, btn) {
   renderNoteList();
 }
 
+let summarizingNoteId = null;
 async function summarizeNote() {
+  if (summarizingNoteId) return;
   flushNoteEdits();
   const note = state.notes.find(n => n.id === state.currentNoteId);
   if (!note || !(note.content || '').trim()) { notify('Write something in the note first.'); return; }
+  const targetId = note.id;
   const contentEl = document.getElementById('note-content');
   const original = note.content;
-  contentEl.value = 'AI is summarizing\u2026';
-  contentEl.disabled = true;
+  summarizingNoteId = targetId;
+  if (contentEl) {
+    contentEl.value = 'AI is summarizing\u2026';
+    contentEl.disabled = true;
+  }
   try {
     const summary = await callAI(`Summarize this note concisely in 2-3 sentences:\n\n${original.slice(0, 12000)}`);
     if (!summary || !summary.trim()) throw new Error('Empty AI summary');
-    delete note.sample;
-    note.content = `## AI Summary\n${summary.trim()}\n\n---\n\n${original}`;
-    note.updated = Date.now();
-    contentEl.value = note.content;
-    saveState(); updateWordCount(); renderNoteList();
-  } catch (e) { contentEl.value = original; notify(e.userMessage || 'Could not summarize this note.', { type: 'error' }); }
-  finally { contentEl.disabled = false; }
+    const target = state.notes.find(n => n.id === targetId);
+    if (!target) return;
+    delete target.sample;
+    target.content = `## AI Summary\n${summary.trim()}\n\n---\n\n${original}`;
+    target.updated = Date.now();
+    if (contentEl && state.currentNoteId === targetId) {
+      contentEl.value = target.content;
+      updateWordCount();
+    }
+    saveState(); renderNoteList();
+    if (state.currentNoteId !== targetId) notify('AI summary saved to "' + (target.title || 'your note') + '".');
+  } catch (e) {
+    if (contentEl && state.currentNoteId === targetId) contentEl.value = original;
+    notify(e.userMessage || 'Could not summarize this note.', { type: 'error' });
+  } finally {
+    summarizingNoteId = null;
+    if (contentEl) contentEl.disabled = false;
+  }
 }
 
 // ═══════════════════════════ ANALYTICS ═══════════════════════════
@@ -4151,7 +4171,9 @@ const VIEW_SHORTCUTS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'pomodor
 const isTypingTarget = el => !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 document.addEventListener('keydown', e => {
   if (!currentUser) return;
+  const fullOverlayOpen = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
   if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_SHORTCUTS[e.code]) { e.preventDefault(); switchView(VIEW_SHORTCUTS[e.code]); return; }
+  if (fullOverlayOpen) return;
   if (e.ctrlKey || e.metaKey) {
     if (e.key.toLowerCase() === 'k') { e.preventDefault(); openSearchModal(); }
     if (e.key.toLowerCase() === 's' && document.getElementById('view-notes')?.classList.contains('active')) {
@@ -4337,6 +4359,8 @@ function classicRecordStudyCheckIn() {
 }
 function openStudyStudio(opts) {
   if (!window.NexStudy) { notify('Study Studio is still loading. Try again in a moment.'); return; }
+  if (window.NexUI) NexUI.closeMenus();
+  if (window.innerWidth < 900) closeSidebar();
   const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string') ? { tab: opts.tab } : undefined;
   NexStudy.open({
     isGuest: () => isGuest(),

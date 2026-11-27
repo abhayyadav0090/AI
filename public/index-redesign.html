@@ -2950,6 +2950,7 @@ function syncTopbarHeight() {
 window.addEventListener('resize', syncTopbarHeight);
 window.addEventListener('orientationchange', syncTopbarHeight);
 function switchNexusView(name) {
+  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close();
   if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
   const previousPane = document.querySelector('.view-pane.active')?.id;
   playTactileClick();
@@ -4749,16 +4750,33 @@ function filterNotesSearch(q) {
 async function aiSummarizeActiveNote() {
   const textarea = document.getElementById('note-editor-textarea');
   const btn = document.getElementById('note-ai-summarize-btn');
-  if (!textarea || !textarea.value.trim()) { showToast('Write something in the note first.'); return; }
+  const targetNoteId = state.currentNoteId;
+  const targetNote = state.notes.find(n => n.id === targetNoteId);
+  const sourceText = textarea ? textarea.value : (targetNote ? (targetNote.content || '') : '');
+  if (!textarea || !sourceText.trim()) { showToast('Write something in the note first.'); return; }
   if (btn && btn.disabled) return;
   try {
     if (btn) { btn.disabled = true; btn.textContent = '✦ Summarizing…'; }
     showToast('NexAI is summarizing…');
-    const summary = await enterpriseComplete(`Summarize this note in 2 to 3 sentences:\n\n${textarea.value.slice(0, 10000)}`, 'You are a concise productivity assistant.');
+    const summary = await enterpriseComplete(`Summarize this note in 2 to 3 sentences:\n\n${sourceText.slice(0, 10000)}`, 'You are a concise productivity assistant.');
     if (!summary || !summary.trim()) throw new Error('NexAI returned nothing. Please try again.');
-    textarea.value = `## Summary\n${summary.trim()}\n\n---\n\n${textarea.value}`;
-    handleNoteContentChange();
-    flushEnterpriseNoteEdits(true);
+    const liveNote = targetNoteId ? state.notes.find(n => n.id === targetNoteId) : null;
+    if (targetNoteId && !liveNote) return;
+    const baseText = liveNote ? (state.currentNoteId === targetNoteId ? textarea.value : (liveNote.content || sourceText)) : textarea.value;
+    const nextContent = `## Summary\n${summary.trim()}\n\n---\n\n${baseText}`;
+    if (liveNote) {
+      delete liveNote.sample;
+      liveNote.content = nextContent;
+      liveNote.updated = Date.now();
+    }
+    if (state.currentNoteId === targetNoteId) {
+      textarea.value = nextContent;
+      handleNoteContentChange();
+      flushEnterpriseNoteEdits(true);
+    } else {
+      saveWorkspaceState();
+      renderNotesList();
+    }
     showToast('Summary added to the top of the note');
     playHarmonicChime();
   } catch (err) { showToast(err.message || 'NexAI could not summarize this note.'); }
@@ -5400,7 +5418,9 @@ function executeCommandItem(idx) {
 // Global keyboard shortcuts
 const VIEW_KEYS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'focus', Digit4: 'habits', Digit5: 'notes', Digit6: 'analytics', Digit7: 'calendar', Digit8: 'study', Digit9: 'ai' }; // same order as the sidebar; 'study' opens the Study Studio dialog
 document.addEventListener('keydown', e => {
+  const fullOverlayOpen = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
   if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_KEYS[e.code]) { e.preventDefault(); if (VIEW_KEYS[e.code] === 'study') openStudyStudio(); else switchNexusView(VIEW_KEYS[e.code]); return; }
+  if (fullOverlayOpen) return;
   if (e.metaKey || e.ctrlKey) {
     if (e.key === 'k' || e.key === 'K') { e.preventDefault(); openCommandPalette(); }
     if (e.key === '\\') { e.preventDefault(); toggleFloatingCopilotDrawer(); }
@@ -5422,12 +5442,13 @@ document.addEventListener('keydown', e => {
 // Lock the document behind Enterprise dialogs without preventing the dialog card from scrolling.
 let enterpriseModalScroll = { locked: false, y: 0, x: 0 };
 function syncEnterpriseModalScroll() {
+  const externalLock = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
   const open = !!document.querySelector('.modal-overlay-backdrop.open');
   const lock = enterpriseModalScroll;
-  if (open && !lock.locked) {
+  if (open && !lock.locked && !externalLock) {
     lock.y = window.scrollY || document.documentElement.scrollTop || 0; lock.x = window.scrollX || 0; lock.locked = true;
     document.body.style.position = 'fixed'; document.body.style.top = `-${lock.y}px`; document.body.style.left = `-${lock.x}px`; document.body.style.width = '100%';
-  } else if (!open && lock.locked) {
+  } else if (!open && lock.locked && !externalLock) {
     lock.locked = false; document.body.style.position = ''; document.body.style.top = ''; document.body.style.left = ''; document.body.style.width = '';
     window.scrollTo(lock.x, lock.y);
   }
@@ -6785,6 +6806,8 @@ function enterpriseRecordStudyCheckIn() {
 }
 function openStudyStudio(opts) {
   if (!window.NexStudy) { showToast('Study Studio is still loading. Try again in a moment.'); return; }
+  closeSidebarDrawer();
+  closePrefsPopover();
   const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string') ? { tab: opts.tab } : undefined;
   NexStudy.open({
     isGuest: () => enterpriseSession.mode === 'guest' || enterpriseSession.mode === 'preview',

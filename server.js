@@ -70,7 +70,7 @@ app.use('/api', (req, res, next) => {
 });
 app.use((req, res, next) => cors({
   origin: (origin, cb) => cb(null, isAllowedOrigin(req, origin)),
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 })(req, res, next));
 

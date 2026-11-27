@@ -87,7 +87,7 @@
 
   /* Colours come from whichever page is open: Classic (--surface, --text, --accent ...) or Enterprise (--bg-surface-elevated, --text-main ...). */
   const CSS = `
-#nexos-derail-modal{--k-bg:var(--surface,var(--bg-surface-elevated,#1c1c1e));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));--k-warn:var(--warning,var(--priority-medium,#ff9f0a));--k-ok:var(--success,var(--priority-low,#30d158));position:fixed;inset:0;z-index:2100;display:none;align-items:center;justify-content:center;padding:16px;background:var(--scrim,rgba(0,0,0,.55));font-family:inherit}
+#nexos-derail-modal{--k-bg:var(--surface,var(--bg-surface-elevated,#1c1c1e));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));--k-warn:var(--warning,var(--priority-medium,#ff9f0a));--k-ok:var(--success,var(--priority-low,#30d158));position:fixed;inset:0;z-index:2100;display:none;align-items:center;justify-content:center;padding:16px;overflow:hidden;overscroll-behavior:none;background:var(--scrim,rgba(0,0,0,.55));font-family:inherit}
 #nexos-derail-modal[data-open="1"]{display:flex}
 #nexos-derail-modal *{box-sizing:border-box}
 #nexos-derail-modal .nd-card{width:min(560px,100%);max-height:90vh;display:flex;flex-direction:column;border-radius:20px;background:var(--k-bg);color:var(--k-text);border:1px solid var(--k-line);box-shadow:var(--shadow-3,0 24px 70px rgba(0,0,0,.45));overflow:hidden;outline:0}
@@ -99,7 +99,7 @@
 #nexos-derail-modal .nd-sub{font-size:12.5px;color:var(--k-text2);margin-top:2px}
 #nexos-derail-modal .nd-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--k-text2);font-size:16px;cursor:pointer}
 #nexos-derail-modal .nd-x:hover{background:var(--k-hover);color:var(--k-text)}
-#nexos-derail-modal .nd-body{padding:0 16px 8px;overflow:auto;min-height:0;flex:1}
+#nexos-derail-modal .nd-body{padding:0 16px 8px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;min-height:0;flex:1}
 #nexos-derail-modal .nd-p{margin:0 0 12px;font-size:13px;line-height:1.55;color:var(--k-text2)}
 #nexos-derail-modal .nd-label{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--k-text2);margin:0 0 8px}
 #nexos-derail-modal .nd-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
@@ -139,6 +139,36 @@
   const PRI = { high: 'High priority', medium: 'Medium priority', low: 'Low priority' };
 
   let modal = null, adapter = null, current = null, busy = false, pickedMin = null;
+  let ndScrollLocked = false, ndSavedX = 0, ndSavedY = 0, ndSavedStyles = null, ndLastFocus = null;
+
+  function lockDerailScroll() {
+    if (typeof document === 'undefined' || typeof window === 'undefined' || ndScrollLocked) return;
+    ndSavedX = window.scrollX || document.documentElement.scrollLeft || 0;
+    ndSavedY = window.scrollY || document.documentElement.scrollTop || 0;
+    const h = document.documentElement, b = document.body, alreadyFixed = b.style.position === 'fixed';
+    ndSavedStyles = {
+      ho: h.style.overflow, hob: h.style.overscrollBehavior,
+      bo: b.style.overflow, bob: b.style.overscrollBehavior,
+      bp: b.style.position, bt: b.style.top, bl: b.style.left, bw: b.style.width, fixed: !alreadyFixed,
+    };
+    ndScrollLocked = true;
+    h.style.overflow = 'hidden'; h.style.overscrollBehavior = 'none';
+    b.style.overflow = 'hidden'; b.style.overscrollBehavior = 'none';
+    if (!alreadyFixed) { b.style.position = 'fixed'; b.style.top = (-ndSavedY) + 'px'; b.style.left = (-ndSavedX) + 'px'; b.style.width = '100%'; }
+  }
+
+  function unlockDerailScroll() {
+    if (!ndScrollLocked || typeof document === 'undefined' || typeof window === 'undefined') return;
+    const p = ndSavedStyles || {}, h = document.documentElement, b = document.body;
+    const rx = ndSavedX, ry = ndSavedY;
+    ndScrollLocked = false; ndSavedStyles = null;
+    h.style.overflow = p.ho || ''; h.style.overscrollBehavior = p.hob || '';
+    b.style.overflow = p.bo || ''; b.style.overscrollBehavior = p.bob || '';
+    if (p.fixed) {
+      b.style.position = p.bp || ''; b.style.top = p.bt || ''; b.style.left = p.bl || ''; b.style.width = p.bw || '';
+      try { window.scrollTo({ left: rx, top: ry, behavior: 'instant' }); } catch (_) { window.scrollTo(rx, ry); }
+    }
+  }
 
   function build() {
     if (modal) return;
@@ -176,12 +206,25 @@
       else if (act === 'lost') start(Number(t.getAttribute('data-min')));
     });
     modal.addEventListener('change', (e) => { if (e.target && e.target.matches('#nd-list input')) syncCount(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.dataset.open === '1') close(); });
+    document.addEventListener('keydown', (e) => {
+      if (!modal || modal.dataset.open !== '1') return;
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key === 'Tab') {
+        const els = Array.from(modal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+          .filter((el) => el.offsetParent !== null || el === document.activeElement);
+        if (!els.length) return;
+        const first = els[0], last = els[els.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+      }
+    });
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', unlockDerailScroll);
   }
   const $ = (id) => modal.querySelector('#' + id);
   const setStatus = (text, isBusy) => { const el = $('nd-status'); el.textContent = text || ''; el.classList.toggle('nd-busy', !!isBusy); };
 
   function reset(title, sub, intro, withChips) {
+    if ((!modal || modal.dataset.open !== '1') && typeof document !== 'undefined') ndLastFocus = document.activeElement;
     current = null; pickedMin = null;
     $('nd-title').textContent = title;
     $('nd-sub').textContent = sub;
@@ -194,11 +237,20 @@
     $('nd-signin').hidden = true;
     $('nd-pick').hidden = !withChips;
     $('nd-chips').innerHTML = LOST.map((l) => `<button type="button" class="nd-chip" data-nd="lost" data-min="${l.minutes}" aria-pressed="false">${esc(l.label)}</button>`).join('');
+    lockDerailScroll();
     modal.dataset.open = '1';
     const first = withChips ? modal.querySelector('.nd-chip') : modal.querySelector('.nd-x');
     if (first) first.focus();
   }
-  function close() { if (busy || !modal) return; modal.dataset.open = '0'; current = null; }
+  function close() {
+    if (busy || !modal) return;
+    modal.dataset.open = '0'; current = null;
+    unlockDerailScroll();
+    const prev = ndLastFocus; ndLastFocus = null;
+    if (prev && prev.isConnected && typeof prev.focus === 'function') {
+      try { prev.focus({ preventScroll: true }); } catch (_) { try { prev.focus(); } catch (__) {} }
+    }
+  }
 
   function renderItems(items) {
     $('nd-list').innerHTML = items.map((it, i) => {
@@ -281,8 +333,7 @@
     }
     const ids = picked.map((i) => current.moves[i] && current.moves[i].id).filter(Boolean);
     const n = adapter.applyMoves(ids, current.to);
-    modal.dataset.open = '0';
-    current = null;
+    close();
     if (adapter.toast) adapter.toast(`${n} task${n === 1 ? '' : 's'} moved to tomorrow.`);
   }
 

@@ -88,24 +88,27 @@
 
   /* Colours come from whichever page is open: Classic (--surface, --text, --accent ...) or Enterprise (--bg-surface-elevated, --text-main ...). */
   const CSS = `
-#nexos-study-modal{--k-bg:var(--surface,var(--bg-surface-elevated,#1c1c1e));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));position:fixed;inset:0;z-index:2100;display:none;align-items:center;justify-content:center;padding:16px;background:var(--scrim,rgba(0,0,0,.55));font-family:inherit}
+#nexos-study-modal{--ns-max:1000px;--k-page:var(--bg,var(--bg-app,var(--bg-deep,#131314)));--k-bg:var(--surface,var(--bg-surface,var(--bg-surface-elevated,#1c1c1e)));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:100vw;max-height:100dvh;z-index:2100;display:none;flex-direction:column;align-items:stretch;justify-content:stretch;padding:0;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--k-page);color:var(--k-text);font-family:inherit}
 #nexos-study-modal[data-open="1"]{display:flex}
+#nexos-study-modal[data-tab="mindmap"]{--ns-max:1180px}
 #nexos-study-modal *{box-sizing:border-box}
-#nexos-study-modal .ns-card{width:min(720px,100%);height:min(720px,92vh);display:flex;flex-direction:column;border-radius:20px;background:var(--k-bg);color:var(--k-text);border:1px solid var(--k-line);box-shadow:var(--shadow-3,0 24px 70px rgba(0,0,0,.45));overflow:hidden;outline:0}
-#nexos-study-modal .ns-head{display:flex;align-items:center;gap:12px;padding:16px 16px 10px}
+#nexos-study-modal .ns-card{width:100%;height:100%;flex:1;min-height:0;display:flex;flex-direction:column;border-radius:0;background:var(--k-page);color:var(--k-text);border:0;box-shadow:none;overflow:hidden;outline:0}
+#nexos-study-modal .ns-head{display:flex;align-items:center;gap:12px;padding:max(12px,env(safe-area-inset-top)) max(16px,calc((100% - var(--ns-max)) / 2)) 12px;background:var(--k-bg);border-bottom:1px solid var(--k-line);flex:none}
+#nexos-study-modal .ns-back{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
+#nexos-study-modal .ns-back:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-badge{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--k-soft);color:var(--k-accent);flex:none}
 #nexos-study-modal .ns-badge svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #nexos-study-modal .ns-ht{flex:1;min-width:0}
 #nexos-study-modal h3{margin:0;font-size:17px;font-weight:600;line-height:1.25}
-#nexos-study-modal .ns-sub{font-size:12.5px;color:var(--k-text2);margin-top:2px}
-#nexos-study-modal .ns-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--k-text2);font-size:16px;cursor:pointer}
+#nexos-study-modal .ns-sub{font-size:12.5px;color:var(--k-text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nexos-study-modal .ns-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--k-text2);font-size:16px;cursor:pointer;flex:none}
 #nexos-study-modal .ns-x:hover{background:var(--k-hover);color:var(--k-text)}
-#nexos-study-modal .ns-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 16px 10px;padding:4px;border-radius:14px;background:var(--k-bg2)}
+#nexos-study-modal .ns-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:min(var(--ns-max),calc(100% - 32px));margin:12px auto 10px;padding:4px;border-radius:14px;background:var(--k-bg2);flex:none}
 #nexos-study-modal .ns-tab{min-height:38px;border:0;border-radius:10px;background:transparent;color:var(--k-text2);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-tab[aria-selected="true"]{background:var(--k-bg);color:var(--k-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 #nexos-study-modal .ns-panel{flex:1;min-height:0;display:none;flex-direction:column}
 #nexos-study-modal .ns-panel[data-on="1"]{display:flex}
-#nexos-study-modal .ns-scroll{flex:1;min-height:0;overflow:auto;padding:4px 16px 12px}
+#nexos-study-modal .ns-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:6px max(16px,calc((100% - var(--ns-max)) / 2)) max(18px,env(safe-area-inset-bottom))}
 #nexos-study-modal .ns-p{margin:0 0 12px;font-size:13px;line-height:1.55;color:var(--k-text2)}
 #nexos-study-modal .ns-drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 14px;border:2px dashed var(--k-line);border-radius:16px;background:var(--k-bg2);cursor:pointer;margin-bottom:10px}
 #nexos-study-modal .ns-drop[data-over="1"],#nexos-study-modal .ns-drop:hover{border-color:var(--k-accent);background:var(--k-soft)}
@@ -115,7 +118,7 @@
 #nexos-study-modal .ns-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 #nexos-study-modal input[type=text],#nexos-study-modal input[type=date],#nexos-study-modal input[type=number],#nexos-study-modal input[type=time],#nexos-study-modal textarea,#nexos-study-modal select{width:100%;min-width:0;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit}
 #nexos-study-modal select option{color:#111}
-#nexos-study-modal textarea{resize:none;min-height:44px;max-height:110px;line-height:1.4}
+#nexos-study-modal textarea{resize:none;min-height:44px;max-height:110px;line-height:1.4;overscroll-behavior:contain}
 #nexos-study-modal .ns-btn{min-height:42px;border:1px solid var(--k-line);background:transparent;color:var(--k-text);border-radius:12px;padding:0 18px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-btn:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-btn.ns-primary{background:var(--k-accent);border-color:transparent;color:var(--k-on);font-weight:600}
@@ -127,7 +130,7 @@
 #nexos-study-modal .ns-dm{font-size:12px;color:var(--k-text2);line-height:1.45}
 #nexos-study-modal .ns-doc{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2);margin-top:8px}
 #nexos-study-modal .ns-doc .ns-dt{flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
-#nexos-study-modal .ns-status{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.5;color:var(--k-text2);padding:0 16px;white-space:pre-wrap}
+#nexos-study-modal .ns-status{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.5;color:var(--k-text2);padding:0 max(16px,calc((100% - var(--ns-max)) / 2));white-space:pre-wrap;flex:none}
 #nexos-study-modal .ns-status:not(:empty){padding-bottom:8px}
 #nexos-study-modal .ns-status.ns-busy::before{content:"";flex:none;width:15px;height:15px;margin-top:2px;border-radius:50%;border:2px solid var(--k-line);border-top-color:var(--k-accent);animation:ns-spin .8s linear infinite}
 @keyframes ns-spin{to{transform:rotate(360deg)}}
@@ -146,27 +149,27 @@
 #nexos-study-modal .ns-dots i{width:7px;height:7px;border-radius:50%;background:var(--k-text2);opacity:.5;animation:ns-bounce 1s infinite ease-in-out}
 #nexos-study-modal .ns-dots i:nth-child(2){animation-delay:.15s}#nexos-study-modal .ns-dots i:nth-child(3){animation-delay:.3s}
 @keyframes ns-bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
-#nexos-study-modal .ns-tools{display:flex;gap:8px;align-items:center;padding:4px 16px 8px}
+#nexos-study-modal .ns-tools{display:flex;gap:8px;align-items:center;padding:4px max(16px,calc((100% - var(--ns-max)) / 2)) 8px;flex:none}
 #nexos-study-modal .ns-tools select{flex:1;padding:7px 10px;font-size:12.5px}
-#nexos-study-modal .ns-starters{display:flex;gap:6px;overflow-x:auto;padding:0 16px 8px}
+#nexos-study-modal .ns-starters{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px max(16px,calc((100% - var(--ns-max)) / 2)) 8px;flex:none}
 #nexos-study-modal .ns-starters button{flex:none;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-starters button:hover{background:var(--k-hover)}
-#nexos-study-modal .ns-bar{display:flex;gap:8px;align-items:flex-end;padding:8px 16px 14px;border-top:1px solid var(--k-line)}
-#nexos-study-modal .ns-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--k-line)}
+#nexos-study-modal .ns-bar{display:flex;gap:8px;align-items:flex-end;padding:10px max(16px,calc((100% - var(--ns-max)) / 2)) max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--k-line);background:var(--k-bg);flex:none}
+#nexos-study-modal .ns-foot{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:10px max(16px,calc((100% - var(--ns-max)) / 2)) max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--k-line);background:var(--k-bg);flex:none}
 #nexos-study-modal button:focus-visible,#nexos-study-modal input:focus-visible,#nexos-study-modal textarea:focus-visible,#nexos-study-modal select:focus-visible,#nexos-study-modal .ns-drop:focus-visible{outline:2px solid var(--k-accent);outline-offset:2px}
-@media (max-width:560px){#nexos-study-modal{align-items:flex-end;padding:0}#nexos-study-modal .ns-card{width:100%;height:94vh;border-radius:22px 22px 0 0}#nexos-study-modal .ns-fields{grid-template-columns:1fr}}
+@media (max-width:560px){#nexos-study-modal .ns-fields{grid-template-columns:1fr}#nexos-study-modal .ns-tabs{width:calc(100% - 24px);margin:10px auto 8px}}
+@media (max-width:420px){#nexos-study-modal .ns-back span{display:none}}
 @media (prefers-reduced-motion:reduce){#nexos-study-modal .ns-status.ns-busy::before,#nexos-study-modal .ns-dots i{animation:none}}`;
 
   const CSS2 = `
 #nexos-study-modal{--k-ok:#2e9e5b;--k-bad:#d9453f}
 #nexos-study-modal .ns-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}
-#nexos-study-modal[data-tab="mindmap"] .ns-card{width:min(940px,100%)}
 #nexos-study-modal .ns-mm-toolbar{display:grid;grid-template-columns:minmax(130px,1fr) minmax(130px,1fr) auto;gap:8px;margin-bottom:8px}
 #nexos-study-modal .ns-mm-actions-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
 #nexos-study-modal .ns-mm-saved{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 #nexos-study-modal .ns-mm-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);font-size:12px;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-mm-chip[data-active="1"]{background:var(--k-soft);border-color:var(--k-accent);color:var(--k-accent);font-weight:600}
-#nexos-study-modal .ns-mm-stage{position:relative;height:330px;min-height:260px;border:1px solid var(--k-line);border-radius:16px;background:var(--k-bg2);background-image:radial-gradient(var(--k-line) 1px,transparent 1px);background-size:20px 20px;overflow:hidden;touch-action:none;user-select:none;cursor:grab}
+#nexos-study-modal .ns-mm-stage{position:relative;height:clamp(320px,50dvh,540px);min-height:260px;border:1px solid var(--k-line);border-radius:16px;background:var(--k-bg2);background-image:radial-gradient(var(--k-line) 1px,transparent 1px);background-size:20px 20px;overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;cursor:grab}
 #nexos-study-modal .ns-mm-stage[data-pan="1"]{cursor:grabbing}
 #nexos-study-modal .ns-mm-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 #nexos-study-modal .ns-mm-links{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
@@ -184,7 +187,7 @@
 #nexos-study-modal .ns-mm-hud button:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-mm-inspector{margin-top:10px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2)}
 #nexos-study-modal .ns-mm-editgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-@media (max-width:560px){#nexos-study-modal .ns-tabs{grid-template-columns:repeat(3,1fr)}#nexos-study-modal .ns-tab{font-size:12px;min-height:34px}#nexos-study-modal .ns-mm-toolbar,#nexos-study-modal .ns-mm-editgrid{grid-template-columns:1fr}#nexos-study-modal .ns-mm-stage{height:270px}}
+@media (max-width:560px){#nexos-study-modal .ns-tabs{grid-template-columns:repeat(3,1fr)}#nexos-study-modal .ns-tab{font-size:12px;min-height:36px}#nexos-study-modal .ns-mm-toolbar,#nexos-study-modal .ns-mm-editgrid{grid-template-columns:1fr}#nexos-study-modal .ns-mm-stage{height:290px}}
 #nexos-study-modal .ns-fields3{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
 #nexos-study-modal .ns-qhead{display:flex;justify-content:space-between;font-size:12.5px;color:var(--k-text2);margin-bottom:2px}
 #nexos-study-modal .ns-qtext{font-size:15.5px;font-weight:600;line-height:1.45;margin:12px 0;overflow-wrap:anywhere}
@@ -223,6 +226,116 @@
   let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
   let mindmapList = [], mindmapCurrent = null, mindmapSelectedId = null, mindmapDirty = false, mindmapEditing = false, mindmapBusy = false;
   let mindmapOpts = { docId: '', topic: '' }, mindmapView = { scale: 1, tx: 20, ty: 20 }, guestPreviewTab = 'tutor', mmSeq = 0;
+  let openSeq = 0, scrollLocked = false, savedScrollX = 0, savedScrollY = 0, savedDocStyles = null;
+  let lastTriggerEl = null, pushedHistory = false, closingFromPop = false, prevScrollRest = null, pendingBackOps = 0, needsPushAfterBack = false, scrollRestTimer = null;
+
+  function pushStudyHistoryState() {
+    if (typeof window === 'undefined' || !window.history || typeof window.history.pushState !== 'function') return;
+    try {
+      if (scrollRestTimer) { clearTimeout(scrollRestTimer); scrollRestTimer = null; }
+      if ('scrollRestoration' in window.history && prevScrollRest === null) {
+        prevScrollRest = window.history.scrollRestoration;
+        window.history.scrollRestoration = 'manual';
+      }
+      const curState = window.history.state && typeof window.history.state === 'object' ? window.history.state : {};
+      if (!curState.nexosStudyOpen) {
+        window.history.pushState({ ...curState, nexosStudyOpen: true }, '');
+        pushedHistory = true;
+      }
+    } catch (_) {}
+  }
+
+  function restoreHistoryScrollMode() {
+    if (scrollRestTimer) { clearTimeout(scrollRestTimer); scrollRestTimer = null; }
+    if (prevScrollRest !== null && typeof window !== 'undefined' && window.history) {
+      try { if ('scrollRestoration' in window.history) window.history.scrollRestoration = prevScrollRest; } catch (_) {}
+      prevScrollRest = null;
+    }
+  }
+
+  function lockBackgroundScroll() {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    if (!scrollLocked) {
+      savedScrollX = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0;
+      savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+      const htmlEl = document.documentElement;
+      const bodyEl = document.body;
+      const alreadyFixed = bodyEl.style.position === 'fixed';
+      savedDocStyles = {
+        htmlOverflow: htmlEl.style.overflow,
+        htmlOverscroll: htmlEl.style.overscrollBehavior,
+        bodyOverflow: bodyEl.style.overflow,
+        bodyOverscroll: bodyEl.style.overscrollBehavior,
+        bodyPosition: bodyEl.style.position,
+        bodyTop: bodyEl.style.top,
+        bodyLeft: bodyEl.style.left,
+        bodyWidth: bodyEl.style.width,
+        weFixedBody: !alreadyFixed,
+      };
+      scrollLocked = true;
+    }
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    htmlEl.style.overflow = 'hidden';
+    htmlEl.style.overscrollBehavior = 'none';
+    bodyEl.style.overflow = 'hidden';
+    bodyEl.style.overscrollBehavior = 'none';
+    if (savedDocStyles && savedDocStyles.weFixedBody) {
+      bodyEl.style.position = 'fixed';
+      bodyEl.style.top = (-savedScrollY) + 'px';
+      bodyEl.style.left = (-savedScrollX) + 'px';
+      bodyEl.style.width = '100%';
+    }
+  }
+
+  function unlockBackgroundScroll() {
+    if (!scrollLocked || typeof document === 'undefined' || typeof window === 'undefined') return;
+    const prev = savedDocStyles || {};
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    const restoreX = savedScrollX;
+    const restoreY = savedScrollY;
+    scrollLocked = false;
+    savedDocStyles = null;
+    htmlEl.style.overflow = prev.htmlOverflow || '';
+    htmlEl.style.overscrollBehavior = prev.htmlOverscroll || '';
+    bodyEl.style.overflow = prev.bodyOverflow || '';
+    bodyEl.style.overscrollBehavior = prev.bodyOverscroll || '';
+    if (prev.weFixedBody) {
+      bodyEl.style.position = prev.bodyPosition || '';
+      bodyEl.style.top = prev.bodyTop || '';
+      bodyEl.style.left = prev.bodyLeft || '';
+      bodyEl.style.width = prev.bodyWidth || '';
+      try { window.scrollTo({ left: restoreX, top: restoreY, behavior: 'instant' }); }
+      catch (_) { window.scrollTo(restoreX, restoreY); }
+    }
+  }
+
+  function getScrollParent(target, deltaX, deltaY) {
+    let el = target && target.nodeType === 1 ? target : (target && target.parentElement);
+    const vertical = Math.abs(deltaY) >= Math.abs(deltaX);
+    while (el && el !== modal && el !== document.body && el !== document.documentElement) {
+      const cs = window.getComputedStyle(el);
+      if (vertical) {
+        if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 1) return el;
+      } else if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function isScrollAtBoundary(sc, dx, dy) {
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      const atTop = sc.scrollTop <= 0;
+      const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+      return (dy < 0 && atTop) || (dy > 0 && atBottom);
+    }
+    const atLeft = sc.scrollLeft <= 0;
+    const atRight = sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 1;
+    return (dx < 0 && atLeft) || (dx > 0 && atRight);
+  }
 
   function localTimeZone() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'; }
@@ -243,13 +356,14 @@
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'ns-title');
-    modal.innerHTML = '<div class="ns-card" tabindex="-1"><div class="ns-head"><span class="ns-badge">' + ICON + '</span>' +
+    modal.innerHTML = '<div class="ns-card" tabindex="-1"><div class="ns-head">' +
+      '<button type="button" class="ns-back" data-ns="close" aria-label="Back to workspace">&#8592; <span>Back</span></button>' +
+      '<span class="ns-badge">' + ICON + '</span>' +
       '<div class="ns-ht"><h3 id="ns-title">Study Studio</h3><div class="ns-sub">Learn from your own notes</div></div>' +
       '<button type="button" class="ns-x" data-ns="close" aria-label="Close">\u2715</button></div>' +
       '<div id="ns-root" style="display:flex;flex-direction:column;flex:1;min-height:0"></div></div>';
     document.body.appendChild(modal);
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) return close();
       const t = e.target.closest('[data-ns]');
       if (!t) return;
       const act = t.getAttribute('data-ns');
@@ -262,6 +376,31 @@
       else if (ACTIONS[act]) ACTIONS[act](t);
       else if (act === 'starter') { const box = $('ns-question'); box.value = STARTERS[Number(t.getAttribute('data-i'))].text; box.focus(); }
     });
+    modal.addEventListener('wheel', (e) => {
+      if (modal.dataset.open !== '1') return;
+      if (e.target && e.target.closest && e.target.closest('#ns-mm-stage')) return;
+      const sc = getScrollParent(e.target, e.deltaX, e.deltaY);
+      if (!sc || isScrollAtBoundary(sc, e.deltaX, e.deltaY)) e.preventDefault();
+    }, { passive: false });
+    let touchX = 0, touchY = 0;
+    modal.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches.length === 1) {
+        touchX = e.touches[0].clientX;
+        touchY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+    modal.addEventListener('touchmove', (e) => {
+      if (modal.dataset.open !== '1' || !e.touches || e.touches.length !== 1) return;
+      if (e.target && e.target.closest && e.target.closest('#ns-mm-stage')) return;
+      const touch = e.touches[0];
+      const dx = touchX - touch.clientX;
+      const dy = touchY - touch.clientY;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      touchX = touch.clientX;
+      touchY = touch.clientY;
+      const sc = getScrollParent(e.target, dx, dy);
+      if (!sc || isScrollAtBoundary(sc, dx, dy)) e.preventDefault();
+    }, { passive: false });
     modal.addEventListener('change', (e) => {
       if (e.target && e.target.id === 'ns-file') pickFile(e.target.files && e.target.files[0]);
       if (e.target && e.target.matches('[data-ns="plan-topic"]')) {
@@ -290,10 +429,83 @@
       const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (f) pickFile(f);
     });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.dataset.open === '1') close(); });
+    document.addEventListener('keydown', (e) => {
+      if (!modal || modal.dataset.open !== '1') return;
+      if (e.key === 'Escape') {
+        if (mindmapEditing) { e.preventDefault(); mindmapEditing = false; rerenderActiveMindmap(); return; }
+        close();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusables = Array.from(modal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+          .filter((el) => el.offsetParent !== null || el === document.activeElement);
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', (e) => {
+        if (pendingBackOps > 0) {
+          pendingBackOps--;
+          if (pendingBackOps === 0) {
+            if (needsPushAfterBack && modal && modal.dataset.open === '1') {
+              needsPushAfterBack = false;
+              pushStudyHistoryState();
+            } else {
+              restoreHistoryScrollMode();
+            }
+          }
+          return;
+        }
+        if (modal && modal.dataset.open === '1' && (!e.state || !e.state.nexosStudyOpen)) {
+          pushedHistory = false;
+          needsPushAfterBack = false;
+          closingFromPop = true;
+          close();
+          closingFromPop = false;
+          setTimeout(restoreHistoryScrollMode, 0);
+        }
+      });
+      window.addEventListener('pagehide', () => {
+        restoreHistoryScrollMode();
+        unlockBackgroundScroll();
+      });
+    }
   }
 
-  function close() { if (!modal) return; modal.dataset.open = '0'; }
+  function close() {
+    if (!modal || modal.dataset.open !== '1') { unlockBackgroundScroll(); return; }
+    openSeq++;
+    modal.dataset.open = '0';
+    needsPushAfterBack = false;
+    unlockBackgroundScroll();
+    const prevFocus = lastTriggerEl;
+    lastTriggerEl = null;
+    if (prevFocus && prevFocus.isConnected && typeof prevFocus.focus === 'function') {
+      try { prevFocus.focus({ preventScroll: true }); } catch (_) { try { prevFocus.focus(); } catch (__) {} }
+    }
+    if (pushedHistory && !closingFromPop && typeof window !== 'undefined' && window.history) {
+      pushedHistory = false;
+      try {
+        if (window.history.state && window.history.state.nexosStudyOpen) {
+          pendingBackOps++;
+          if (scrollRestTimer) clearTimeout(scrollRestTimer);
+          scrollRestTimer = setTimeout(() => { pendingBackOps = 0; needsPushAfterBack = false; restoreHistoryScrollMode(); }, 350);
+          window.history.back();
+        } else {
+          restoreHistoryScrollMode();
+        }
+      } catch (_) { restoreHistoryScrollMode(); }
+    } else {
+      pushedHistory = false;
+      if (!closingFromPop && pendingBackOps === 0) setTimeout(restoreHistoryScrollMode, 0);
+    }
+  }
 
   /* Calls /api/study. Errors carry the server's message and code. */
   async function call(method, path, body) {
@@ -434,7 +646,7 @@
     }
     if (!mindmapSelectedId) mindmapSelectedId = mindmapCurrent.root.id;
     $('ns-root').innerHTML =
-      '<div class="ns-starters" style="padding:4px 16px 6px">' +
+      '<div class="ns-starters" style="padding-top:10px;padding-bottom:6px">' +
         '<button type="button" data-ns="guest-mode" data-g="tutor"' + (guestPreviewTab === 'tutor' ? ' style="border-color:var(--k-accent);color:var(--k-accent);font-weight:600"' : '') + '>Tutor sample</button>' +
         '<button type="button" data-ns="guest-mode" data-g="mindmap"' + (guestPreviewTab === 'mindmap' ? ' style="border-color:var(--k-accent);color:var(--k-accent);font-weight:600"' : '') + '>Mindmap preview</button>' +
       '</div>' +
@@ -517,6 +729,7 @@
   }
 
   async function loadRevision() {
+    const seq = openSeq;
     const box = modal && modal.querySelector('#ns-revision');
     if (!box || revisionBusy) return;
     revisionBusy = true;
@@ -528,11 +741,13 @@
         fetchPushSummary(),
         call('GET', '/calendar/status').catch(() => ({ connected: false, configured: false })),
       ]);
+      if (seq !== openSeq) return;
       revisionData = { reviews: reviews.items || [], due: reviews.due || 0, nextDueAt: reviews.nextDueAt || null, plans: plans.plans || [], pushInfo, calendar: calendar || { connected: false, configured: false } };
       renderRevision();
     } catch (e) {
+      if (seq !== openSeq) return;
       box.innerHTML = '<div class="ns-empty"><strong>Could not load revision</strong>' + esc(e.message || 'Try again.') + '<br><button class="ns-btn" data-ns="revision-refresh">Retry</button></div>';
-    } finally { revisionBusy = false; }
+    } finally { if (seq === openSeq) revisionBusy = false; }
   }
 
   function renderStudyHabitCard(plans) {
@@ -674,6 +889,7 @@
 
   async function createPlan() {
     if (busy) return;
+    const seq = openSeq;
     const title = ($('ns-plan-title').value || '').trim();
     const subject = ($('ns-plan-subject').value || '').trim();
     const examDate = $('ns-plan-date').value;
@@ -683,16 +899,17 @@
       setStatus('Enter an exam title, future date and at least one topic.');
       return;
     }
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+    const tz = localTimeZone();
     busy = true;
     try {
       await call('POST', '/plans', { title, subject, examDate, dailyMinutes, topics, studyTime: planStartTime, timeZone: tz });
+      if (seq !== openSeq) return;
       $('ns-plan-title').value = '';
       $('ns-plan-topics').value = '';
       setStatus('Exam plan created.');
       await loadRevision();
-    } catch (e) { setStatus(e.message || 'Could not create plan.'); }
-    finally { busy = false; }
+    } catch (e) { if (seq === openSeq) setStatus(e.message || 'Could not create plan.'); }
+    finally { if (seq === openSeq) busy = false; }
   }
 
   function renderDocs() {
@@ -994,8 +1211,10 @@
   }
 
   async function loadMindmapsList() {
+    const seq = openSeq;
     try {
       const data = await call('GET', '/mindmaps');
+      if (seq !== openSeq) return;
       mindmapList = Array.isArray(data.mindmaps) ? data.mindmaps : [];
       if (tab === 'mindmap') renderMindmap();
     } catch (_) {}
@@ -1004,6 +1223,7 @@
   async function generateMindmap() {
     if (busy || mindmapBusy) return;
     if (!docs.length) { setStatus('Add study material first.'); setTab('library'); return; }
+    const seq = openSeq;
     const prev = mindmapCurrent;
     busy = true; mindmapBusy = true;
     renderMindmap();
@@ -1013,6 +1233,7 @@
         docId: mindmapOpts.docId || undefined,
         topic: String(mindmapOpts.topic || '').trim() || undefined,
       });
+      if (seq !== openSeq) return;
       const draft = out.draft;
       mindmapCurrent = {
         savedId: null,
@@ -1028,16 +1249,17 @@
       mindmapEditing = false;
       setStatus('Mindmap generated (' + countMindmapNodes(draft.root) + ' nodes). Click Save mindmap to keep it.');
     } catch (e) {
+      if (seq !== openSeq) return;
       mindmapCurrent = prev; // Preserve existing map on error!
       setStatus((e && e.message) || 'Could not generate a mindmap right now.');
     } finally {
-      busy = false; mindmapBusy = false;
-      renderMindmap();
+      if (seq === openSeq) { busy = false; mindmapBusy = false; renderMindmap(); }
     }
   }
 
   async function saveCurrentMindmap(asNew) {
     if (busy || !mindmapCurrent || !mindmapCurrent.root) return;
+    const seq = openSeq;
     busy = true;
     setStatus('Saving mindmap.', true);
     try {
@@ -1051,27 +1273,30 @@
       const out = (mindmapCurrent.savedId && !asNew)
         ? await call('PUT', '/mindmaps/' + encodeURIComponent(mindmapCurrent.savedId), payload)
         : await call('POST', '/mindmaps', payload);
+      if (seq !== openSeq) return;
       const saved = out.mindmap;
       mindmapCurrent.savedId = saved.id;
       mindmapCurrent.title = saved.title;
       mindmapCurrent.root = saved.root;
       mindmapDirty = false;
       await loadMindmapsList();
+      if (seq !== openSeq) return;
       setStatus('Mindmap saved.');
     } catch (e) {
-      setStatus((e && e.message) || 'Could not save mindmap.');
+      if (seq === openSeq) setStatus((e && e.message) || 'Could not save mindmap.');
     } finally {
-      busy = false;
-      renderMindmap();
+      if (seq === openSeq) { busy = false; renderMindmap(); }
     }
   }
 
   async function openSavedMindmap(id) {
     if (busy || !id) return;
+    const seq = openSeq;
     busy = true;
     setStatus('Opening saved mindmap.', true);
     try {
       const out = await call('GET', '/mindmaps/' + encodeURIComponent(id));
+      if (seq !== openSeq) return;
       const m = out.mindmap;
       mindmapCurrent = {
         savedId: m.id,
@@ -1087,29 +1312,30 @@
       mindmapEditing = false;
       setStatus('');
     } catch (e) {
-      setStatus((e && e.message) || 'Could not open saved mindmap.');
+      if (seq === openSeq) setStatus((e && e.message) || 'Could not open saved mindmap.');
     } finally {
-      busy = false;
-      renderMindmap();
+      if (seq === openSeq) { busy = false; renderMindmap(); }
     }
   }
 
   async function deleteSavedMindmap() {
     if (busy || !mindmapCurrent || !mindmapCurrent.savedId) return;
     if (!window.confirm('Delete "' + mindmapCurrent.title + '"? This cannot be undone.')) return;
+    const seq = openSeq;
     busy = true;
     try {
       await call('DELETE', '/mindmaps/' + encodeURIComponent(mindmapCurrent.savedId));
+      if (seq !== openSeq) return;
       mindmapCurrent = null;
       mindmapSelectedId = null;
       mindmapDirty = false;
       await loadMindmapsList();
+      if (seq !== openSeq) return;
       setStatus('Deleted mindmap.');
     } catch (e) {
-      setStatus((e && e.message) || 'Could not delete mindmap.');
+      if (seq === openSeq) setStatus((e && e.message) || 'Could not delete mindmap.');
     } finally {
-      busy = false;
-      renderMindmap();
+      if (seq === openSeq) { busy = false; renderMindmap(); }
     }
   }
 
@@ -1219,7 +1445,9 @@
   };
 
   async function refresh() {
+    const seq = openSeq;
     const data = await call('GET', '/docs');
+    if (seq !== openSeq) return;
     docs = Array.isArray(data.docs) ? data.docs : [];
     usage = data.usage || null;
     renderDocs();
@@ -1236,6 +1464,7 @@
 
   async function upload() {
     if (busy) return;
+    const seq = openSeq;
     const file = pending;
     const problem = checkFile(file);
     if (problem) { setStatus(problem); return; }
@@ -1244,18 +1473,20 @@
     setStatus('Reading "' + file.name + '". This can take a few seconds.', true);
     try {
       const data = await readBase64(file);
+      if (seq !== openSeq) return;
       const out = await call('POST', '/docs', { name: file.name, data, title: $('ns-title-in').value, subject: $('ns-subject').value });
+      if (seq !== openSeq) return;
       $('ns-file').value = ''; pickFile(null);
       $('ns-title-in').value = ''; $('ns-subject').value = '';
       busy = false;
       await refresh();
+      if (seq !== openSeq) return;
       setStatus('Added "' + out.doc.title + '" (' + out.doc.chunkCount + ' sections). Switching to the tutor.');
-      setTimeout(() => { if (modal.dataset.open === '1') { setTab('tutor'); setStatus(''); $('ns-question').focus(); } }, 900);
+      setTimeout(() => { if (seq === openSeq && modal.dataset.open === '1') { setTab('tutor'); setStatus(''); $('ns-question').focus(); } }, 900);
     } catch (e) {
-      setStatus((e && e.message) || 'Upload failed.');
+      if (seq === openSeq) setStatus((e && e.message) || 'Upload failed.');
     } finally {
-      busy = false;
-      renderDocs();
+      if (seq === openSeq) { busy = false; renderDocs(); }
     }
   }
 
@@ -1263,19 +1494,23 @@
     if (busy || !id) return;
     const doc = docs.find((d) => d.id === id);
     if (!window.confirm('Delete "' + (doc ? doc.title : 'this document') + '" and its sections? This cannot be undone.')) return;
+    const seq = openSeq;
     busy = true;
     try {
       await call('DELETE', '/docs/' + encodeURIComponent(id));
+      if (seq !== openSeq) return;
       busy = false;
       await refresh();
+      if (seq !== openSeq) return;
       setStatus('Deleted.');
     } catch (e) {
-      setStatus((e && e.message) || 'Could not delete.');
-    } finally { busy = false; }
+      if (seq === openSeq) setStatus((e && e.message) || 'Could not delete.');
+    } finally { if (seq === openSeq) busy = false; }
   }
 
   async function ask() {
     if (busy) return;
+    const seq = openSeq;
     const box = $('ns-question');
     const question = box.value.replace(/\s+/g, ' ').trim();
     if (question.length < 2) { setStatus('Type a question first.'); return; }
@@ -1289,51 +1524,76 @@
     renderChat();
     try {
       const out = await call('POST', '/ask', { question, docId: $('ns-scope').value || undefined, history: prior });
+      if (seq !== openSeq) return;
       history.push({ role: 'assistant', content: out.answer, sources: out.sources || [], found: !!out.found });
     } catch (e) {
+      if (seq !== openSeq) return;
       history.pop();
       box.value = question;
       setStatus((e && e.message) || 'NexAI could not answer right now.');
     } finally {
-      busy = false; thinking = false;
-      $('ns-ask').disabled = false;
-      renderChat();
+      if (seq === openSeq) {
+        busy = false; thinking = false;
+        $('ns-ask').disabled = false;
+        renderChat();
+      }
     }
   }
 
   function open(a, opts) {
+    const alreadyOpen = !!(modal && modal.dataset.open === '1');
+    if (!alreadyOpen && typeof document !== 'undefined') lastTriggerEl = document.activeElement;
     adapter = a; build();
+    openSeq++;
+    const seq = openSeq;
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
-    quiz = null; deck = null; building = null; revisionData = null;
+    quiz = null; deck = null; building = null; revisionData = null; revisionBusy = false;
     mindmapList = []; mindmapCurrent = null; mindmapSelectedId = null; mindmapDirty = false; mindmapEditing = false; mindmapBusy = false; guestPreviewTab = 'tutor';
     mindmapOpts = { docId: '', topic: '' }; mindmapView = { scale: 1, tx: 20, ty: 20 };
     qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
+    lockBackgroundScroll();
     modal.dataset.open = '1';
-    if (a.isGuest()) { renderGuest(); return; }
-    const requestedTab = opts && TABS.includes(opts.tab) ? opts.tab : 'tutor';
-    tab = requestedTab;
-    renderMain();
     const calParam = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('calendar') : '';
     const calNotice = calParam === 'connected'
       ? 'Google Calendar connected! You can now sync revision time-blocks.'
       : calParam === 'cancelled'
         ? 'Google Calendar connection cancelled.'
         : '';
-    if (typeof history !== 'undefined' && typeof location !== 'undefined' && (calParam || new URLSearchParams(location.search).get('study'))) {
+    if (typeof window !== 'undefined' && window.history && typeof location !== 'undefined' && (calParam || new URLSearchParams(location.search).get('study'))) {
       try {
         const cleanUrl = new URL(location.href);
         cleanUrl.searchParams.delete('study');
         cleanUrl.searchParams.delete('calendar');
-        history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        window.history.replaceState(window.history.state, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
       } catch (_) {}
     }
+    if (!alreadyOpen) {
+      if (pendingBackOps > 0) needsPushAfterBack = true;
+      else pushStudyHistoryState();
+    }
+    const focusRoot = () => {
+      const card = modal && modal.querySelector('.ns-card');
+      if (card) {
+        try { card.focus({ preventScroll: true }); } catch (_) { try { card.focus(); } catch (__) {} }
+      }
+    };
+    if (a.isGuest()) { renderGuest(); focusRoot(); return; }
+    const requestedTab = opts && TABS.includes(opts.tab) ? opts.tab : 'tutor';
+    tab = requestedTab;
+    renderMain();
     setStatus(calNotice || 'Loading your library.', !calNotice);
-    refresh().then(() => { setStatus(calNotice); if (!docs.length && requestedTab === 'tutor') setTab('library'); else if (tab === 'tutor') renderChat(); })
-      .catch((e) => setStatus((e && e.message) || 'Could not load your library.'));
-    const card = modal.querySelector('.ns-card'); if (card) card.focus();
+    refresh().then(() => {
+      if (seq !== openSeq) return;
+      setStatus(calNotice);
+      if (!docs.length && requestedTab === 'tutor') setTab('library');
+      else if (tab === 'tutor') renderChat();
+    }).catch((e) => {
+      if (seq === openSeq) setStatus((e && e.message) || 'Could not load your library.');
+    });
+    focusRoot();
   }
 
-  const api = { open, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, SAMPLE_MINDMAP, MAX_BYTES, layoutMindmapTree, countMindmapNodes };
+  const api = { open, close, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, SAMPLE_MINDMAP, MAX_BYTES, layoutMindmapTree, countMindmapNodes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NexStudy = api;
 })(typeof window !== 'undefined' ? window : globalThis);

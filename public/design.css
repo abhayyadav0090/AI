@@ -407,7 +407,7 @@ html[data-design] .menu-pop { position: fixed; z-index: 400; top: calc(var(--top
 html[data-design] .menu-pop[hidden] { display: none; }
 html[data-design] .menu-pop button { display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: 14px; text-align: left; }
 html[data-design] .menu-pop button:hover { background: var(--hover); } html[data-design] .menu-pop .ic { color: var(--text-2); }
-html[data-design] .toasts { position: fixed; z-index: 2000; left: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+html[data-design] .toasts { position: fixed; z-index: 2500; left: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
 html[data-design] .toast { pointer-events: auto; display: flex; align-items: center; gap: 16px; min-height: 48px; padding: 8px 8px 8px 16px; border-radius: 8px; background: var(--toast-bg); color: var(--toast-text); box-shadow: var(--shadow-3); font-size: 14px; animation: toastIn .18s ease-out; }
 html[data-design] .toast.leaving { opacity: 0; transform: translateY(6px); transition: .15s; }
 html[data-design] .toast-text { flex: 1; }
