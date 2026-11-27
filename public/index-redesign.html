@@ -15,7 +15,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=4.6.0" defer></script>
+<script src="/push-client.js?v=4.7.0" defer></script>
 
 <style>
 /* ==========================================================================
@@ -100,16 +100,16 @@
 
   --status-todo: #8e8e93;
   --status-progress: #007AFF;
-  --status-review: #FF9500;
-  --status-done: #34C759;
+  --status-review: #C96A00;
+  --status-done: #187A35;
 
   --priority-low: #248A3D;
   --priority-medium: #B25000;
   --priority-high: #D70015;
 
   --text-main: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-muted: #8e8e93;
+  --text-secondary: #525257;
+  --text-muted: #636366;
   --text-on-accent: #ffffff;
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -626,26 +626,34 @@ body {
 
 /* Priority Task Item in Dashboard */
 .dash-task-item {
-  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
   background: var(--bg-surface); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm); margin-bottom: 8px; transition: all 0.15s ease;
 }
 .dash-task-item:hover {
   background: var(--bg-card-hover); border-color: var(--border-medium);
 }
+.dash-task-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: none; border: none; padding: 4px 0; text-align: left; color: inherit; cursor: pointer; font: inherit;
+}
+.dash-task-main .dash-task-name { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-check-circle {
-  width: 18px; height: 18px; border-radius: 50%;
-  border: 2px solid var(--border-medium); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--border-medium); background: transparent; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
   font-size: 11px; color: transparent; transition: all 0.15s ease; flex-shrink: 0;
 }
+.task-check-circle:hover { border-color: var(--accent-primary); background: rgba(128, 128, 128, 0.12); }
 .dash-task-item.done .task-check-circle {
-  background: var(--status-done); border-color: var(--status-done); color: #fff;
+  background: var(--status-done); border-color: var(--status-done); color: #052e16; font-weight: 700;
 }
+[data-theme="apple-light"] .dash-task-item.done .task-check-circle { color: #ffffff; }
 .dash-task-item.done .dash-task-name {
   text-decoration: line-through; color: var(--text-muted);
 }
 .dash-task-name { font-size: 13.5px; font-weight: 500; flex: 1; }
+.dash-habit-name.done { text-decoration: line-through; color: var(--text-muted); }
 .priority-badge {
   font-size: 10.5px; font-weight: 600; padding: 2px 8px;
   border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.04em;
@@ -808,10 +816,31 @@ body {
 
 .task-card-actions { display: flex; align-items: center; gap: 4px; }
 .task-action-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; min-height: 28px;
   background: transparent; border: none; color: var(--text-muted);
-  font-size: 13px; cursor: pointer; padding: 2px 4px; border-radius: 4px;
+  font-size: 13px; cursor: pointer; padding: 3px 6px; border-radius: 6px;
 }
 .task-action-icon-btn:hover { color: var(--text-main); background: var(--border-subtle); }
+.task-action-icon-btn:disabled { opacity: 0.28; cursor: default; }
+.analytics-offline-box {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+  height: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-medium); background: var(--bg-surface);
+}
+.analytics-offline-bars { display: flex; align-items: flex-end; gap: 6px; flex: 1; min-height: 92px; padding-top: 8px; }
+.analytics-offline-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.analytics-offline-bar { width: 100%; max-width: 28px; min-height: 3px; border-radius: 4px 4px 0 0; background: var(--accent-primary); opacity: 0.85; }
+.analytics-offline-lbl { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.analytics-offline-note { font-size: 11px; color: var(--text-muted); text-align: center; }
+.slot-task-pick-list { display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto; margin-bottom: 14px; }
+.slot-task-pick-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 9px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main);
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
+.slot-task-pick-btn:hover { border-color: var(--accent-primary); background: var(--bg-card-hover); }
 
 /* Inline Add Task Input */
 .inline-add-task-wrap {
@@ -1024,8 +1053,9 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
 }
 .habit-day-check-btn.checked {
   background: var(--status-done); border-color: var(--status-done);
-  color: #ffffff; box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+  color: #052e16; font-weight: 700; box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
 }
+[data-theme="apple-light"] .habit-day-check-btn.checked { color: #ffffff; }
 
 /* 12-Week Heatmap */
 .heatmap-container {
@@ -1323,6 +1353,16 @@ body.zen-mode .zen-exit-btn { display: inline-flex; }
   html.view-ai-active #pane-ai .ai-view-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   html.view-ai-active #pane-ai .ai-chat-main-container { flex: 1; height: auto; min-height: 0; max-height: none; }
 }
+html.nexos-study-active, html.nexos-study-active body { height: 100vh; height: 100dvh; max-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+html.nexos-study-active #nexus-app { height: 100%; min-height: 0; overflow: hidden; }
+html.nexos-study-active .main-wrapper { flex: 1 1 0; min-width: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+html.nexos-study-active .view-content-wrapper { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding-top: 20px; padding-bottom: 20px; }
+html.nexos-study-active #pane-study.active { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; animation: none; }
+@media (max-width: 768px) {
+  html.nexos-study-active .view-content-wrapper {
+    padding: 12px 14px calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
 .ai-mobile-only, .ai-sheet-head, .ai-sheet-backdrop { display: none; }
 @media (max-width: 768px) {
   #pane-ai .view-headline, #pane-ai .view-subheadline, .ai-btn-long { display: none; }
@@ -1536,10 +1576,8 @@ html, body {
   .copilot-sparkle-badge { display: none !important; }
   .view-breadcrumb {
     font-size: 15px !important;
-    max-width: 130px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .mobile-bottom-nav {
@@ -1575,16 +1613,40 @@ html, body {
   }
 }
 
-@media (max-width: 440px) {
+@media (max-width: 520px) {
+  .topbar {
+    padding: 0 10px !important;
+    gap: 6px !important;
+  }
+  .topbar-left {
+    gap: 8px !important;
+  }
+  .mobile-menu-toggle {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
   .topbar-compact-theme {
     max-width: 72px !important;
   }
   .view-breadcrumb {
-    max-width: 100px;
+    font-size: 13px !important;
+    gap: 6px !important;
+    max-width: 100%;
+  }
+  .topbar-signin {
+    padding: 5px 10px !important;
+    font-size: 11.5px !important;
   }
   .topbar-right {
     gap: 5px !important;
   }
+}
+@media (max-width: 768px), (pointer: coarse) {
+  .task-action-icon-btn, .dash-task-focus-btn { min-width: 36px; min-height: 36px; }
+  .task-check-circle { width: 26px; height: 26px; min-width: 26px; min-height: 26px; }
+  .filter-btn, .quick-action-chip, .prompt-chip-btn { min-height: 36px !important; display: inline-flex; align-items: center; justify-content: center; padding-top: 6px !important; padding-bottom: 6px !important; }
+  .topbar-signin, .omni-search-trigger, .topbar-icon-btn { min-height: 36px !important; }
 }
 
 /* Mobile Bottom Navigation Bar */
@@ -1666,7 +1728,16 @@ html, body {
   }
   .sidebar {
     z-index: 1600 !important;
+    visibility: hidden;
+    pointer-events: none;
+    box-shadow: none;
+    transition: transform 0.25s ease, visibility 0s linear 0.25s;
+  }
+  .sidebar.open {
+    visibility: visible;
+    pointer-events: auto;
     box-shadow: var(--shadow-lg);
+    transition: transform 0.25s ease, visibility 0s;
   }
 }
 
@@ -1808,7 +1879,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
 }
 .prefs-popover .nexos-experience-switch { display: inline-flex !important; }
 /* In preview mode the Sign in link already leads to Classic, so the switch gives way on small phones */
-@media (max-width: 480px) { .topbar-right:has(#enterprise-signin-btn:not([hidden])) .nexos-experience-switch { display: none !important; } }
+@media (max-width: 520px) { .topbar-right .nexos-experience-switch { display: none !important; } }
 @media (max-width: 340px) { #topbar-view-title { display: none; } .topbar-right .nexos-experience-switch a, .topbar-right .nexos-experience-switch span { padding: 5px 7px; font-size: 10px; } }
 /* Seven bottom-bar items must all fit, with their names, on a 320 px screen */
 .mob-nav-item { min-width: 0; padding: 0 1px; }
@@ -1864,7 +1935,7 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
     } catch (e) {}
   })();
 </script>
-<link rel="manifest" href="/manifest.json?v=4.6.0">
+<link rel="manifest" href="/manifest.json?v=4.7.0">
 <link rel="apple-touch-icon" href="/nexos-icon-192.png">
 </head>
 <body>
@@ -2073,17 +2144,17 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Active Tasks</span><span class="kpi-icon">▦</span></div>
             <div class="kpi-value" id="kpi-tasks-val">0</div>
-            <div class="kpi-footer"><span class="kpi-trend-positive">Open sprint tasks</span></div>
+            <div class="kpi-footer"><span class="kpi-trend-positive" id="kpi-tasks-trend">Open sprint tasks</span></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Focus Time</span><span class="kpi-icon">◎</span></div>
             <div class="kpi-value" id="kpi-focus-val">0m</div>
-            <div class="kpi-footer"><span class="kpi-trend-positive">Deep work today</span></div>
+            <div class="kpi-footer"><span class="kpi-trend-positive" id="kpi-focus-trend">Deep work today</span></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Habits Today</span><span class="kpi-icon">◈</span></div>
             <div class="kpi-value" id="kpi-habits-val">0%</div>
-            <div class="kpi-footer"><span class="kpi-trend-positive">Done today</span></div>
+            <div class="kpi-footer"><span class="kpi-trend-positive" id="kpi-habits-trend">Done today</span></div>
           </div>
           <div class="kpi-card">
             <div class="kpi-header"><span class="kpi-title">Smart Notes</span><span class="kpi-icon">◧</span></div>
@@ -2187,9 +2258,10 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <button class="filter-btn" onclick="filterKanbanPriority('high', this)">High Priority</button>
             <button class="filter-btn" onclick="filterKanbanPriority('medium', this)">Medium Priority</button>
             <button class="filter-btn" onclick="filterKanbanPriority('low', this)">Low Priority</button>
+            <button class="filter-btn" onclick="filterKanbanPriority('overdue', this)">Overdue</button>
             <button class="filter-btn" onclick="sortKanbanCards('due')">Sort by Due Date</button>
           </div>
-          <input type="text" placeholder="Search sprint tasks or #tags…" class="inline-add-input" style="max-width:240px" oninput="filterKanbanSearch(this.value)">
+          <input type="search" id="kanban-search-input" placeholder="Search sprint tasks or #tags…" aria-label="Search sprint tasks or tags" class="inline-add-input" style="max-width:240px" oninput="filterKanbanSearch(this.value)">
         </div>
 
         <!-- 4-Column Board -->
@@ -2359,7 +2431,11 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
               </label>
               <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px">
                 <span>Short Break (min):</span>
-                <input type="number" id="cfg-short-min" value="5" min="1" max="30" style="width:60px;padding:4px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-card);color:inherit;text-align:center" onchange="updatePomoDurations()">
+                <input type="number" id="cfg-short-min" value="5" min="1" max="60" style="width:60px;padding:4px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-card);color:inherit;text-align:center" onchange="updatePomoDurations()">
+              </label>
+              <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px">
+                <span>Long Break (min):</span>
+                <input type="number" id="cfg-long-min" value="15" min="1" max="90" style="width:60px;padding:4px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-card);color:inherit;text-align:center" onchange="updatePomoDurations()">
               </label>
               <label style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
                 <span>Auto-start breaks:</span>
@@ -2472,6 +2548,8 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
             <button class="btn-secondary" onclick="saveWeeklyReviewToNotes()">◧ Save Review to Notes</button>
           </div>
         </div>
+
+        <div id="analytics-insights-strip" class="habit-summary" style="margin-bottom:20px"></div>
 
         <div class="analytics-dashboard-grid">
           <!-- Focus Hours Chart -->
@@ -2601,6 +2679,9 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
           </div>
         </div>
       </section>
+
+      <!-- VIEW: STUDY STUDIO -->
+      <section class="view-pane" id="pane-study" aria-label="Study Studio"></section>
 
     </div>
   </div>
@@ -2758,6 +2839,70 @@ textarea:focus-visible, input[type="text"]:focus-visible, input[type="search"]:f
   </div>
 </div>
 
+<!-- TIMEBLOCK SLOT SCHEDULE MODAL -->
+<div class="modal-overlay-backdrop" id="modal-slot-schedule" onclick="handleBackdropClick(event, 'modal-slot-schedule')">
+  <div class="modal-dialog-card" style="max-width:480px">
+    <div class="modal-dialog-header">
+      <h3 class="modal-dialog-title" id="slot-schedule-heading">Schedule Timeblock</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-slot-schedule')">✕</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px">Pick an existing open task for this hour or create a new task block:</p>
+    <div id="slot-existing-tasks" class="slot-task-pick-list"></div>
+    <div style="border-top:1px solid var(--border-subtle);padding-top:12px;display:flex;flex-direction:column;gap:10px">
+      <label>
+        <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Or New Task Title</span>
+        <input type="text" id="slot-new-task-title" class="inline-add-input" placeholder="e.g., Deep work sprint on chapter 4…" style="width:100%;margin-top:4px" onkeydown="if(event.key==='Enter'){event.preventDefault();submitSlotNewTask();}">
+      </label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <select id="slot-new-task-priority" class="inline-add-input" aria-label="Priority" style="flex:1">
+          <option value="low">Low Priority</option>
+          <option value="medium" selected>Medium Priority</option>
+          <option value="high">High Priority</option>
+        </select>
+        <button type="button" class="btn-primary" onclick="submitSlotNewTask()">Schedule New Task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW HABIT MODAL -->
+<div class="modal-overlay-backdrop" id="modal-new-habit" onclick="handleBackdropClick(event, 'modal-new-habit')">
+  <div class="modal-dialog-card" style="max-width:440px">
+    <div class="modal-dialog-header">
+      <h3 class="modal-dialog-title">◈ Track New Habit</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-new-habit')">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <label>
+        <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Habit Name</span>
+        <input type="text" id="new-habit-modal-name" class="inline-add-input" maxlength="80" placeholder="e.g., Read 20 pages, 30m Workout, Meditation" style="width:100%;margin-top:4px" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNewHabitModal();}">
+      </label>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+        <label>
+          <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Weekly Goal</span>
+          <select id="new-habit-modal-goal" class="inline-add-input" style="width:100%;margin-top:4px">
+            <option value="7">Every day (7 days/wk)</option>
+            <option value="6">6 days a week</option>
+            <option value="5">5 days a week</option>
+            <option value="4">4 days a week</option>
+            <option value="3">3 days a week</option>
+            <option value="2">2 days a week</option>
+            <option value="1">1 day a week</option>
+          </select>
+        </label>
+        <label>
+          <span style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block">Colour</span>
+          <input type="color" id="new-habit-modal-color" value="#0A84FF" aria-label="Habit colour" style="width:44px;height:36px;margin-top:4px;padding:2px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;cursor:pointer">
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-new-habit')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="submitNewHabitModal()">Create Habit</button>
+    </div>
+  </div>
+</div>
+
 <!-- ACTION MODE MODAL -->
 <div class="modal-overlay-backdrop" id="modal-action-mode" onclick="handleBackdropClick(event, 'modal-action-mode')">
   <div class="modal-dialog-card" style="width:min(640px, 94vw)">
@@ -2867,6 +3012,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   await loadWorkspaceState();
   syncGoalTimerInputs();
+  if (typeof restoreEnterprisePomodoroSession === 'function') restoreEnterprisePomodoroSession();
   initClock();
   const needsRefresh = !cachePainted || cachedMode !== enterpriseSession.mode || cachedSnapshot !== stableKey(state);
   if (needsRefresh) {
@@ -2926,7 +3072,11 @@ function initClock() {
     if (dateKey !== lastDate) {
       const dateEl = document.getElementById('dash-date-string');
       if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      const rolledOver = !!lastDate;
       lastDate = dateKey;
+      if (rolledOver && typeof renderAllViews === 'function') {
+        try { renderAllViews(); if (typeof renderCalendarTimeline === 'function') renderCalendarTimeline(); } catch (_) {}
+      }
     }
   };
   update();
@@ -2949,8 +3099,41 @@ function syncTopbarHeight() {
 }
 window.addEventListener('resize', syncTopbarHeight);
 window.addEventListener('orientationchange', syncTopbarHeight);
+let prevPaneBeforeStudy = 'dashboard';
+function activateEnterpriseStudyPane() {
+  const activeId = document.querySelector('.view-pane.active')?.id || '';
+  const curPane = activeId.startsWith('pane-') ? activeId.slice(5) : '';
+  if (curPane && curPane !== 'study') prevPaneBeforeStudy = curPane;
+  closeAISheet();
+  closePrefsPopover();
+  closeSidebarDrawer();
+  document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-study'));
+  document.documentElement.classList.remove('view-ai-active');
+  document.documentElement.classList.add('nexos-study-active');
+  syncTopbarHeight();
+  document.querySelectorAll('.sidebar-nav .nav-btn').forEach(b => {
+    const on = b.id === 'nav-study';
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('.mob-nav-item').forEach(b => {
+    const on = b.dataset.view === 'more';
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  currentViewTitle = 'Study Studio';
+  const titleEl = document.getElementById('topbar-view-title');
+  if (titleEl) titleEl.textContent = currentViewTitle;
+  document.title = 'Study Studio · NexOS Enterprise';
+  enterpriseAnalyticsRenderToken++;
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
 function switchNexusView(name) {
-  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close();
+  if (name === 'study') { openStudyStudio(); return; }
+  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close({ fromNav: true });
+  document.documentElement.classList.remove('nexos-study-active');
   if (!Object.prototype.hasOwnProperty.call(NEXUS_VIEWS, name)) name = 'dashboard'; // never leave the workspace blank
   const previousPane = document.querySelector('.view-pane.active')?.id;
   playTactileClick();
@@ -3089,16 +3272,32 @@ function playHarmonicChime() {
 function updateKPICounters() {
   const allTasks = Array.isArray(state.tasks) ? state.tasks : [];
   const allNotes = Array.isArray(state.notes) ? state.notes : [];
-  const activeTasks = allTasks.filter(t => t && t.stage !== 'done').length;
+  const openTasks = allTasks.filter(t => t && t.stage !== 'done');
+  const activeTasks = openTasks.length;
+  const d0 = today();
+  const overdueCount = openTasks.filter(t => t.due && t.due < d0).length;
+  const dueTodayCount = openTasks.filter(t => t.due === d0).length;
+  const todayFocusMins = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : [])
+    .filter(l => l && l.date === d0)
+    .reduce((s, l) => s + (Number(l.minutes) || 0), 0);
   const focusMins = (state.pomodoroStats && Number(state.pomodoroStats.totalMins)) || 0;
   const habits = activeHabits();
-  const doneHabits = habits.filter(h => h && h.checks && h.checks[today()]).length;
+  const doneHabits = habits.filter(h => h && h.checks && h.checks[d0]).length;
   const habitPct = habits.length ? Math.round((doneHabits / habits.length) * 100) : 0;
 
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setVal('kpi-tasks-val', activeTasks);
+  const tasksTrendEl = document.getElementById('kpi-tasks-trend');
+  if (tasksTrendEl) {
+    tasksTrendEl.textContent = overdueCount
+      ? `${overdueCount} overdue${dueTodayCount ? ` · ${dueTodayCount} due today` : ''}`
+      : dueTodayCount ? `${dueTodayCount} due today` : 'Open sprint tasks';
+    tasksTrendEl.style.color = overdueCount ? 'var(--priority-high)' : '';
+  }
   setVal('kpi-focus-val', focusMins + 'm');
+  setVal('kpi-focus-trend', todayFocusMins ? `${todayFocusMins}m logged today` : 'Deep work total');
   setVal('kpi-habits-val', habitPct + '%');
+  setVal('kpi-habits-trend', habits.length ? `${doneHabits}/${habits.length} done today` : 'No habits yet');
   setVal('kpi-notes-val', allNotes.length);
 
   setVal('ctx-tasks-badge', activeTasks);
@@ -3118,32 +3317,46 @@ function renderAllViews() {
 }
 
 // ---------------- DASHBOARD ----------------
+function enterpriseOpenTasksSorted() {
+  const t0 = today();
+  const pOrder = { high: 0, medium: 1, low: 2 };
+  const bucket = t => (t.due && t.due < t0) ? 0 : (t.due === t0 ? 1 : 2);
+  return state.tasks.filter(t => t && t.stage !== 'done').sort((a, b) => {
+    const bDiff = bucket(a) - bucket(b);
+    if (bDiff) return bDiff;
+    const p = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+    if (p) return p;
+    if (a.due && b.due && a.due !== b.due) return String(a.due).localeCompare(String(b.due));
+    if (a.due && !b.due) return -1;
+    if (!a.due && b.due) return 1;
+    return (a.created || 0) - (b.created || 0);
+  });
+}
+
 function renderDashboard() {
   renderQuickStartCard();
   applyEnterpriseHomeOrder();
-  // Priorities: sort high-priority and urgent due-date tasks first
+  // Priorities: overdue and due-today tasks surface first, then priority
   const list = document.getElementById('dash-priorities-list');
   if (list) {
-    const pOrder = { high: 0, medium: 1, low: 2 };
-    const tasks = state.tasks.filter(t => t && t.stage !== 'done').sort((a, b) => {
-      const p = (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
-      if (p) return p;
-      if (a.due && b.due && a.due !== b.due) return String(a.due).localeCompare(String(b.due));
-      if (a.due && !b.due) return -1;
-      if (!a.due && b.due) return 1;
-      return (a.created || 0) - (b.created || 0);
-    }).slice(0, 5);
+    const tasks = enterpriseOpenTasksSorted().slice(0, 5);
     if (!tasks.length) {
       list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No active tasks. Add one in Kanban!</div>';
     } else {
       const fm = nexFocusMinutesMap(state);
+      const t0 = today();
       list.innerHTML = tasks.map(t => {
         const pri = ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium';
+        const dueCls = getDueStatus(t.due);
+        const dueTxt = t.due ? (t.due < t0 ? `Overdue · ${t.due}` : t.due === t0 ? 'Today' : t.due) : '';
         return `
         <div class="dash-task-item ${t.stage === 'done' ? 'done' : ''}">
-          <div class="task-check-circle" onclick="toggleTaskDone('${escapeHtml(t.id)}')">✓</div>
-          <span class="dash-task-name">${escapeHtml(t.title)}</span>
-          ${fm[t.id] ? `<span style="font-size:11px;color:var(--text-muted)">\u25F7 ${fm[t.id]}m</span>` : ''}
+          <button type="button" class="task-check-circle" onclick="toggleTaskDone('${escapeHtml(t.id)}')" aria-label="Mark ${escapeHtml(t.title)} as done">✓</button>
+          <button type="button" class="dash-task-main" onclick="openTaskEditorModal('${escapeHtml(t.id)}')" title="Click to edit task details">
+            <span class="dash-task-name">${escapeHtml(t.title)}</span>
+            ${dueTxt ? `<span class="task-due-chip ${dueCls}">${escapeHtml(dueTxt)}</span>` : ''}
+            ${fm[t.id] ? `<span style="font-size:11px;color:var(--text-muted)">\u25F7 ${fm[t.id]}m</span>` : ''}
+          </button>
           <span class="priority-badge ${pri}">${pri}</span>
           <button type="button" class="dash-task-focus-btn" onclick="focusOnTask('${escapeHtml(t.id)}')" title="Start focus on this task" aria-label="Start focus on ${escapeHtml(t.title)}">\u25B6</button>
         </div>
@@ -3152,23 +3365,26 @@ function renderDashboard() {
     }
   }
 
-  // Habits
+  // Habits (streaks computed dynamically from check-ins via NexHabits)
   const habitBox = document.getElementById('dash-habits-container');
   if (habitBox) {
     if (!activeHabits().length) {
       habitBox.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No habits tracked yet.</div>';
     } else {
+      const d0 = today();
       habitBox.innerHTML = activeHabits().slice(0, 4).map(h => {
-        const isDone = h.checks && h.checks[today()];
+        const isDone = !!(h.checks && h.checks[d0]);
+        const st = window.NexHabits ? window.NexHabits.stats(h, d0) : { current: h.streak || 0, mode: 'day' };
+        const unit = st.mode === 'week' ? 'w' : 'd';
         return `
           <div class="dash-habit-row">
-            <span class="dash-habit-name">
+            <span class="dash-habit-name ${isDone ? 'done' : ''}">
               <span class="habit-color-indicator" style="background:${h.color || 'var(--accent-primary)'}"></span>
               ${escapeHtml(h.name)}
             </span>
             <div style="display:flex;align-items:center;gap:10px">
-              <span class="streak-pill">🔥 ${h.streak || 0}d</span>
-              <button class="habit-day-check-btn ${isDone ? 'checked' : ''}" style="width:28px;height:28px;font-size:11px" aria-pressed="${isDone ? 'true' : 'false'}" aria-label="${escapeHtml(h.name)}: done today" onclick="toggleHabitCheck('${h.id}', '${today()}')">✓</button>
+              <span class="streak-pill">🔥 ${st.current}${unit}</span>
+              <button type="button" class="habit-day-check-btn ${isDone ? 'checked' : ''}" style="width:28px;height:28px;font-size:11px" aria-pressed="${isDone ? 'true' : 'false'}" aria-label="${escapeHtml(h.name)}: done today" onclick="toggleHabitCheck('${h.id}', '${d0}')">✓</button>
             </div>
           </div>
         `;
@@ -3235,12 +3451,20 @@ function renderKanban() {
     if (!col) return;
 
     let tasks = state.tasks.filter(t => t.stage === stage);
-    if (kanbanPriorityFilter !== 'all') {
+    if (kanbanPriorityFilter === 'overdue') {
+      const td = today();
+      tasks = tasks.filter(t => t.stage !== 'done' && t.due && t.due < td);
+    } else if (kanbanPriorityFilter !== 'all') {
       tasks = tasks.filter(t => t.priority === kanbanPriorityFilter);
     }
     if (kanbanSearchFilter.trim()) {
-      const q = kanbanSearchFilter.toLowerCase();
-      tasks = tasks.filter(t => t.title.toLowerCase().includes(q) || (t.desc || '').toLowerCase().includes(q));
+      const q = kanbanSearchFilter.trim().toLowerCase();
+      const tagQ = q.startsWith('#') ? q.slice(1) : q;
+      tasks = tasks.filter(t =>
+        (t.title || '').toLowerCase().includes(q)
+        || (t.desc || '').toLowerCase().includes(q)
+        || (tagQ && Array.isArray(t.tags) && t.tags.some(tg => String(tg || '').toLowerCase().includes(tagQ) || ('#' + String(tg || '').toLowerCase()).includes(q)))
+      );
     }
 
     if (countEl) countEl.textContent = tasks.length;
@@ -3507,17 +3731,19 @@ function renderCalendarTimeline() {
       content.innerHTML = slotTasks.map(task => {
         const isPinned = Number.isInteger(Number(task.scheduledHour));
         const pri = ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium';
+        const dueCls = getDueStatus(task.due);
         return `
         <div class="calendar-event-pill" onclick="event.stopPropagation(); openTaskEditorModal('${escapeHtml(task.id)}')" style="cursor:pointer" title="Click to edit task">
           <span style="color:var(--accent-primary)">${isPinned ? '🕒' : '▦'}</span>
           <strong>${escapeHtml(task.title)}</strong>
           <span class="priority-badge ${pri}">${pri}</span>
-          ${isPinned ? `<button type="button" onclick="event.stopPropagation(); clearTaskScheduledHour('${escapeHtml(task.id)}')" title="Unschedule from ${timeStr}" aria-label="Unschedule" style="margin-left:auto;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">✕</button>` : ''}
+          ${dueCls ? `<span class="task-due-chip ${dueCls}">${dueCls === 'overdue' ? 'Overdue' : 'Today'}</span>` : ''}
+          ${isPinned ? `<button type="button" class="task-action-icon-btn" onclick="event.stopPropagation(); clearTaskScheduledHour('${escapeHtml(task.id)}')" title="Unschedule from ${timeStr}" aria-label="Unschedule" style="margin-left:auto">✕</button>` : ''}
         </div>
       `;
       }).join('');
     } else {
-      content.innerHTML = '<span style="color:var(--text-muted);font-size:11.5px">+ Open Focus Block</span>';
+      content.innerHTML = '<span style="color:var(--text-muted);font-size:11.5px">+ Click to schedule or pick task</span>';
     }
 
     row.appendChild(label);
@@ -3535,20 +3761,85 @@ function clearTaskScheduledHour(id) {
   showToast('Task removed from time slot');
 }
 
+let activeScheduleHour = 9;
 function scheduleTaskAtHour(hr) {
-  const raw = prompt(`Schedule new task for ${String(hr).padStart(2, '0')}:00 today:`);
-  if (raw === null) return;
+  activeScheduleHour = Number.isInteger(Number(hr)) ? Number(hr) : 9;
+  const modal = document.getElementById('modal-slot-schedule');
+  if (!modal) {
+    const raw = prompt(`Schedule new task for ${String(activeScheduleHour).padStart(2, '0')}:00 today:`);
+    if (raw === null) return;
+    const cleanTitle = String(raw).trim().slice(0, 160);
+    if (!cleanTitle) { showToast('Please enter a task title.'); return; }
+    state.tasks.push({
+      id: uid(), title: cleanTitle, desc: `Scheduled for ${String(activeScheduleHour).padStart(2, '0')}:00`,
+      stage: 'todo', priority: 'medium', due: today(), scheduledHour: activeScheduleHour, created: Date.now(), subtasks: [], tags: []
+    });
+    saveWorkspaceState();
+    renderAllViews();
+    renderCalendarTimeline();
+    if (typeof updateKPICounters === 'function') updateKPICounters();
+    showToast(`Task scheduled at ${String(activeScheduleHour).padStart(2, '0')}:00`);
+    return;
+  }
+  const heading = document.getElementById('slot-schedule-heading');
+  const timeStr = `${String(activeScheduleHour).padStart(2, '0')}:00`;
+  if (heading) heading.textContent = `Schedule Block · ${timeStr}`;
+  const pickList = document.getElementById('slot-existing-tasks');
+  if (pickList) {
+    const open = typeof enterpriseOpenTasksSorted === 'function'
+      ? enterpriseOpenTasksSorted()
+      : state.tasks.filter(t => t && t.stage !== 'done');
+    pickList.innerHTML = open.length
+      ? open.slice(0, 12).map(t => {
+        const pri = ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium';
+        const curSlot = Number.isInteger(Number(t.scheduledHour)) ? `${String(t.scheduledHour).padStart(2, '0')}:00` : '';
+        return `<button type="button" class="slot-task-pick-btn" onclick="assignExistingTaskToHour('${escapeHtml(t.id)}')">
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}${curSlot ? ` <small style="color:var(--text-muted)">(${curSlot})</small>` : ''}</span>
+          <span class="priority-badge ${pri}">${pri}</span>
+        </button>`;
+      }).join('')
+      : '<div style="font-size:12.5px;color:var(--text-muted);padding:8px 0">No existing open tasks — create one below.</div>';
+  }
+  const input = document.getElementById('slot-new-task-title');
+  const priSel = document.getElementById('slot-new-task-priority');
+  if (input) input.value = '';
+  if (priSel) priSel.value = 'medium';
+  openModal('modal-slot-schedule');
+  setTimeout(() => input?.focus({ preventScroll: true }), 40);
+  playTactileClick();
+}
+
+function assignExistingTaskToHour(id) {
+  const hr = activeScheduleHour;
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  task.scheduledHour = hr;
+  if (!task.due) task.due = today();
+  saveWorkspaceState();
+  renderAllViews();
+  renderCalendarTimeline();
+  closeModal('modal-slot-schedule');
+  showToast(`Scheduled "${task.title}" at ${String(hr).padStart(2, '0')}:00`);
+  playTactileClick();
+}
+
+function submitSlotNewTask() {
+  const hr = activeScheduleHour;
+  const input = document.getElementById('slot-new-task-title');
+  const raw = input ? input.value : '';
   const cleanTitle = String(raw).trim().slice(0, 160);
-  if (!cleanTitle) { showToast('Please enter a task title.'); return; }
+  if (!cleanTitle) { showToast('Please enter a task title.'); input?.focus(); return; }
+  const priority = safeEnterprisePriority(document.getElementById('slot-new-task-priority')?.value || 'medium');
   state.tasks.push({
     id: uid(), title: cleanTitle, desc: `Scheduled for ${String(hr).padStart(2, '0')}:00`,
-    stage: 'todo', priority: 'medium', due: today(), scheduledHour: hr, created: Date.now(), subtasks: []
+    stage: 'todo', priority, due: today(), scheduledHour: hr, created: Date.now(), subtasks: [], tags: []
   });
   saveWorkspaceState();
   renderAllViews();
   renderCalendarTimeline();
-  if (typeof updateKPICounters === 'function') updateKPICounters();
+  closeModal('modal-slot-schedule');
   showToast(`Task scheduled at ${String(hr).padStart(2, '0')}:00`);
+  playTactileClick();
 }
 
 // ---------------- TASK MODAL ----------------
@@ -3631,13 +3922,14 @@ async function aiBreakdownActiveTask() {
 }
 
 // ---------------- POMODORO & PROCEDURAL AUDIO 3.0 ----------------
-function setPomodoroMode(mode) {
-  playTactileClick();
-  const validMode = ['focus', 'short', 'long'].includes(mode) ? mode : 'focus';
-  state.pomoMode = validMode;
-  document.querySelectorAll('.mode-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-pomo-' + validMode)?.classList.add('active');
+const ENT_POMO_PERSIST_KEY = 'nexos_enterprise_pomo_v1';
+let pomoAutoStartTimer = null;
 
+function cancelEnterpriseAutoStart() {
+  if (pomoAutoStartTimer) { clearTimeout(pomoAutoStartTimer); pomoAutoStartTimer = null; }
+}
+
+function getEnterprisePomoDurations() {
   const clampMin = (elId, fallback, min, max) => {
     const el = document.getElementById(elId);
     const raw = parseInt(el?.value || fallback, 10);
@@ -3645,12 +3937,110 @@ function setPomodoroMode(mode) {
     if (el && String(v) !== el.value) el.value = v;
     return v;
   };
-  const mins = validMode === 'focus' ? clampMin('cfg-focus-min', 25, 1, 120)
-    : validMode === 'short' ? clampMin('cfg-short-min', 5, 1, 60) : 15;
+  return {
+    focus: clampMin('cfg-focus-min', 25, 1, 120),
+    short: clampMin('cfg-short-min', 5, 1, 60),
+    long: clampMin('cfg-long-min', 15, 1, 90),
+  };
+}
+
+function persistEnterprisePomodoroSession(extra = {}) {
+  try {
+    const dur = getEnterprisePomoDurations();
+    const prev = readJSONStorage(ENT_POMO_PERSIST_KEY) || {};
+    localStorage.setItem(ENT_POMO_PERSIST_KEY, JSON.stringify({
+      mode: state.pomoMode || 'focus',
+      remaining: Math.max(0, Number(state.pomoTimeRemaining) || 0),
+      total: Math.max(60, Number(state.pomoTotalTime) || 1500),
+      running: !!state.pomoRunning,
+      endAt: state.pomoRunning ? pomoEndAt : 0,
+      focusTaskId: focusTaskId || '',
+      focusMin: dur.focus,
+      shortMin: dur.short,
+      longMin: dur.long,
+      lastCompletedEndAt: extra.lastCompletedEndAt ?? (prev.lastCompletedEndAt || 0),
+      updatedAt: Date.now()
+    }));
+  } catch (_) {}
+}
+
+function restoreEnterprisePomodoroSession() {
+  const saved = readJSONStorage(ENT_POMO_PERSIST_KEY);
+  if (!saved || typeof saved !== 'object') return;
+  if (!Number.isFinite(saved.updatedAt) || Date.now() - saved.updatedAt > 12 * 3600 * 1000) return;
+  const fEl = document.getElementById('cfg-focus-min');
+  const sEl = document.getElementById('cfg-short-min');
+  const lEl = document.getElementById('cfg-long-min');
+  if (!state.pomoGoalApplied) {
+    if (fEl && Number.isFinite(saved.focusMin)) fEl.value = saved.focusMin;
+    if (sEl && Number.isFinite(saved.shortMin)) sEl.value = saved.shortMin;
+    if (lEl && Number.isFinite(saved.longMin)) lEl.value = saved.longMin;
+  }
+  const mode = ['focus', 'short', 'long'].includes(saved.mode) ? saved.mode : 'focus';
+  state.pomoMode = mode;
+  document.querySelectorAll('.mode-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-pomo-' + mode)?.classList.add('active');
+  if (saved.focusTaskId && state.tasks.some(t => t && t.id === saved.focusTaskId && t.stage !== 'done')) {
+    focusTaskId = saved.focusTaskId;
+  }
+  if (saved.running && Number(saved.endAt) > 0) {
+    const left = Math.ceil((Number(saved.endAt) - Date.now()) / 1000);
+    state.pomoTotalTime = Math.max(60, Number(saved.total) || 1500);
+    if (left > 0) {
+      state.pomoTimeRemaining = left;
+      pomoEndAt = Number(saved.endAt);
+      state.pomoRunning = true;
+      const hero = document.getElementById('pomo-hero-btn'); if (hero) hero.textContent = '❚❚';
+      const dashBtn = document.getElementById('dash-pomo-btn'); if (dashBtn) dashBtn.textContent = 'Pause Focus';
+      if (pomoTimerInterval) clearInterval(pomoTimerInterval);
+      pomoTimerInterval = setInterval(pomoTick, 250);
+      updatePomoTitle();
+      renderPomTimerUI();
+      renderFocusTask();
+      return;
+    }
+    if (Number(saved.lastCompletedEndAt) !== Number(saved.endAt)) {
+      persistEnterprisePomodoroSession({ lastCompletedEndAt: Number(saved.endAt) });
+      state.pomoTimeRemaining = 0;
+      finishPomodoroInterval(true);
+      renderFocusTask();
+      return;
+    }
+  }
+  if (Number.isFinite(saved.remaining) && saved.remaining > 0 && Number.isFinite(saved.total) && saved.total >= 60) {
+    state.pomoTotalTime = saved.total;
+    state.pomoTimeRemaining = Math.min(saved.total, saved.remaining);
+  }
+  renderPomTimerUI();
+  renderFocusTask();
+}
+
+function setPomodoroMode(mode, silent = false) {
+  if (typeof cancelEnterpriseAutoStart === 'function') cancelEnterpriseAutoStart();
+  if (!silent) playTactileClick();
+  const validMode = ['focus', 'short', 'long'].includes(mode) ? mode : 'focus';
+  state.pomoMode = validMode;
+  document.querySelectorAll('.mode-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-pomo-' + validMode)?.classList.add('active');
+
+  const dur = typeof getEnterprisePomoDurations === 'function'
+    ? getEnterprisePomoDurations()
+    : (() => {
+      const c = (id, fb, mn, mx) => {
+        const el = document.getElementById(id);
+        const r = parseInt(el?.value || fb, 10);
+        const v = Number.isFinite(r) ? Math.min(mx, Math.max(mn, r)) : fb;
+        if (el && String(v) !== el.value) el.value = v;
+        return v;
+      };
+      return { focus: c('cfg-focus-min', 25, 1, 120), short: c('cfg-short-min', 5, 1, 60), long: c('cfg-long-min', 15, 1, 90) };
+    })();
+  const mins = dur[validMode] || 25;
   state.pomoTotalTime = mins * 60;
   state.pomoTimeRemaining = state.pomoTotalTime;
-  pausePomodoro();
+  pausePomodoro(true);
   renderPomTimerUI();
+  if (typeof persistEnterprisePomodoroSession === 'function') persistEnterprisePomodoroSession();
 }
 
 // ---- Focus-task actions (Enterprise) ----
@@ -3735,10 +4125,12 @@ function updatePomoTitle() {
 }
 document.addEventListener('visibilitychange', () => { if (state.pomoRunning) pomoTick(); }); // catch up after a background tab
 function startPomodoro() {
+  if (typeof cancelEnterpriseAutoStart === 'function') cancelEnterpriseAutoStart();
   if (state.pomoRunning && pomoTimerInterval) return;
   if (state.pomoTimeRemaining <= 0) state.pomoTimeRemaining = state.pomoTotalTime;
   state.pomoRunning = true;
-  document.getElementById('pomo-hero-btn').textContent = '❚❚';
+  const heroBtn = document.getElementById('pomo-hero-btn');
+  if (heroBtn) heroBtn.textContent = '❚❚';
   const dashBtn = document.getElementById('dash-pomo-btn');
   if (dashBtn) dashBtn.textContent = 'Pause Focus';
   // Count against the clock, not interval ticks: browsers slow timers in background tabs.
@@ -3746,11 +4138,14 @@ function startPomodoro() {
   if (pomoTimerInterval) clearInterval(pomoTimerInterval);
   pomoTimerInterval = setInterval(pomoTick, 250);
   updatePomoTitle();
+  if (typeof persistEnterprisePomodoroSession === 'function') persistEnterprisePomodoroSession();
   playTactileClick();
 }
 
-function pausePomodoro() {
+function pausePomodoro(silent = false) {
+  if (typeof cancelEnterpriseAutoStart === 'function') cancelEnterpriseAutoStart();
   if (state.pomoRunning && pomoEndAt) state.pomoTimeRemaining = Math.max(0, Math.ceil((pomoEndAt - Date.now()) / 1000));
+  pomoEndAt = 0;
   state.pomoRunning = false;
   if (pomoTimerInterval) { clearInterval(pomoTimerInterval); pomoTimerInterval = null; }
   const btn = document.getElementById('pomo-hero-btn');
@@ -3758,12 +4153,15 @@ function pausePomodoro() {
   const dashBtn = document.getElementById('dash-pomo-btn');
   if (dashBtn) dashBtn.textContent = 'Start Focus';
   updatePomoTitle();
-  playTactileClick();
+  if (typeof persistEnterprisePomodoroSession === 'function') persistEnterprisePomodoroSession();
+  if (!silent) playTactileClick();
 }
 
 function resetPomodoro() {
+  if (typeof cancelEnterpriseAutoStart === 'function') cancelEnterpriseAutoStart();
   pausePomodoro();
   state.pomoTimeRemaining = state.pomoTotalTime;
+  if (typeof persistEnterprisePomodoroSession === 'function') persistEnterprisePomodoroSession();
   renderPomTimerUI();
 }
 
@@ -3775,8 +4173,15 @@ function skipPomodoro() {
 }
 
 function completePomodoroInterval() {
-  pausePomodoro();
-  playHarmonicChime();
+  finishPomodoroInterval(false);
+}
+
+function finishPomodoroInterval(fromRestore = false) {
+  const finishedEndAt = pomoEndAt;
+  pausePomodoro(true);
+  if (finishedEndAt && typeof persistEnterprisePomodoroSession === 'function') persistEnterprisePomodoroSession({ lastCompletedEndAt: finishedEndAt });
+  if (!fromRestore) playHarmonicChime();
+  const autoStart = !!document.getElementById('cfg-auto-start')?.checked;
   if (state.pomoMode === 'focus') {
     const mins = Math.max(1, Math.round((state.pomoTotalTime || 1500) / 60));
     state.pomodoroStats.totalMins = (state.pomodoroStats.totalMins || 0) + mins;
@@ -3789,11 +4194,21 @@ function completePomodoroInterval() {
     updateKPICounters();
     if (document.getElementById('pane-analytics')?.classList.contains('active') && typeof renderAnalyticsCharts === 'function') renderAnalyticsCharts();
     showToast(`Focus session completed! +${mins}m deep work logged.`);
-    playCompletionConfetti();
-    setPomodoroMode('short');
+    if (!fromRestore) {
+      playCompletionConfetti();
+      try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification('Focus session complete', { body: `+${mins}m deep work logged. Time for a break.`, icon: '/nexos-icon-192.png', tag: 'nexos-pomodoro' }); } catch (_) {}
+    }
+    const nextBreak = (state.pomodoroStats.sessions % 4 === 0) ? 'long' : 'short';
+    setPomodoroMode(nextBreak, true);
+    if (!fromRestore && autoStart) {
+      pomoAutoStartTimer = setTimeout(() => { pomoAutoStartTimer = null; startPomodoro(); }, 1000);
+    }
   } else {
     showToast('Break finished! Ready for next focus session.');
-    setPomodoroMode('focus');
+    setPomodoroMode('focus', true);
+    if (!fromRestore && autoStart) {
+      pomoAutoStartTimer = setTimeout(() => { pomoAutoStartTimer = null; startPomodoro(); }, 1000);
+    }
   }
 }
 
@@ -3806,6 +4221,14 @@ function renderPomTimerUI() {
   if (t1) t1.textContent = timeStr;
   const t2 = document.getElementById('dash-pomo-time');
   if (t2) t2.textContent = timeStr;
+
+  const badge = document.getElementById('pomo-mode-badge-label');
+  if (badge) badge.textContent = state.pomoMode === 'focus' ? 'Focus Session' : state.pomoMode === 'short' ? 'Short Break' : 'Long Break';
+
+  const dur = getEnterprisePomoDurations();
+  const tf = document.getElementById('tab-pomo-focus'); if (tf) tf.textContent = `Focus (${dur.focus}m)`;
+  const ts = document.getElementById('tab-pomo-short'); if (ts) ts.textContent = `Short Break (${dur.short}m)`;
+  const tl = document.getElementById('tab-pomo-long'); if (tl) tl.textContent = `Long Break (${dur.long}m)`;
 
   const total = Math.max(1, Number(state.pomoTotalTime) || 1500);
   const progressFraction = Math.min(1, Math.max(0, (total - state.pomoTimeRemaining) / total));
@@ -3824,6 +4247,11 @@ function renderPomTimerUI() {
   if (sessEl) sessEl.textContent = state.pomodoroStats.sessions || 0;
   const streakEl = document.getElementById('focus-stat-streak');
   if (streakEl) streakEl.textContent = (state.pomodoroStats.streak || 0) + ' sessions';
+  const cycleEl = document.getElementById('pomo-cycle-label');
+  if (cycleEl) {
+    const doneToday = (state.pomodoroLog || []).filter(l => l && l.date === today()).length;
+    cycleEl.textContent = `Session ${(doneToday % 4) + 1} of 4 · ${doneToday} completed today`;
+  }
 }
 
 function updatePomoDurations() {
@@ -4173,21 +4601,57 @@ function deleteHabit(id) {
 }
 
 function openNewHabitModal() {
-  const raw = prompt('Enter new habit name (e.g. Read 20 pages, 30m Workout, Meditation):');
-  if (raw === null) return;
+  const modal = document.getElementById('modal-new-habit');
+  if (!modal) {
+    const raw = prompt('Enter new habit name (e.g. Read 20 pages, 30m Workout, Meditation):');
+    if (raw === null) return;
+    const cleanName = String(raw).trim().slice(0, 80);
+    if (!cleanName) {
+      if (typeof showToast === 'function') showToast('Please enter a habit name');
+      return;
+    }
+    state.habits.push({ id: uid(), name: cleanName, color: 'var(--accent-primary)', streak: 0, checks: {} });
+    saveWorkspaceState();
+    renderHabits();
+    renderDashboard();
+    if (typeof updateKPICounters === 'function') updateKPICounters();
+    showToast('New habit created!');
+    playTactileClick();
+    return;
+  }
+  const nameEl = document.getElementById('new-habit-modal-name');
+  const goalEl = document.getElementById('new-habit-modal-goal');
+  const colorEl = document.getElementById('new-habit-modal-color');
+  if (nameEl) nameEl.value = '';
+  if (goalEl) goalEl.value = '7';
+  if (colorEl) colorEl.value = '#0A84FF';
+  openModal('modal-new-habit');
+  setTimeout(() => nameEl?.focus({ preventScroll: true }), 40);
+  playTactileClick();
+}
+
+function submitNewHabitModal() {
+  const nameEl = document.getElementById('new-habit-modal-name');
+  const raw = nameEl ? nameEl.value : '';
   const cleanName = String(raw).trim().slice(0, 80);
   if (!cleanName) {
     if (typeof showToast === 'function') showToast('Please enter a habit name');
+    nameEl?.focus();
     return;
   }
+  const goalVal = Math.round(Number(document.getElementById('new-habit-modal-goal')?.value || 7));
+  const goal = goalVal >= 1 && goalVal <= 7 ? goalVal : 7;
+  const colorVal = document.getElementById('new-habit-modal-color')?.value || '';
+  const color = /^#[0-9a-f]{6}$/i.test(colorVal) ? colorVal : 'var(--accent-primary)';
   state.habits.push({
-    id: uid(), name: cleanName, color: 'var(--accent-primary)',
-    streak: 0, checks: {}
+    id: uid(), name: cleanName, color,
+    streak: 0, checks: {}, ...(goal !== 7 ? { goal } : {})
   });
   saveWorkspaceState();
   renderHabits();
   renderDashboard();
   if (typeof updateKPICounters === 'function') updateKPICounters();
+  closeModal('modal-new-habit');
   showToast('New habit created!');
   playTactileClick();
 }
@@ -4904,30 +5368,121 @@ function ensureEnterpriseChartLibrary() {
   return enterpriseChartLoadPromise;
 }
 
+function renderEnterpriseInsightsStrip() {
+  const strip = document.getElementById('analytics-insights-strip');
+  if (!strip) return;
+  const t0 = today();
+  const all = Array.isArray(state.tasks) ? state.tasks : [];
+  const doneCount = all.filter(t => t && t.stage === 'done').length;
+  const overdueCount = all.filter(t => t && t.stage !== 'done' && t.due && t.due < t0).length;
+  const completionRate = all.length ? Math.round((doneCount / all.length) * 100) : 0;
+  const last7Keys = new Set();
+  for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); last7Keys.add(localDateKey(d)); }
+  const focus7d = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : [])
+    .filter(l => l && last7Keys.has(l.date))
+    .reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+  const habitSum = window.NexHabits ? window.NexHabits.summary(activeHabits(), t0) : { rate30: 0, bestCurrent: 0 };
+  strip.innerHTML =
+    `<div class="habit-stat"><b>${overdueCount}</b><span>Overdue open tasks</span></div>` +
+    `<div class="habit-stat"><b>${completionRate}%</b><span>Tasks completed (${doneCount}/${all.length})</span></div>` +
+    `<div class="habit-stat"><b>${focus7d}m</b><span>Deep focus (last 7 days)</span></div>` +
+    `<div class="habit-stat"><b>${habitSum.rate30}%</b><span>Habit consistency (30d)</span></div>`;
+}
+
+function renderEnterpriseOfflineCharts(focusDays) {
+  const renderBars = (canvasId, entries, emptyMsg) => {
+    const canvas = document.getElementById(canvasId);
+    const parent = canvas?.parentElement;
+    if (!parent) return;
+    canvas.style.display = 'none';
+    parent.querySelectorAll('.chart-unavailable').forEach(e => e.remove());
+    const box = document.createElement('div');
+    box.className = 'chart-unavailable analytics-offline-box';
+    const maxVal = Math.max(1, ...entries.map(e => e.value));
+    const shown = entries.slice(-10);
+    box.innerHTML =
+      `<div class="analytics-offline-bars">${shown.map(e =>
+        `<div class="analytics-offline-col" title="${escapeHtml(e.label)}: ${e.value}"><div class="analytics-offline-bar" style="height:${Math.max(4, Math.round((e.value / maxVal) * 100))}%"></div><span class="analytics-offline-lbl">${escapeHtml(e.short || e.label)}</span></div>`
+      ).join('')}</div>` +
+      `<div class="analytics-offline-note">${escapeHtml(emptyMsg)}</div>`;
+    parent.appendChild(box);
+  };
+
+  const totalFocus = focusDays.reduce((s, d) => s + d.minutes, 0);
+  renderBars(
+    'analyticsFocusChart',
+    focusDays.map(d => ({ label: d.label, short: d.label.slice(0, 5), value: d.minutes })),
+    `Offline summary (${totalFocus}m across ${focusDays.length}d · live Chart.js unavailable)`
+  );
+
+  const donutCanvas = document.getElementById('analyticsTaskDonut');
+  if (donutCanvas?.parentElement) {
+    donutCanvas.style.display = 'none';
+    donutCanvas.parentElement.querySelectorAll('.chart-unavailable').forEach(e => e.remove());
+    const counts = [
+      ['To Do', state.tasks.filter(t => t.stage === 'todo').length, 'var(--status-todo)'],
+      ['In Progress', state.tasks.filter(t => t.stage === 'inprogress').length, 'var(--status-progress)'],
+      ['Review', state.tasks.filter(t => t.stage === 'review').length, 'var(--status-review)'],
+      ['Done', state.tasks.filter(t => t.stage === 'done').length, 'var(--status-done)'],
+    ];
+    const box = document.createElement('div');
+    box.className = 'chart-unavailable analytics-offline-box';
+    box.innerHTML =
+      `<div style="display:flex;flex-direction:column;gap:8px;justify-content:center;flex:1">${counts.map(([lbl, n, col]) =>
+        `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px"><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:6px"></span>${lbl}</span><strong>${n}</strong></div>`
+      ).join('')}</div>` +
+      `<div class="analytics-offline-note">Task stage breakdown (offline summary)</div>`;
+    donutCanvas.parentElement.appendChild(box);
+  }
+
+  const nowMs = Date.now(), weekMs = 7 * 86400000;
+  const weekLabels = ['4w ago', '3w ago', '2w ago', 'Last wk', 'This wk'];
+  const weekCounts = [0, 0, 0, 0, 0];
+  state.tasks.filter(t => t && t.stage === 'done').forEach(t => {
+    if (t.doneAt && Number.isFinite(Number(t.doneAt))) {
+      const weeksAgo = Math.floor((nowMs - Number(t.doneAt)) / weekMs);
+      if (weeksAgo >= 0 && weeksAgo < 5) weekCounts[4 - weeksAgo]++;
+    } else {
+      weekCounts[4]++;
+    }
+  });
+  renderBars(
+    'analyticsVelocityChart',
+    weekLabels.map((l, idx) => ({ label: l, short: l, value: weekCounts[idx] })),
+    `Completed per week (total ${state.tasks.filter(t => t && t.stage === 'done').length} · offline summary)`
+  );
+}
+
 async function renderAnalyticsCharts() {
   const renderToken = ++enterpriseAnalyticsRenderToken;
   renderEnterpriseScore();
+  renderEnterpriseInsightsStrip();
   renderHourlyProductivityHeat();
+  const focusDays = [];
+  const totalDays = enterpriseAnalyticsRange === 30 ? 30 : 7;
+  for (let i = totalDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = localDateKey(d);
+    const label = totalDays <= 7
+      ? d.toLocaleDateString('en-US', { weekday: 'short' })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    focusDays.push({ label, minutes: (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0) });
+  }
   if (!window.Chart) {
+    renderEnterpriseOfflineCharts(focusDays);
     const loaded = await ensureEnterpriseChartLibrary();
     if (!loaded || renderToken !== enterpriseAnalyticsRenderToken || !document.getElementById('pane-analytics')?.classList.contains('active')) return;
   }
+  document.querySelectorAll('#pane-analytics .chart-unavailable').forEach(el => el.remove());
+  ['analyticsFocusChart', 'analyticsTaskDonut', 'analyticsVelocityChart'].forEach(id => {
+    const c = document.getElementById(id); if (c) c.style.display = '';
+  });
 
   const isDark = (document.documentElement.getAttribute('data-theme') || '').includes('dark');
   const textColor = isDark ? '#94a3b8' : '#475569';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
 
   // Focus Bar Chart: real minutes for selected window (7 or 30 days)
-  const focusDays = [];
-  const totalDays = enterpriseAnalyticsRange === 30 ? 30 : 7;
-  for (let i = totalDays - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const label = totalDays <= 7
-      ? d.toLocaleDateString('en-US', { weekday: 'short' })
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    focusDays.push({ label, minutes: (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === key).reduce((s, l) => s + (Number(l.minutes) || 0), 0) });
-  }
   const ctx1 = document.getElementById('analyticsFocusChart')?.getContext('2d');
   if (ctx1) {
     if (focusChartInstance) focusChartInstance.destroy();
@@ -5418,7 +5973,7 @@ function executeCommandItem(idx) {
 // Global keyboard shortcuts
 const VIEW_KEYS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'focus', Digit4: 'habits', Digit5: 'notes', Digit6: 'analytics', Digit7: 'calendar', Digit8: 'study', Digit9: 'ai' }; // same order as the sidebar; 'study' opens the Study Studio dialog
 document.addEventListener('keydown', e => {
-  const fullOverlayOpen = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
+  const fullOverlayOpen = !!document.querySelector('#nexos-derail-modal[data-open="1"]');
   if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_KEYS[e.code]) { e.preventDefault(); if (VIEW_KEYS[e.code] === 'study') openStudyStudio(); else switchNexusView(VIEW_KEYS[e.code]); return; }
   if (fullOverlayOpen) return;
   if (e.metaKey || e.ctrlKey) {
@@ -6355,9 +6910,11 @@ function enterpriseStarterItems(goal) {
 function syncGoalTimerInputs() {
   const g = ENTERPRISE_GOALS[state.pomoGoalApplied];
   if (!g) return;
-  const f = document.getElementById('cfg-focus-min'), sh = document.getElementById('cfg-short-min');
+  const f = document.getElementById('cfg-focus-min'), sh = document.getElementById('cfg-short-min'), lg = document.getElementById('cfg-long-min');
   if (f) f.value = g.focus;
   if (sh) sh.value = g.short;
+  const longMins = { study: 20, projects: 15, habits: 10, explore: 15 }[state.pomoGoalApplied] || 15;
+  if (lg) lg.value = longMins;
 }
 function enterpriseQuickStart(goal) {
   const g = ENTERPRISE_GOALS[goal] ? goal : '';
@@ -6818,6 +7375,14 @@ function openStudyStudio(opts) {
     ensureStudyHabit: enterpriseEnsureStudyHabit,
     recordStudyCheckIn: enterpriseRecordStudyCheckIn,
     addStudyTasks: nexChatAddTasks,
+    onOpen: () => activateEnterpriseStudyPane(),
+    onClose: ({ fromNav, savedScrollX, savedScrollY } = {}) => {
+      document.documentElement.classList.remove('nexos-study-active');
+      if (!fromNav) {
+        switchNexusView(prevPaneBeforeStudy || 'dashboard');
+        window.scrollTo({ left: savedScrollX || 0, top: savedScrollY || 0, behavior: 'instant' });
+      }
+    },
   }, cleanOpts);
 }
 async function draftCopilotActions() {
@@ -7050,10 +7615,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=4.6.0" defer></script>
-<script src="chat-tasks.js?v=4.6.0" defer></script>
-<script src="habits.js?v=4.6.0" defer></script>
-<script src="derail.js?v=4.6.0" defer></script>
-<script src="study.js?v=4.6.0" defer></script>
+<script src="attach.js?v=4.7.0" defer></script>
+<script src="chat-tasks.js?v=4.7.0" defer></script>
+<script src="habits.js?v=4.7.0" defer></script>
+<script src="derail.js?v=4.7.0" defer></script>
+<script src="study.js?v=4.7.0" defer></script>
 </body>
 </html>

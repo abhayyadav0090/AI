@@ -86,7 +86,7 @@ async function getWs(port) {
   const contactSrc = fs.readFileSync(path.join(publicDir, 'contact.html'), 'utf8');
   const privacySrc = fs.readFileSync(path.join(publicDir, 'privacy.html'), 'utf8');
   const recoverSrc = fs.readFileSync(path.join(publicDir, 'recover.html'), 'utf8');
-  assert.ok(contactSrc.includes('style.css?v=4.6.0') && privacySrc.includes('style.css?v=4.6.0'), 'Standalone pages reference current 4.6.0 assets');
+  assert.ok(contactSrc.includes('style.css?v=4.7.0') && privacySrc.includes('style.css?v=4.7.0'), 'Standalone pages reference current 4.7.0 assets');
   assert.ok(contactSrc.includes('var(--on-accent') && contactSrc.includes('About NexOS'), 'Contact page fixes button contrast and adds About summary while keeping background');
   assert.ok(privacySrc.includes('StudyCalendarConnection') || privacySrc.includes('Google Calendar sync (optional)'), 'Privacy page reflects optional Google Calendar & Study Studio behavior');
   assert.ok(!privacySrc.includes('does not ask for access to your Gmail, Drive, contacts or calendar'), 'Outdated inaccurate calendar disclaimer removed');

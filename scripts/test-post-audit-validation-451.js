@@ -445,7 +445,7 @@ function extractSlice(src, startMarker, endMarker) {
       assert.equal(hRes.status, 200);
       const hJson = await hRes.json();
       assert.equal(hJson.status, 'ok');
-      assert.equal(hJson.version, '4.6.0');
+      assert.equal(hJson.version, '4.7.0');
 
       for (const p of ['/', '/enterprise', '/style.css', '/app.js', '/study.js', '/recover.html']) {
         const r = await fetch(urlBase + p);

@@ -238,8 +238,9 @@
     const el = document.getElementById('task-list-view');
     if (!el || el.hidden || typeof state === 'undefined') return;
     const t0 = today();
-    const open = openTasksSorted();
-    const done = state.tasks.filter(t => t.col === 'done').sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 25);
+    const matchFn = typeof taskMatchesClassicFilter === 'function' ? taskMatchesClassicFilter : () => true;
+    const open = openTasksSorted().filter(matchFn);
+    const done = state.tasks.filter(t => t.col === 'done' && matchFn(t)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 25);
     const groups = [
       ['Overdue', open.filter(t => t.due && t.due < t0), 'overdue'],
       ['Today', open.filter(t => t.due === t0), ''],

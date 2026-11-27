@@ -86,29 +86,39 @@
     }
   };
 
-  /* Colours come from whichever page is open: Classic (--surface, --text, --accent ...) or Enterprise (--bg-surface-elevated, --text-main ...). */
+  /* Colours come from whichever shell is active: Classic Soft/Glass (--surface, --g-bg, --text, --accent-fill) or Enterprise (--bg-card, --bg-surface, --text-main, --accent-primary). */
   const CSS = `
-#nexos-study-modal{--ns-max:1000px;--k-page:var(--bg,var(--bg-app,var(--bg-deep,#131314)));--k-bg:var(--surface,var(--bg-surface,var(--bg-surface-elevated,#1c1c1e)));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(255,255,255,.08)));--k-text:var(--text,var(--text-main,#f5f5f7));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--outline,var(--border-subtle,rgba(255,255,255,.16)));--k-accent:var(--accent-fill,var(--accent-primary,#0a84ff));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,rgba(10,132,255,.16));--k-hover:var(--hover,rgba(255,255,255,.07));--k-danger:var(--danger,var(--priority-high,#ff453a));position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:100vw;max-height:100dvh;z-index:2100;display:none;flex-direction:column;align-items:stretch;justify-content:stretch;padding:0;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--k-page);color:var(--k-text);font-family:inherit}
+#nexos-study-modal{--ns-max:1080px;--k-page:var(--bg,var(--bg-app,var(--bg-void,var(--bg-deep,#131314))));--k-bg:var(--g-bg,var(--surface,var(--bg-card,var(--bg-surface,#1c1c1e))));--k-bg-solid:var(--surface,var(--bg-surface-elevated,var(--bg-surface,#1c1c1e)));--k-bg2:var(--surface-2,var(--bg-card-hover,rgba(128,128,128,.14)));--k-text:var(--text,var(--text-main,var(--text-primary,#f5f5f7)));--k-text2:var(--text-2,var(--text-secondary,#a1a1a6));--k-line:var(--g-line,var(--outline,var(--glass-border,var(--border-subtle,rgba(128,128,128,.22)))));--k-accent:var(--accent-fill,var(--accent-primary,var(--accent-violet,#0a84ff)));--k-on:var(--on-accent,var(--text-on-accent,#fff));--k-soft:var(--accent-container,var(--accent-soft,color-mix(in srgb,var(--k-accent) 16%,transparent)));--k-hover:var(--hover,var(--bg-card-hover,rgba(128,128,128,.09)));--k-danger:var(--danger,var(--priority-high,var(--accent-rose,#ff453a)));--k-radius:var(--r-card,var(--radius-lg,20px));--k-shadow:var(--g-shadow,var(--shadow-sm,none));display:none;flex-direction:column;overflow:hidden;overscroll-behavior:none;color:var(--k-text);font-family:inherit}
+#nexos-study-modal[data-shell="embedded"]{position:relative;inset:auto;width:100%;height:100%;max-width:100%;max-height:100%;flex:1 1 0;min-height:0;z-index:1;padding:0;margin:0;background:transparent}
+#nexos-study-modal[data-shell="standalone"]{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;max-width:100vw;max-height:100dvh;z-index:2100;align-items:stretch;justify-content:stretch;padding:0;margin:0;background:var(--k-page)}
 #nexos-study-modal[data-open="1"]{display:flex}
-#nexos-study-modal[data-tab="mindmap"]{--ns-max:1180px}
+#nexos-study-modal[data-tab="mindmap"]{--ns-max:1200px}
 #nexos-study-modal *{box-sizing:border-box}
-#nexos-study-modal .ns-card{width:100%;height:100%;flex:1;min-height:0;display:flex;flex-direction:column;border-radius:0;background:var(--k-page);color:var(--k-text);border:0;box-shadow:none;overflow:hidden;outline:0}
-#nexos-study-modal .ns-head{display:flex;align-items:center;gap:12px;padding:max(12px,env(safe-area-inset-top)) max(16px,calc((100% - var(--ns-max)) / 2)) 12px;background:var(--k-bg);border-bottom:1px solid var(--k-line);flex:none}
-#nexos-study-modal .ns-back{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
-#nexos-study-modal .ns-back:hover{background:var(--k-hover)}
+#nexos-study-modal .ns-head{display:flex;align-items:center;gap:12px;flex:none}
+#nexos-study-modal[data-shell="embedded"] .ns-head{align-items:flex-end;justify-content:space-between;gap:12px 16px;padding:0 0 16px;background:transparent;border:0}
+#nexos-study-modal[data-shell="embedded"] .ns-badge,#nexos-study-modal[data-shell="embedded"] .ns-x{display:none}
+#nexos-study-modal[data-shell="embedded"] .ns-hact{display:flex;align-items:center;gap:8px;flex:none}
+#nexos-study-modal[data-shell="embedded"] .ns-title{margin:0;color:var(--k-text)}
+#nexos-study-modal[data-shell="embedded"] .ns-sub{margin:4px 0 0;font-size:13.5px;color:var(--k-text2);white-space:normal;overflow:visible}
+#nexos-study-modal[data-shell="standalone"] .ns-head{padding:max(12px,env(safe-area-inset-top)) max(16px,calc((100% - var(--ns-max)) / 2)) 12px;background:var(--k-bg-solid);border-bottom:1px solid var(--k-line)}
+#nexos-study-modal[data-shell="standalone"] .ns-back{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex:none}
+#nexos-study-modal[data-shell="standalone"] .ns-back:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-badge{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--k-soft);color:var(--k-accent);flex:none}
 #nexos-study-modal .ns-badge svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #nexos-study-modal .ns-ht{flex:1;min-width:0}
 #nexos-study-modal h3{margin:0;font-size:17px;font-weight:600;line-height:1.25}
-#nexos-study-modal .ns-sub{font-size:12.5px;color:var(--k-text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nexos-study-modal .ns-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--k-text2);font-size:16px;cursor:pointer;flex:none}
 #nexos-study-modal .ns-x:hover{background:var(--k-hover);color:var(--k-text)}
-#nexos-study-modal .ns-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:min(var(--ns-max),calc(100% - 32px));margin:12px auto 10px;padding:4px;border-radius:14px;background:var(--k-bg2);flex:none}
-#nexos-study-modal .ns-tab{min-height:38px;border:0;border-radius:10px;background:transparent;color:var(--k-text2);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
-#nexos-study-modal .ns-tab[aria-selected="true"]{background:var(--k-bg);color:var(--k-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+#nexos-study-modal .ns-card{width:100%;flex:1 1 0;min-height:0;display:flex;flex-direction:column;background:var(--k-bg);color:var(--k-text);overflow:hidden;outline:0}
+#nexos-study-modal[data-shell="embedded"] .ns-card{border-radius:var(--k-radius);border:1px solid var(--k-line);box-shadow:var(--k-shadow);-webkit-backdrop-filter:var(--g-blur,none);backdrop-filter:var(--g-blur,none)}
+#nexos-study-modal[data-shell="standalone"] .ns-card{height:100%;border-radius:0;border:0;box-shadow:none}
+#nexos-study-modal .ns-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:calc(100% - 36px);max-width:var(--ns-max);margin:14px auto 10px;padding:4px;border-radius:14px;background:var(--k-bg2);flex:none}
+#nexos-study-modal .ns-tab{min-height:38px;border:0;border-radius:10px;background:transparent;color:var(--k-text2);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s ease,color .15s ease}
+#nexos-study-modal .ns-tab:hover{color:var(--k-text)}
+#nexos-study-modal .ns-tab[aria-selected="true"]{background:var(--k-bg-solid);color:var(--k-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 #nexos-study-modal .ns-panel{flex:1;min-height:0;display:none;flex-direction:column}
 #nexos-study-modal .ns-panel[data-on="1"]{display:flex}
-#nexos-study-modal .ns-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:6px max(16px,calc((100% - var(--ns-max)) / 2)) max(18px,env(safe-area-inset-bottom))}
+#nexos-study-modal .ns-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:8px 20px 18px}
 #nexos-study-modal .ns-p{margin:0 0 12px;font-size:13px;line-height:1.55;color:var(--k-text2)}
 #nexos-study-modal .ns-drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 14px;border:2px dashed var(--k-line);border-radius:16px;background:var(--k-bg2);cursor:pointer;margin-bottom:10px}
 #nexos-study-modal .ns-drop[data-over="1"],#nexos-study-modal .ns-drop:hover{border-color:var(--k-accent);background:var(--k-soft)}
@@ -117,9 +127,9 @@
 #nexos-study-modal .ns-drop input{display:none}
 #nexos-study-modal .ns-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 #nexos-study-modal input[type=text],#nexos-study-modal input[type=date],#nexos-study-modal input[type=number],#nexos-study-modal input[type=time],#nexos-study-modal textarea,#nexos-study-modal select{width:100%;min-width:0;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit}
-#nexos-study-modal select option{color:#111}
+#nexos-study-modal select option{background:var(--k-bg-solid,#fff);color:var(--k-text,#111)}
 #nexos-study-modal textarea{resize:none;min-height:44px;max-height:110px;line-height:1.4;overscroll-behavior:contain}
-#nexos-study-modal .ns-btn{min-height:42px;border:1px solid var(--k-line);background:transparent;color:var(--k-text);border-radius:12px;padding:0 18px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
+#nexos-study-modal .ns-btn{min-height:40px;border:1px solid var(--k-line);background:transparent;color:var(--k-text);border-radius:12px;padding:0 18px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-btn:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-btn.ns-primary{background:var(--k-accent);border-color:transparent;color:var(--k-on);font-weight:600}
 #nexos-study-modal .ns-btn.ns-primary:hover{filter:brightness(1.07)}
@@ -130,7 +140,7 @@
 #nexos-study-modal .ns-dm{font-size:12px;color:var(--k-text2);line-height:1.45}
 #nexos-study-modal .ns-doc{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2);margin-top:8px}
 #nexos-study-modal .ns-doc .ns-dt{flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
-#nexos-study-modal .ns-status{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.5;color:var(--k-text2);padding:0 max(16px,calc((100% - var(--ns-max)) / 2));white-space:pre-wrap;flex:none}
+#nexos-study-modal .ns-status{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.5;color:var(--k-text2);padding:0 20px;white-space:pre-wrap;flex:none}
 #nexos-study-modal .ns-status:not(:empty){padding-bottom:8px}
 #nexos-study-modal .ns-status.ns-busy::before{content:"";flex:none;width:15px;height:15px;margin-top:2px;border-radius:50%;border:2px solid var(--k-line);border-top-color:var(--k-accent);animation:ns-spin .8s linear infinite}
 @keyframes ns-spin{to{transform:rotate(360deg)}}
@@ -149,16 +159,29 @@
 #nexos-study-modal .ns-dots i{width:7px;height:7px;border-radius:50%;background:var(--k-text2);opacity:.5;animation:ns-bounce 1s infinite ease-in-out}
 #nexos-study-modal .ns-dots i:nth-child(2){animation-delay:.15s}#nexos-study-modal .ns-dots i:nth-child(3){animation-delay:.3s}
 @keyframes ns-bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
-#nexos-study-modal .ns-tools{display:flex;gap:8px;align-items:center;padding:4px max(16px,calc((100% - var(--ns-max)) / 2)) 8px;flex:none}
+#nexos-study-modal .ns-tools{display:flex;gap:8px;align-items:center;padding:4px 20px 8px;flex:none}
 #nexos-study-modal .ns-tools select{flex:1;padding:7px 10px;font-size:12.5px}
-#nexos-study-modal .ns-starters{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px max(16px,calc((100% - var(--ns-max)) / 2)) 8px;flex:none}
+#nexos-study-modal .ns-starters{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px 20px 8px;flex:none}
 #nexos-study-modal .ns-starters button{flex:none;border:1px solid var(--k-line);background:var(--k-bg2);color:var(--k-text);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-starters button:hover{background:var(--k-hover)}
-#nexos-study-modal .ns-bar{display:flex;gap:8px;align-items:flex-end;padding:10px max(16px,calc((100% - var(--ns-max)) / 2)) max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--k-line);background:var(--k-bg);flex:none}
-#nexos-study-modal .ns-foot{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:10px max(16px,calc((100% - var(--ns-max)) / 2)) max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--k-line);background:var(--k-bg);flex:none}
+#nexos-study-modal .ns-bar{display:flex;gap:8px;align-items:flex-end;padding:10px 20px 12px;border-top:1px solid var(--k-line);background:transparent;flex:none}
+#nexos-study-modal[data-shell="standalone"] .ns-bar{background:var(--k-bg-solid);padding-bottom:max(14px,env(safe-area-inset-bottom))}
+#nexos-study-modal .ns-foot{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:10px 20px 12px;border-top:1px solid var(--k-line);background:transparent;flex:none}
+#nexos-study-modal[data-shell="standalone"] .ns-foot{background:var(--k-bg-solid);padding-bottom:max(14px,env(safe-area-inset-bottom))}
 #nexos-study-modal button:focus-visible,#nexos-study-modal input:focus-visible,#nexos-study-modal textarea:focus-visible,#nexos-study-modal select:focus-visible,#nexos-study-modal .ns-drop:focus-visible{outline:2px solid var(--k-accent);outline-offset:2px}
-@media (max-width:560px){#nexos-study-modal .ns-fields{grid-template-columns:1fr}#nexos-study-modal .ns-tabs{width:calc(100% - 24px);margin:10px auto 8px}}
-@media (max-width:420px){#nexos-study-modal .ns-back span{display:none}}
+@media (max-width:768px){
+  #nexos-study-modal[data-shell="embedded"] .ns-head{align-items:center;padding:0 0 10px}
+  #nexos-study-modal[data-shell="embedded"] .ns-sub{display:none}
+  #nexos-study-modal[data-shell="embedded"] .ns-title{font-size:20px!important;line-height:1.2!important}
+  #nexos-study-modal[data-shell="embedded"] .ns-back{min-height:36px;height:36px;padding:0 12px;font-size:13px}
+  #nexos-study-modal[data-shell="embedded"] .ns-card{-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:var(--radius-lg,16px)}
+  #nexos-study-modal .ns-tabs{width:calc(100% - 20px);margin:10px auto 6px}
+  #nexos-study-modal .ns-scroll{padding:6px 12px 14px}
+  #nexos-study-modal .ns-tools,#nexos-study-modal .ns-starters,#nexos-study-modal .ns-status,#nexos-study-modal .ns-bar,#nexos-study-modal .ns-foot{padding-left:12px;padding-right:12px}
+}
+@media (max-width:560px){#nexos-study-modal .ns-fields{grid-template-columns:1fr}}
+@media (max-width:560px),(pointer:coarse){#nexos-study-modal .ns-starters button,#nexos-study-modal .ns-small{min-height:36px;display:inline-flex;align-items:center}}
+@media (max-width:420px){#nexos-study-modal[data-shell="standalone"] .ns-back span{display:none}}
 @media (prefers-reduced-motion:reduce){#nexos-study-modal .ns-status.ns-busy::before,#nexos-study-modal .ns-dots i{animation:none}}`;
 
   const CSS2 = `
@@ -174,7 +197,7 @@
 #nexos-study-modal .ns-mm-world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 #nexos-study-modal .ns-mm-links{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
 #nexos-study-modal .ns-mm-links path{fill:none;stroke:var(--k-accent);stroke-opacity:.42;stroke-width:2}
-#nexos-study-modal .ns-mm-node{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:8px 10px;border-radius:12px;border:1.5px solid var(--k-line);background:var(--k-bg);color:var(--k-text);font-size:12px;line-height:1.3;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+#nexos-study-modal .ns-mm-node{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:8px 10px;border-radius:12px;border:1.5px solid var(--k-line);background:var(--k-bg-solid);color:var(--k-text);font-size:12px;line-height:1.3;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 #nexos-study-modal .ns-mm-node[data-depth="0"]{background:var(--k-accent);color:var(--k-on);border-color:transparent;font-weight:700}
 #nexos-study-modal .ns-mm-node[data-selected="1"]{outline:2.5px solid var(--k-accent);outline-offset:2px}
 #nexos-study-modal .ns-mm-node[data-depth="0"][data-selected="1"]{outline-color:var(--k-text)}
@@ -182,7 +205,7 @@
 #nexos-study-modal .ns-mm-ntitle{font-weight:600;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #nexos-study-modal .ns-mm-toggle{flex:none;width:20px;height:20px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;font-size:12px;line-height:1;display:grid;place-items:center;cursor:pointer;opacity:.85}
 #nexos-study-modal .ns-mm-nsrc{font-size:10.5px;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#nexos-study-modal .ns-mm-hud{position:absolute;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--k-bg);border:1px solid var(--k-line);box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:2}
+#nexos-study-modal .ns-mm-hud{position:absolute;right:10px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--k-bg-solid);border:1px solid var(--k-line);box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:2}
 #nexos-study-modal .ns-mm-hud button{min-height:28px;min-width:28px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:var(--k-text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 #nexos-study-modal .ns-mm-hud button:hover{background:var(--k-hover)}
 #nexos-study-modal .ns-mm-inspector{margin-top:10px;padding:11px 12px;border:1px solid var(--k-line);border-radius:14px;background:var(--k-bg2)}
@@ -226,7 +249,7 @@
   let qopts = { docId: '', count: 5, level: 'medium', topic: '' }, copts = { docId: '', count: 10, topic: '' };
   let mindmapList = [], mindmapCurrent = null, mindmapSelectedId = null, mindmapDirty = false, mindmapEditing = false, mindmapBusy = false;
   let mindmapOpts = { docId: '', topic: '' }, mindmapView = { scale: 1, tx: 20, ty: 20 }, guestPreviewTab = 'tutor', mmSeq = 0;
-  let openSeq = 0, scrollLocked = false, savedScrollX = 0, savedScrollY = 0, savedDocStyles = null;
+  let openSeq = 0, scrollLocked = false, hasCapturedScroll = false, savedScrollX = 0, savedScrollY = 0, savedDocStyles = null;
   let lastTriggerEl = null, pushedHistory = false, closingFromPop = false, prevScrollRest = null, pendingBackOps = 0, needsPushAfterBack = false, scrollRestTimer = null;
 
   function pushStudyHistoryState() {
@@ -253,11 +276,22 @@
     }
   }
 
-  function lockBackgroundScroll() {
+  function getHostContainer() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById('view-study') || document.getElementById('pane-study') || null;
+  }
+
+  function captureBackgroundScroll() {
+    if (scrollLocked || typeof document === 'undefined' || typeof window === 'undefined') return;
+    savedScrollX = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0;
+    savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    hasCapturedScroll = true;
+  }
+
+  function lockBackgroundScroll(embedded) {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
     if (!scrollLocked) {
-      savedScrollX = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0;
-      savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+      if (!hasCapturedScroll) captureBackgroundScroll();
       const htmlEl = document.documentElement;
       const bodyEl = document.body;
       const alreadyFixed = bodyEl.style.position === 'fixed';
@@ -270,7 +304,7 @@
         bodyTop: bodyEl.style.top,
         bodyLeft: bodyEl.style.left,
         bodyWidth: bodyEl.style.width,
-        weFixedBody: !alreadyFixed,
+        weFixedBody: !embedded && !alreadyFixed,
       };
       scrollLocked = true;
     }
@@ -288,7 +322,7 @@
     }
   }
 
-  function unlockBackgroundScroll() {
+  function unlockBackgroundScroll(opts) {
     if (!scrollLocked || typeof document === 'undefined' || typeof window === 'undefined') return;
     const prev = savedDocStyles || {};
     const htmlEl = document.documentElement;
@@ -296,6 +330,7 @@
     const restoreX = savedScrollX;
     const restoreY = savedScrollY;
     scrollLocked = false;
+    hasCapturedScroll = false;
     savedDocStyles = null;
     htmlEl.style.overflow = prev.htmlOverflow || '';
     htmlEl.style.overscrollBehavior = prev.htmlOverscroll || '';
@@ -306,8 +341,10 @@
       bodyEl.style.top = prev.bodyTop || '';
       bodyEl.style.left = prev.bodyLeft || '';
       bodyEl.style.width = prev.bodyWidth || '';
-      try { window.scrollTo({ left: restoreX, top: restoreY, behavior: 'instant' }); }
-      catch (_) { window.scrollTo(restoreX, restoreY); }
+      if (!opts || !opts.skipScroll) {
+        try { window.scrollTo({ left: restoreX, top: restoreY, behavior: 'instant' }); }
+        catch (_) { window.scrollTo(restoreX, restoreY); }
+      }
     }
   }
 
@@ -345,24 +382,38 @@
   const $ = (id) => modal.querySelector('#' + id);
   const setStatus = (text, isBusy) => { const el = modal && modal.querySelector('#ns-status'); if (!el) return; el.textContent = text || ''; el.classList.toggle('ns-busy', !!isBusy); };
 
+  function syncShellMount() {
+    if (!modal) return false;
+    const host = getHostContainer();
+    const embedded = Boolean(host);
+    const parent = host || document.body;
+    if (modal.parentElement !== parent) parent.appendChild(modal);
+    modal.dataset.shell = embedded ? 'embedded' : 'standalone';
+    modal.setAttribute('role', embedded ? 'region' : 'dialog');
+    modal.setAttribute('aria-modal', embedded ? 'false' : 'true');
+    return embedded;
+  }
+
   function build() {
-    if (modal) return;
-    const style = document.createElement('style');
-    style.id = 'nexos-study-styles';
-    style.textContent = CSS + CSS2;
-    document.head.appendChild(style);
-    modal = document.createElement('div');
-    modal.id = 'nexos-study-modal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-labelledby', 'ns-title');
-    modal.innerHTML = '<div class="ns-card" tabindex="-1"><div class="ns-head">' +
-      '<button type="button" class="ns-back" data-ns="close" aria-label="Back to workspace">&#8592; <span>Back</span></button>' +
-      '<span class="ns-badge">' + ICON + '</span>' +
-      '<div class="ns-ht"><h3 id="ns-title">Study Studio</h3><div class="ns-sub">Learn from your own notes</div></div>' +
-      '<button type="button" class="ns-x" data-ns="close" aria-label="Close">\u2715</button></div>' +
-      '<div id="ns-root" style="display:flex;flex-direction:column;flex:1;min-height:0"></div></div>';
-    document.body.appendChild(modal);
+    if (!modal) {
+      const style = document.createElement('style');
+      style.id = 'nexos-study-styles';
+      style.textContent = CSS + CSS2;
+      document.head.appendChild(style);
+      modal = document.createElement('div');
+      modal.id = 'nexos-study-modal';
+      modal.setAttribute('aria-labelledby', 'ns-title');
+      modal.innerHTML = '<div class="ns-head">' +
+        '<span class="ns-badge">' + ICON + '</span>' +
+        '<div class="ns-ht"><h1 class="ns-title view-title view-headline" id="ns-title">Study Studio</h1><p class="ns-sub view-subtitle view-subheadline">Tutoring, quizzes, flashcards and mindmaps from your notes</p></div>' +
+        '<div class="ns-hact"><button type="button" class="ns-back btn-outline btn-secondary" data-ns="close" aria-label="Back to workspace">&#8592; <span>Back</span></button>' +
+        '<button type="button" class="ns-x" data-ns="close" aria-label="Close">\u2715</button></div></div>' +
+        '<div class="ns-card" tabindex="-1"><div id="ns-root" style="display:flex;flex-direction:column;flex:1;min-height:0"></div></div>';
+      syncShellMount();
+    } else {
+      syncShellMount();
+      return;
+    }
     modal.addEventListener('click', (e) => {
       const t = e.target.closest('[data-ns]');
       if (!t) return;
@@ -430,13 +481,51 @@
       if (f) pickFile(f);
     });
     document.addEventListener('keydown', (e) => {
-      if (!modal || modal.dataset.open !== '1') return;
-      if (e.key === 'Escape') {
-        if (mindmapEditing) { e.preventDefault(); mindmapEditing = false; rerenderActiveMindmap(); return; }
-        close();
+      if (!modal || modal.dataset.open !== '1' || e.key !== 'Escape') return;
+      if (document.querySelector('.modal-overlay.is-open, .modal-overlay-backdrop.open, .menu-pop:not([hidden]), #nexos-derail-modal[data-open="1"], #sidebar.open, #app-sidebar.open, #floating-copilot-drawer.open, #appearance-pop:not([hidden]), #prefs-popover:not([hidden])') || document.body.classList.contains('zen-mode')) {
         return;
       }
-      if (e.key === 'Tab') {
+      if (mindmapEditing) { e.preventDefault(); e.stopPropagation(); mindmapEditing = false; rerenderActiveMindmap(); return; }
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    }, true);
+    document.addEventListener('keydown', (e) => {
+      if (!modal || modal.dataset.open !== '1') return;
+      const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if (!typing && tab === 'quiz' && quiz && !quiz.done && !(adapter && adapter.isGuest())) {
+        const keyMap = { '1': 0, '2': 1, '3': 2, '4': 3, a: 0, b: 1, c: 2, d: 3 };
+        const pickIdx = keyMap[String(e.key || '').toLowerCase()];
+        if (pickIdx !== undefined && quiz.picks[quiz.i] === undefined && quiz.items[quiz.i] && quiz.items[quiz.i].options[pickIdx] !== undefined) {
+          e.preventDefault();
+          quiz.picks[quiz.i] = pickIdx;
+          renderQuiz();
+          return;
+        }
+        if (e.key === 'Enter' && quiz.picks[quiz.i] !== undefined) {
+          e.preventDefault();
+          ACTIONS['quiz-next']();
+          return;
+        }
+      }
+      if (!typing && tab === 'cards' && deck && !deck.done && !(adapter && adapter.isGuest())) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          ACTIONS.flip();
+          return;
+        }
+        if (deck.flipped && (e.key === '1' || e.key === 'ArrowLeft')) {
+          e.preventDefault();
+          ACTIONS['card-again']();
+          return;
+        }
+        if (deck.flipped && (e.key === '2' || e.key === 'ArrowRight')) {
+          e.preventDefault();
+          ACTIONS['card-known']();
+          return;
+        }
+      }
+      if (e.key === 'Tab' && modal.dataset.shell !== 'embedded') {
         const focusables = Array.from(modal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
           .filter((el) => el.offsetParent !== null || el === document.activeElement);
         if (!focusables.length) return;
@@ -478,18 +567,31 @@
     }
   }
 
-  function close() {
-    if (!modal || modal.dataset.open !== '1') { unlockBackgroundScroll(); return; }
+  function close(closeOpts) {
+    const opts = closeOpts && typeof closeOpts === 'object' ? closeOpts : {};
+    if (!modal || modal.dataset.open !== '1') { unlockBackgroundScroll({ skipScroll: Boolean(opts.fromNav) }); return; }
+    const fromNav = Boolean(opts.fromNav);
     openSeq++;
     modal.dataset.open = '0';
     needsPushAfterBack = false;
-    unlockBackgroundScroll();
-    const prevFocus = lastTriggerEl;
+    unlockBackgroundScroll({ skipScroll: fromNav || Boolean(adapter && typeof adapter.onClose === 'function') });
+    if (adapter && typeof adapter.onClose === 'function') {
+      adapter.onClose({ fromNav, savedScrollX, savedScrollY });
+    }
+    const prevFocus = fromNav ? null : lastTriggerEl;
     lastTriggerEl = null;
     if (prevFocus && prevFocus.isConnected && typeof prevFocus.focus === 'function') {
       try { prevFocus.focus({ preventScroll: true }); } catch (_) { try { prevFocus.focus(); } catch (__) {} }
     }
-    if (pushedHistory && !closingFromPop && typeof window !== 'undefined' && window.history) {
+    if (fromNav && typeof window !== 'undefined' && window.history) {
+      pushedHistory = false;
+      try {
+        if (window.history.state && window.history.state.nexosStudyOpen) {
+          window.history.replaceState({ ...window.history.state, nexosStudyOpen: false }, '');
+        }
+      } catch (_) {}
+      restoreHistoryScrollMode();
+    } else if (pushedHistory && !closingFromPop && typeof window !== 'undefined' && window.history) {
       pushedHistory = false;
       try {
         if (window.history.state && window.history.state.nexosStudyOpen) {
@@ -1544,6 +1646,7 @@
     const alreadyOpen = !!(modal && modal.dataset.open === '1');
     if (!alreadyOpen && typeof document !== 'undefined') lastTriggerEl = document.activeElement;
     adapter = a; build();
+    const embedded = syncShellMount();
     openSeq++;
     const seq = openSeq;
     history = []; docs = []; usage = null; pending = null; busy = false; thinking = false;
@@ -1551,7 +1654,9 @@
     mindmapList = []; mindmapCurrent = null; mindmapSelectedId = null; mindmapDirty = false; mindmapEditing = false; mindmapBusy = false; guestPreviewTab = 'tutor';
     mindmapOpts = { docId: '', topic: '' }; mindmapView = { scale: 1, tx: 20, ty: 20 };
     qopts = { docId: '', count: 5, level: 'medium', topic: '' }; copts = { docId: '', count: 10, topic: '' };
-    lockBackgroundScroll();
+    if (!alreadyOpen) captureBackgroundScroll();
+    if (a && typeof a.onOpen === 'function') a.onOpen();
+    lockBackgroundScroll(embedded);
     modal.dataset.open = '1';
     const calParam = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('calendar') : '';
     const calNotice = calParam === 'connected'

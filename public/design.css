@@ -329,6 +329,12 @@ html[data-design] .heatmap-cell.h3 { background: color-mix(in srgb, var(--accent
 html[data-design] .heatmap-cell.h4 { background: var(--accent); }
 html[data-design] .heat-0 { background: var(--surface-3); } html[data-design] .heat-1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-3)); } html[data-design] .heat-2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface-3)); } html[data-design] .heat-3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface-3)); } html[data-design] .heat-4 { background: var(--accent); }
 html[data-design] .notes-layout { height: calc(100vh - 220px); height: calc(100dvh - 220px); }
+html[data-design] .kanban-filter-pills { background: var(--surface-2); border: 0; border-radius: var(--r-ctl); padding: 4px; }
+html[data-design] .kanban-filter-pills .filter-btn { border: 0; height: 30px; }
+@media (max-width: 900px), (pointer: coarse) {
+  html[data-design] .filter-btn { height: 36px; min-height: 36px; }
+  html[data-design] .task-check { width: 26px; height: 26px; }
+}
 html[data-design] .notes-sidebar, html[data-design] .note-editor { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--r-card); overflow: hidden; }
 html[data-design] .notes-sidebar { padding: 12px; }
 html[data-design] .filter-btn { height: 30px; padding: 0 14px; border: 1px solid var(--outline-strong); border-radius: var(--r-ctl); background: transparent; color: var(--text-2); font-size: 12px; font-weight: 500; }
@@ -679,6 +685,10 @@ html[data-design="apple"] .editor-toolbar, html[data-design="apple"] .note-foote
 @media (max-width: 900px) {
   html[data-design] .topbar.has-signin { grid-template-columns: minmax(0, 1fr) auto auto; }
   html[data-design] .topbar.has-signin .breadcrumb { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  html[data-design] .topbar.has-signin .topbar-signin { display: inline-flex; align-items: center; flex: none; height: 30px; padding: 0 12px; margin-left: 4px; border: 0; border-radius: 999px; background: var(--accent-fill); color: var(--on-accent); font-family: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  html[data-design] .topbar.has-signin .topbar-signin { display: inline-flex; align-items: center; flex: none; min-height: 36px; height: 36px; padding: 0 14px; margin-left: 4px; border: 0; border-radius: 999px; background: var(--accent-fill); color: var(--on-accent); font-family: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
   html[data-design] .sync-chip[data-state="local"] { display: none; }
+}
+@media (max-width: 420px) {
+  html[data-design] .breadcrumb { font-size: 15.5px; }
+  html[data-design] .topbar.has-signin .topbar-signin { padding: 0 11px; font-size: 12px; }
 }

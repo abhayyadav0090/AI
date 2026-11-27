@@ -4,7 +4,7 @@
 
 NexOS is a web workspace for planning your day and staying focused. It combines a Kanban board, focus timer, habit tracker, notes and analytics with **NexAI**, an assistant powered by Google Gemini that can work with your tasks, habits, focus activity and notes.
 
-**Current source release: 4.6.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and a full-viewport **Study Studio** workspace (upload your notes, build concept mindmaps, practise quizzes/flashcards, schedule spaced revision and Google Calendar blocks, and let NexAI tutor you with scroll-isolated full-page panels across Classic and Enterprise), on top of the performance, mobile and NexAI work of the 3.x series. Existing features and workspace data are preserved.
+**Current source release: 4.7.0.** NexOS 4 adds **Day derailed** (replan a day that went off track), a scripted Action Mode sample for guests, and a native shell-integrated **Study Studio** workspace (upload your notes, build concept mindmaps, practise quizzes/flashcards, schedule spaced revision and Google Calendar blocks, and let NexAI tutor you inside Classic and Enterprise themes without leaving your sidebar or top toolbar), on top of the cross-module workflow, accessibility, offline analytics, and NexAI work of the 3.x and 4.x series. Existing features and workspace data are preserved.
 
 **Live demo:** [https://ai-aqit.onrender.com](https://ai-aqit.onrender.com)
 
@@ -498,9 +498,10 @@ One line per release. The linked notes have the details.
 - **4.2.0** — Habit editing, current and best streaks, 30-day completion rates, milestone badges, flexible weekly goals and summary strip. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.2.0.md)
 - **4.3.0** — Pause, resume and reorder habits, per-habit 12-week heatmaps and insights, and configurable push reminders. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.3.0.md)
 - **4.4.0** — Whole-material and keyword-expanded Study Studio answers, tappable source excerpts, and interactive Quiz and Cards tabs. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/RELEASE-NOTES-4.4.0.md)
-- **4.5.0** — Study Studio spaced-revision queue with graded intervals and exam planner with dates, study targets and checklists. [Notes](RELEASE-NOTES/NexOS-4.5.0.md)
-- **4.5.1** — Study Studio Calendar time-blocks, Habits streak sync, revision push alerts, automatic NexAI continuation and safer note/task actions. [Notes](RELEASE-NOTES/NexOS-4.5.1.md)
-- **4.6.0** — Full-viewport Study Studio in Classic and Enterprise, background scroll lock and boundary scroll-chaining isolation, browser Back/focus/navigation lifecycle, preserved NexAI continuation, note-summarization race fixes, CORS `PATCH` support and Chrome CDP regression suite. [Notes](RELEASE-NOTES/NexOS-4.6.0.md)
+- **4.5.0** — Study Studio spaced-revision queue with graded intervals and exam planner with dates, study targets and checklists. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.5.0.md)
+- **4.5.1** — Study Studio Calendar time-blocks, Habits streak sync, revision push alerts, automatic NexAI continuation and safer note/task actions. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.5.1.md)
+- **4.6.0** — Full-viewport Study Studio in Classic and Enterprise, background scroll lock and boundary scroll-chaining isolation, browser Back/focus/navigation lifecycle, preserved NexAI continuation, note-summarization race fixes, CORS `PATCH` support and Chrome CDP regression suite. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.6.0.md)
+- **4.7.0** — Native shell-integrated Study Studio with persistent sidebar/toolbar and theme parity, overdue-first Dashboard ordering, Kanban `#tag`/overdue filtering with Board/List sync, accessible Calendar and Habit modals, Pomodoro reload persistence, offline Analytics fallbacks, WCAG contrast and mobile touch-target polish. [Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.7.0.md)
 
 ---
 

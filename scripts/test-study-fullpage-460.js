@@ -100,7 +100,7 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
 }
 
 (async function main() {
-  // Verify 4.6.0 release consistency across package/lockfile/docs/HTML/SW while preserving historical references
+  // Verify 4.7.0 release consistency across package/lockfile/docs/HTML/SW while preserving historical references
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
   const compose = fs.readFileSync(path.join(ROOT, 'docker-compose.yml'), 'utf8');
@@ -108,15 +108,17 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
   const sw = fs.readFileSync(path.join(ROOT, 'public', 'sw.js'), 'utf8');
   const classicHtml = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
   const entHtml = fs.readFileSync(path.join(ROOT, 'public', 'index-redesign.html'), 'utf8');
-  assert.equal(pkg.version, '4.6.0', 'package.json version must be 4.6.0');
-  assert.equal(lock.version, '4.6.0', 'package-lock.json version must be 4.6.0');
-  assert.equal(lock.packages[''].version, '4.6.0', 'package-lock root package version must be 4.6.0');
-  assert.ok(compose.includes('com.nexos.version=4.6.0'), 'docker-compose label matches 4.6.0');
-  assert.ok(readme.includes('Current source release: 4.6.0.'), 'README identifies 4.6.0 as current release');
-  assert.ok(readme.includes('[Notes](RELEASE-NOTES/NexOS-4.6.0.md)'), 'README links 4.6.0 release notes');
-  assert.ok(fs.existsSync(path.join(ROOT, 'RELEASE-NOTES', 'NexOS-4.6.0.md')), '4.6.0 release notes file exists');
-  assert.ok(sw.includes("const CACHE = 'nexos-shell-v39'"), 'SW cache namespace bumped to v39');
-  assert.ok(!/v=4\.5\.1/.test(sw) && !/v=4\.5\.1/.test(classicHtml) && !/v=4\.5\.1/.test(entHtml), 'No stale ?v=4.5.1 asset queries in active shell/SW');
+  assert.equal(pkg.version, '4.7.0', 'package.json version must be 4.7.0');
+  assert.equal(lock.version, '4.7.0', 'package-lock.json version must be 4.7.0');
+  assert.equal(lock.packages[''].version, '4.7.0', 'package-lock root package version must be 4.7.0');
+  assert.ok(compose.includes('com.nexos.version=4.7.0'), 'docker-compose label matches 4.7.0');
+  assert.ok(readme.includes('Current source release: 4.7.0.'), 'README identifies 4.7.0 as current release');
+  assert.ok(readme.includes('[Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.6.0.md)'), 'README preserves 4.6.0 release notes link');
+  assert.ok(readme.includes('[Notes](RELEASE-NOTES/RELEASE-NOTES%20NexOS%204.0/NexOS-4.7.0.md)'), 'README links 4.7.0 release notes');
+  assert.ok(fs.existsSync(path.join(ROOT, 'RELEASE-NOTES', 'RELEASE-NOTES NexOS 4.0', 'NexOS-4.6.0.md')), 'Historical 4.6.0 release notes file preserved');
+  assert.ok(fs.existsSync(path.join(ROOT, 'RELEASE-NOTES', 'RELEASE-NOTES NexOS 4.0', 'NexOS-4.7.0.md')), '4.7.0 release notes file exists');
+  assert.ok(sw.includes("const CACHE = 'nexos-shell-v40'"), 'SW cache namespace bumped to v40');
+  assert.ok(!/v=4\.6\.0/.test(sw) && !/v=4\.6\.0/.test(classicHtml) && !/v=4\.6\.0/.test(entHtml), 'No stale ?v=4.6.0 asset queries in active shell/SW');
   assert.ok(entHtml.includes('PHONE FIXES (2.5.1)'), 'Historical 2.5.1 comment preserved');
   // Verify about.html does not exist and CORS supports PATCH
   assert.equal(fs.existsSync(path.join(ROOT, 'public', 'about.html')), false, 'about.html must not exist on disk');
@@ -177,16 +179,16 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
       })()`);
       await cdp.waitFor('document.getElementById("nexos-study-btn") !== null && typeof NexStudy !== "undefined"');
 
-      // Check toast z-index > Study Studio z-index
+      // Check toast z-index > embedded Study Studio z-index
       const toastStack = await cdp.eval(`(() => {
         const host = document.getElementById('toasts');
         return { z: host ? Number(getComputedStyle(host).zIndex || 0) : 0 };
       })()`);
-      assert.ok(toastStack.z > 2100, `Classic .toasts z-index (${toastStack.z}) must exceed Study Studio 2100`);
+      assert.ok(toastStack.z >= 1000, `Classic .toasts z-index (${toastStack.z}) sits well above workspace`);
 
-      // Test scroll lock & restoration across Desktop, Tablet, Mobile
+      // Test shell-integrated Study Studio across Desktop (1440x900), Tablet (768x1024), Mobile (360x740)
       for (const vp of [
-        { name: 'desktop', width: 1280, height: 800, mobile: false },
+        { name: 'desktop', width: 1440, height: 900, mobile: false },
         { name: 'tablet', width: 768, height: 1024, mobile: false },
         { name: 'mobile', width: 360, height: 740, mobile: true },
       ]) {
@@ -205,48 +207,83 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         const beforeY = await cdp.eval('Math.round(window.scrollY)');
         assert.ok(beforeY >= 400, `Classic ${vp.name} background must scroll before opening (${beforeY})`);
 
-        // Focus trigger without scrolling away from saved scroll position, then open Study Studio
-        await cdp.eval(`(() => {
+        // Measure Insights shell reference first for direct comparison
+        const insightsRef = await cdp.eval(`(() => {
           const btn = document.getElementById('nexos-study-btn');
           btn.focus({ preventScroll: true });
-          openStudyStudio();
+          const side = document.getElementById('sidebar');
+          const topbar = document.querySelector('#main > .topbar');
+          return {
+            sideW: side ? Math.round(side.getBoundingClientRect().width) : 0,
+            topH: topbar ? Math.round(topbar.getBoundingClientRect().height) : 0,
+          };
         })()`);
+
+        // Open Study Studio without losing pre-open scroll tracking
+        await cdp.eval(`(() => { openStudyStudio(); })()`);
         await cdp.waitFor('document.querySelector("#nexos-study-modal[data-open=\\"1\\"]") !== null');
 
         const geom = await cdp.eval(`(() => {
           const m = document.getElementById('nexos-study-modal');
           const c = m.querySelector('.ns-card');
+          const head = m.querySelector('.ns-head');
           const back = m.querySelector('.ns-back');
-          const x = m.querySelector('.ns-x');
+          const side = document.getElementById('sidebar');
+          const topbar = document.querySelector('#main > .topbar');
+          const bnav = document.getElementById('bottom-nav');
+          const viewStudy = document.getElementById('view-study');
           const mr = m.getBoundingClientRect();
           const cr = c.getBoundingClientRect();
+          const sr = side ? side.getBoundingClientRect() : null;
+          const tr = topbar ? topbar.getBoundingClientRect() : null;
+          const br = (bnav && getComputedStyle(bnav).display !== 'none') ? bnav.getBoundingClientRect() : null;
           const csM = getComputedStyle(m);
           const csC = getComputedStyle(c);
           return {
             iw: window.innerWidth, ih: window.innerHeight,
-            mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom) },
-            cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom) },
+            shellMode: m.dataset.shell,
+            inViewStudy: Boolean(viewStudy && viewStudy.classList.contains('active') && viewStudy.contains(m)),
+            navStudyActive: Boolean(document.getElementById('nav-study')?.classList.contains('active')),
+            breadcrumb: document.getElementById('breadcrumb')?.textContent?.trim() || '',
+            mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom), h: Math.round(mr.height), w: Math.round(mr.width) },
+            cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom), h: Math.round(cr.height) },
+            sideRect: sr ? { l: Math.round(sr.left), r: Math.round(sr.right), w: Math.round(sr.width), h: Math.round(sr.height), vis: getComputedStyle(side).visibility !== 'hidden' } : null,
+            topRect: tr ? { t: Math.round(tr.top), b: Math.round(tr.bottom), h: Math.round(tr.height), vis: tr.height > 0 } : null,
+            bnavRect: br ? { t: Math.round(br.top), b: Math.round(br.bottom), h: Math.round(br.height) } : null,
             borderRadius: csC.borderRadius,
-            boxShadow: csC.boxShadow,
-            bgAlpha: csM.backgroundColor,
+            mBg: csM.backgroundColor,
+            cBg: csC.backgroundColor,
             backVisible: Boolean(back && back.getBoundingClientRect().width > 0),
-            closeVisible: Boolean(x && x.getBoundingClientRect().width > 0),
-            bodyPos: document.body.style.position,
-            bodyTop: document.body.style.top,
+            headVisible: Boolean(head && head.getBoundingClientRect().height > 0),
+            docScrollLocked: document.documentElement.classList.contains('nexos-study-active'),
+            docScrollMax: document.documentElement.scrollHeight - document.documentElement.clientHeight,
             winY: Math.round(window.scrollY),
             docOverflow: document.documentElement.scrollWidth - window.innerWidth,
             cardFocus: m.contains(document.activeElement),
           };
         })()`);
-        assert.deepEqual(geom.mRect, { l: 0, t: 0, r: geom.iw, b: geom.ih }, `Classic ${vp.name} #nexos-study-modal fills full viewport`);
-        assert.deepEqual(geom.cRect, { l: 0, t: 0, r: geom.iw, b: geom.ih }, `Classic ${vp.name} .ns-card fills full viewport (not popup)`);
-        assert.equal(geom.borderRadius, '0px', `Classic ${vp.name} .ns-card must have 0px border-radius`);
-        assert.equal(geom.boxShadow, 'none', `Classic ${vp.name} .ns-card must have no popup shadow`);
-        assert.equal(geom.backVisible && geom.closeVisible, true, `Classic ${vp.name} Back and Close buttons visible`);
-        assert.equal(geom.bodyPos, 'fixed', `Classic ${vp.name} body locked while Study Studio open`);
-        assert.equal(geom.bodyTop, `-${beforeY}px`, `Classic ${vp.name} background visual offset preserved`);
+
+        assert.equal(geom.shellMode, 'embedded', `Classic ${vp.name} Study Studio renders inside shell`);
+        assert.equal(geom.inViewStudy, true, `Classic ${vp.name} mounts inside active #view-study`);
+        assert.equal(geom.navStudyActive, true, `Classic ${vp.name} highlights Study Studio in sidebar`);
+        assert.equal(geom.breadcrumb, 'Study Studio', `Classic ${vp.name} updates global topbar breadcrumb`);
+        assert.ok(geom.topRect && geom.topRect.vis && geom.mRect.t >= geom.topRect.b - 2, `Classic ${vp.name} global topbar remains visible above Study Studio`);
+        if (vp.name === 'desktop') {
+          assert.ok(geom.sideRect && geom.sideRect.vis && geom.sideRect.w >= 200, `Classic desktop persistent sidebar remains visible (${geom.sideRect?.w}px)`);
+          assert.ok(geom.mRect.l >= geom.sideRect.r - 2, `Classic desktop Study Studio sits inside main content area right of sidebar (${geom.mRect.l} >= ${geom.sideRect.r})`);
+        }
+        if (geom.bnavRect) {
+          assert.ok(geom.cRect.b <= geom.bnavRect.t + 2, `Classic ${vp.name} Study Studio clears mobile bottom nav (${geom.cRect.b} <= ${geom.bnavRect.t})`);
+        }
+        assert.ok(geom.cRect.h >= 340, `Classic ${vp.name} Study Studio occupies full remaining height (${geom.cRect.h}px)`);
+        assert.notEqual(geom.borderRadius, '0px', `Classic ${vp.name} .ns-card adopts NexOS card radius`);
+        assert.notEqual(geom.cBg, 'rgb(0, 0, 0)', `Classic ${vp.name} .ns-card does not use hardcoded pure black`);
+        assert.equal(geom.backVisible && geom.headVisible, true, `Classic ${vp.name} Back control and header visible`);
+        assert.equal(geom.docScrollLocked, true, `Classic ${vp.name} locks outer shell scroll cleanly`);
+        assert.ok(geom.docScrollMax <= 2, `Classic ${vp.name} outer page height constrained to viewport (extra=${geom.docScrollMax})`);
+        assert.equal(geom.winY, 0, `Classic ${vp.name} window.scrollY stays anchored at 0 while inside shell`);
         assert.equal(geom.cardFocus, true, `Classic ${vp.name} focus moves inside Study Studio`);
-        assert.ok(geom.docOverflow <= 1, `Classic ${vp.name} zero horizontal overflow`);
+        assert.ok(geom.docOverflow <= 1, `Classic ${vp.name} zero horizontal overflow (got ${geom.docOverflow})`);
 
         // Make foreground scroll container genuinely scrollable + add a nested scroll box
         await cdp.eval(`(() => {
@@ -303,7 +340,7 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
           const tMoveBot = new TouchEvent('touchmove', { cancelable: true, bubbles: true, touches: [new Touch({ identifier: 2, target: sc, clientX: 160, clientY: 310 })] });
           sc.dispatchEvent(tMoveBot);
 
-          // 6) Attempt programmatic scroll on background while open
+          // 6) Attempt programmatic scroll on outer window while open
           window.scrollBy(0, 300);
 
           return {
@@ -316,7 +353,6 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
             headPrevented: evHead.defaultPrevented,
             touchTopPrevented: tMoveTop.defaultPrevented,
             touchBotPrevented: tMoveBot.defaultPrevented,
-            bodyTopAfter: document.body.style.top,
             winYAfter: Math.round(window.scrollY),
           };
         })()`);
@@ -330,8 +366,7 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         assert.equal(scrollIsolation.headPrevented, true, `Classic ${vp.name} blocks wheel on non-scroll header`);
         assert.equal(scrollIsolation.touchTopPrevented, true, `Classic ${vp.name} prevents touch pull-down chaining at top boundary`);
         assert.equal(scrollIsolation.touchBotPrevented, true, `Classic ${vp.name} prevents touch swipe-up chaining at bottom boundary`);
-        assert.equal(scrollIsolation.bodyTopAfter, `-${beforeY}px`, `Classic ${vp.name} background stays stationary`);
-        assert.equal(scrollIsolation.winYAfter, 0, `Classic ${vp.name} window.scrollY stays 0 during lock`);
+        assert.equal(scrollIsolation.winYAfter, 0, `Classic ${vp.name} outer window stays stationary during lock`);
 
         // Also fire real Chrome CDP touch swipe + mouseWheel events on mobile/desktop
         if (vp.mobile) {
@@ -344,11 +379,10 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         }
         await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: Math.round(vp.width / 2), y: Math.round(vp.height / 2), deltaX: 0, deltaY: 400 });
         await new Promise((r) => setTimeout(r, 40));
-        const realWheelCheck = await cdp.eval(`(() => ({ bodyTop: document.body.style.top, winY: Math.round(window.scrollY) }))()`);
-        assert.equal(realWheelCheck.bodyTop, `-${beforeY}px`, `Classic ${vp.name} real CDP mouseWheel cannot move background`);
-        assert.equal(realWheelCheck.winY, 0);
+        const realWheelCheck = await cdp.eval(`({ winY: Math.round(window.scrollY) })`);
+        assert.equal(realWheelCheck.winY, 0, `Classic ${vp.name} real CDP mouseWheel cannot move outer document`);
 
-        // Switch guest preview to Mindmap preview & test Escape in node edit vs Study Studio
+        // Switch guest preview to Mindmap preview & test Escape hierarchy (Ctrl+K modal -> Mindmap editor -> Study Studio)
         await cdp.eval(`(() => {
           document.querySelector('[data-ns="guest-mode"][data-g="mindmap"]').click();
         })()`);
@@ -357,39 +391,45 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
           const st = document.getElementById('ns-mm-stage');
           st.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, clientX: 180, clientY: 160, cancelable: true, bubbles: true }));
           const lbl1 = document.getElementById('ns-mm-zoom-label')?.textContent || '';
+          // Ctrl+K works from the shell topbar/shortcuts above Study Studio, and first Escape closes only the palette
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+          const paletteOpenedOnShell = Boolean(document.getElementById('search-modal')?.classList.contains('is-open'));
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          const paletteClosedAfterEsc = !document.getElementById('search-modal')?.classList.contains('is-open');
+          const studyStayedOpenAfterPaletteEsc = document.getElementById('nexos-study-modal').dataset.open === '1';
+
           document.querySelector('[data-ns="mm-edit-open"]').click();
           const hasEditInput = Boolean(document.getElementById('ns-mm-edit-label'));
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
           const stillOpenAfterEditEsc = document.getElementById('nexos-study-modal').dataset.open === '1';
           const editClosed = !document.getElementById('ns-mm-edit-label');
-          // Ctrl+K must NOT open background #search-modal behind Study Studio
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
-          const bgPaletteOpened = document.getElementById('search-modal')?.classList.contains('is-open');
-          return { lbl1, hasEditInput, stillOpenAfterEditEsc, editClosed, bgPaletteOpened, bodyTop: document.body.style.top };
+          return { lbl1, paletteOpenedOnShell, paletteClosedAfterEsc, studyStayedOpenAfterPaletteEsc, hasEditInput, stillOpenAfterEditEsc, editClosed, winY: Math.round(window.scrollY) };
         })()`);
+        assert.equal(mmZoomCheck.paletteOpenedOnShell && mmZoomCheck.paletteClosedAfterEsc && mmZoomCheck.studyStayedOpenAfterPaletteEsc, true, `Classic ${vp.name} Ctrl+K palette works inside shell and Escape closes palette without closing Study Studio`);
         assert.ok(mmZoomCheck.hasEditInput && mmZoomCheck.editClosed && mmZoomCheck.stillOpenAfterEditEsc, 'Escape cancels mindmap node editor before closing Study Studio');
-        assert.equal(mmZoomCheck.bgPaletteOpened, false, 'Ctrl+K does not open background search palette behind Study Studio');
-        assert.equal(mmZoomCheck.bodyTop, `-${beforeY}px`, 'Mindmap zoom does not disturb background scroll');
+        assert.equal(mmZoomCheck.winY, 0, 'Mindmap zoom does not disturb outer scroll');
 
-        // Close via Back button & confirm exact scroll + body style + focus restoration
+        // Close via Back button & confirm previous view + exact scrollY + trigger focus restored
         await cdp.eval('document.querySelector("#nexos-study-modal .ns-back").click()');
         await cdp.waitFor('document.getElementById("nexos-study-modal").dataset.open === "0"');
         const afterClose = await cdp.eval(`(() => ({
           winY: Math.round(window.scrollY),
-          bodyPos: document.body.style.position,
+          dashActive: Boolean(document.getElementById('view-dashboard')?.classList.contains('active')),
+          studyLocked: document.documentElement.classList.contains('nexos-study-active'),
           bodyOverflow: document.body.style.overflow,
           htmlOverflow: document.documentElement.style.overflow,
           focusRestored: document.activeElement && document.activeElement.id === 'nexos-study-btn',
         }))()`);
+        assert.equal(afterClose.dashActive, true, `Classic ${vp.name} restores previous Dashboard view`);
         assert.equal(afterClose.winY, beforeY, `Classic ${vp.name} restores exact background scrollY (${afterClose.winY} === ${beforeY})`);
-        assert.equal(afterClose.bodyPos, '', `Classic ${vp.name} restores body position`);
+        assert.equal(afterClose.studyLocked, false, `Classic ${vp.name} releases nexos-study-active shell lock`);
         assert.equal(afterClose.bodyOverflow, '', `Classic ${vp.name} restores body overflow`);
         assert.equal(afterClose.htmlOverflow, '', `Classic ${vp.name} restores html overflow`);
         assert.equal(afterClose.focusRestored, true, `Classic ${vp.name} restores focus to trigger element`);
       }
 
-      // Desktop: repeated open/close, browser back (popstate), switchView navigation, Day Derailed scroll lock, theme opacity
-      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      // Desktop (1440x900): repeated open/close, browser back (popstate), switchView to Insights/Kanban, Day Derailed scroll lock, theme consistency across Google/Apple Light/Dark
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
       const classicExtra = await cdp.eval(`(async () => {
         window.scrollTo({ top: 380, left: 0, behavior: 'instant' });
         for (let i = 0; i < 4; i++) {
@@ -406,10 +446,14 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         const closedByBack = document.getElementById('nexos-study-modal').dataset.open === '0';
         const afterBackY = Math.round(window.scrollY);
 
-        // switchView closes active Study Studio cleanly
+        // Navigating between Study Studio and Insights / Tasks works natively
         openStudyStudio();
+        switchView('analytics');
+        const closedByInsightsNav = document.getElementById('nexos-study-modal').dataset.open === '0' &&
+          document.getElementById('view-analytics').classList.contains('active') &&
+          !document.getElementById('nav-study').classList.contains('active');
         switchView('kanban');
-        const closedByNav = document.getElementById('nexos-study-modal').dataset.open === '0';
+        const onKanban = document.getElementById('view-kanban').classList.contains('active');
 
         // Day Derailed also locks and restores scroll
         switchView('dashboard');
@@ -419,22 +463,33 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         document.querySelector('#nexos-derail-modal [data-nd="close"]').click();
         const derailRestoredY = Math.round(window.scrollY);
 
-        // Apple Glass dark theme check on Study Studio background (must remain opaque)
-        if (window.NexUI) { NexUI.setDesign('apple'); NexUI.setTheme('dark'); }
-        openStudyStudio();
-        const glassBg = getComputedStyle(document.getElementById('nexos-study-modal')).backgroundColor;
-        NexStudy.close();
+        // Theme consistency check: compare Study Studio card surface against Dashboard/Insights card surface across themes
+        const themeSurfaceMatches = [];
+        for (const [des, th] of [['google', 'dark'], ['google', 'light'], ['apple', 'dark'], ['apple', 'light']]) {
+          if (window.NexUI) { NexUI.setDesign(des); NexUI.setTheme(th); }
+          switchView('analytics');
+          const refCardBg = getComputedStyle(document.querySelector('#view-analytics .analytics-card')).backgroundColor;
+          openStudyStudio();
+          const m = document.getElementById('nexos-study-modal');
+          const studyCardBg = getComputedStyle(m.querySelector('.ns-card')).backgroundColor;
+          const studyRootBg = getComputedStyle(m).backgroundColor;
+          NexStudy.close();
+          themeSurfaceMatches.push({ des, th, refCardBg, studyCardBg, studyRootBg });
+        }
         if (window.NexUI) { NexUI.setDesign('google'); NexUI.setTheme('dark'); }
 
-        return { afterLoopY, closedByBack, afterBackY, closedByNav, derailPos, derailRestoredY, glassBg };
+        return { afterLoopY, closedByBack, afterBackY, closedByInsightsNav, onKanban, derailPos, derailRestoredY, themeSurfaceMatches };
       })()`);
       assert.equal(classicExtra.afterLoopY, 380, 'Repeated open/close preserves exact scrollY');
       assert.equal(classicExtra.closedByBack, true, 'Browser Back (popstate) closes Study Studio');
       assert.equal(classicExtra.afterBackY, 380, 'Browser Back restores original scrollY');
-      assert.equal(classicExtra.closedByNav, true, 'switchView closes active Study Studio');
+      assert.equal(classicExtra.closedByInsightsNav && classicExtra.onKanban, true, 'switchView moves cleanly between Study Studio, Insights, and Tasks');
       assert.equal(classicExtra.derailPos, 'fixed', 'Day Derailed locks background scroll');
       assert.equal(classicExtra.derailRestoredY, 310, 'Day Derailed restores scroll position');
-      assert.ok(!/rgba\([^)]+,\s*0(\.\d+)?\)/.test(classicExtra.glassBg), `Study Studio background opaque in Glass mode (${classicExtra.glassBg})`);
+      for (const t of classicExtra.themeSurfaceMatches) {
+        assert.equal(t.studyCardBg, t.refCardBg, `Classic ${t.des}/${t.th} Study Studio card surface matches Insights card (${t.studyCardBg} === ${t.refCardBg})`);
+        assert.ok(/rgba\(0,\s*0,\s*0,\s*0\)/.test(t.studyRootBg), `Classic ${t.des}/${t.th} Study Studio wrapper stays transparent inside shell`);
+      }
 
       // ── 3. Authenticated Study Studio 6 tabs + Mindmap CRUD + Summarize Note + NexAI Continue in Classic ──
       const classicFlow = await cdp.eval(`(async () => {
@@ -609,12 +664,14 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
       assert.equal(classicFlow.truncActionBtns, 0, 'Truncated reply suppresses premature Add actions');
       assert.equal(classicFlow.continuedTextOk, true, 'Clicking Continue sends continuation and renders completed reply');
 
-      // ── 4. ENTERPRISE (/enterprise): Full-page Study Studio, scroll isolation, Alt+8, Ctrl+K, switchNexusView ──
-      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+      // ── 4. ENTERPRISE (/enterprise): Shell-integrated Study Studio (1440x900), scroll isolation, Alt+8, Ctrl+K, switchNexusView ──
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
       await cdp.send('Page.navigate', { url: `${urlBase}/enterprise` });
       await cdp.waitFor('document.readyState === "complete" && typeof openStudyStudio === "function" && typeof switchNexusView === "function"');
 
       const entCheck = await cdp.eval(`(async () => {
+        switchNexusView('analytics');
+        const refCardBg = getComputedStyle(document.querySelector('#pane-analytics .dash-card')).backgroundColor;
         switchNexusView('dashboard');
         let sp = document.getElementById('cdp-ent-bg-spacer');
         if (!sp) {
@@ -629,19 +686,43 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         openStudyStudio();
         const m = document.getElementById('nexos-study-modal');
         const c = m.querySelector('.ns-card');
+        const side = document.getElementById('app-sidebar');
+        const topbar = document.querySelector('.main-wrapper > .topbar');
         const mr = m.getBoundingClientRect();
         const cr = c.getBoundingClientRect();
+        const sr = side ? side.getBoundingClientRect() : null;
+        const tr = topbar ? topbar.getBoundingClientRect() : null;
         const shelfZ = Number(getComputedStyle(document.getElementById('toast-shelf')).zIndex || 0);
+        const studyCardBg = getComputedStyle(c).backgroundColor;
+        const studyRootBg = getComputedStyle(m).backgroundColor;
+        const inPaneStudy = Boolean(document.getElementById('pane-study')?.classList.contains('active') && document.getElementById('pane-study')?.contains(m));
+        const navStudyActive = Boolean(document.getElementById('nav-study')?.classList.contains('active'));
+        const topbarTitle = document.getElementById('topbar-view-title')?.textContent?.trim() || '';
 
+        const entThemeMatches = [];
+        for (const t of ['cyber-aubergine', 'apple-dark', 'apple-light', 'cobalt-lime-dark', 'violet-orchid-dark']) {
+          applyNexusTheme(t);
+          const scBg = getComputedStyle(c).backgroundColor;
+          const srBg = getComputedStyle(m).backgroundColor;
+          switchNexusView('analytics');
+          const acBg = getComputedStyle(document.querySelector('#pane-analytics .dash-card')).backgroundColor;
+          openStudyStudio();
+          entThemeMatches.push({ t, scBg, acBg, srBg });
+        }
+        applyNexusTheme('cyber-aubergine');
+
+        // Ctrl+K opens command palette on top of Study Studio cleanly; first Escape closes palette, second Escape exits Study Studio
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
-        const paletteBehindOpen = document.getElementById('modal-command-palette')?.classList.contains('open');
+        const paletteOpened = Boolean(document.getElementById('modal-command-palette')?.classList.contains('open'));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        const paletteClosedOnEsc = !document.getElementById('modal-command-palette')?.classList.contains('open') && m.dataset.open === '1';
 
-        // Alt+8 opens Study Studio on Enterprise too, and switchNexusView closes it
+        // Alt+8 opens Study Studio on Enterprise too, and switchNexusView('analytics') closes it cleanly
         NexStudy.close();
         document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit8', altKey: true, bubbles: true }));
         const openedByAlt8 = m.dataset.open === '1';
-        switchNexusView('kanban');
-        const closedByEnterpriseNav = m.dataset.open === '0';
+        switchNexusView('analytics');
+        const closedByEnterpriseNav = m.dataset.open === '0' && document.getElementById('pane-analytics').classList.contains('active');
 
         // Test Enterprise aiSummarizeActiveNote race safety when switching notes mid-flight
         const origEntFetch = window.fetch;
@@ -672,7 +753,7 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
           enterpriseSession.mode = origMode;
         }
 
-        // Re-open Study Studio at Y=420 then close via Back and verify restoration
+        // Re-open Study Studio at Y=420 then close via Back and verify restoration + theme consistency
         switchNexusView('dashboard');
         window.scrollTo({ top: 420, left: 0, behavior: 'instant' });
         openStudyStudio();
@@ -683,57 +764,94 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
         sc.scrollTop = sc.scrollHeight - sc.clientHeight;
         const botEv = new WheelEvent('wheel', { deltaY: 160, cancelable: true, bubbles: true });
         sc.dispatchEvent(botEv);
-        const topDuringLock = document.body.style.top;
+        const winYDuringLock = Math.round(window.scrollY);
+        const lockedCls = document.documentElement.classList.contains('nexos-study-active');
         m.querySelector('.ns-back').click();
         const restoredY = Math.round(window.scrollY);
+        const dashRestored = Boolean(document.getElementById('pane-dashboard')?.classList.contains('active'));
 
         return {
           beforeY,
           iw: window.innerWidth, ih: window.innerHeight,
-          mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom) },
-          cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom) },
+          shellMode: m.dataset.shell,
+          inPaneStudy,
+          navStudyActive,
+          topbarTitle,
+          entThemeMatches,
+          mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom), h: Math.round(mr.height) },
+          cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom), h: Math.round(cr.height) },
+          sideRect: sr ? { l: Math.round(sr.left), r: Math.round(sr.right), w: Math.round(sr.width), h: Math.round(sr.height) } : null,
+          topRect: tr ? { t: Math.round(tr.top), b: Math.round(tr.bottom), h: Math.round(tr.height) } : null,
+          refCardBg, studyCardBg, studyRootBg,
           shelfZ,
-          paletteBehindOpen,
+          paletteOpened,
+          paletteClosedOnEsc,
           openedByAlt8,
           closedByEnterpriseNav,
           entNoteAOk,
           entNoteBOk,
           botPrevented: botEv.defaultPrevented,
-          topDuringLock,
+          winYDuringLock,
+          lockedCls,
+          dashRestored,
           restoredY,
         };
       })()`);
 
       assert.ok(entCheck.beforeY >= 300);
-      assert.deepEqual(entCheck.mRect, { l: 0, t: 0, r: entCheck.iw, b: entCheck.ih }, 'Enterprise #nexos-study-modal fills full viewport');
-      assert.deepEqual(entCheck.cRect, { l: 0, t: 0, r: entCheck.iw, b: entCheck.ih }, 'Enterprise .ns-card fills full viewport');
+      assert.equal(entCheck.shellMode, 'embedded', 'Enterprise Study Studio runs inside main shell');
+      assert.equal(entCheck.inPaneStudy, true, 'Enterprise Study Studio mounts inside active #pane-study');
+      assert.equal(entCheck.navStudyActive, true, 'Enterprise Study Studio highlights sidebar #nav-study');
+      assert.equal(entCheck.topbarTitle, 'Study Studio', 'Enterprise topbar shows Study Studio');
+      assert.ok(entCheck.sideRect && entCheck.sideRect.w >= 220 && entCheck.mRect.l >= entCheck.sideRect.r - 2, 'Enterprise desktop sidebar remains visible left of Study Studio');
+      assert.ok(entCheck.topRect && entCheck.topRect.h >= 48 && entCheck.mRect.t >= entCheck.topRect.b - 2, 'Enterprise global topbar remains visible above Study Studio');
+      assert.ok(entCheck.cRect.h >= 480, `Enterprise Study Studio fills main content height (${entCheck.cRect.h}px)`);
+      assert.equal(entCheck.studyCardBg, entCheck.refCardBg, `Enterprise Study Studio card matches Insights card background (${entCheck.studyCardBg})`);
+      for (const et of entCheck.entThemeMatches) {
+        assert.equal(et.scBg, et.acBg, `Enterprise theme ${et.t} Study Studio card matches Analytics card (${et.scBg} === ${et.acBg})`);
+        assert.ok(/rgba\(0,\s*0,\s*0,\s*0\)/.test(et.srBg), `Enterprise theme ${et.t} Study Studio wrapper stays transparent`);
+      }
+      assert.ok(/rgba\(0,\s*0,\s*0,\s*0\)/.test(entCheck.studyRootBg), 'Enterprise Study Studio wrapper stays transparent inside shell');
       assert.ok(entCheck.shelfZ > 2100, 'Enterprise toast shelf sits above Study Studio');
-      assert.equal(entCheck.paletteBehindOpen, false, 'Enterprise Ctrl+K does not open palette behind Study Studio');
+      assert.equal(entCheck.paletteOpened && entCheck.paletteClosedOnEsc, true, 'Enterprise Ctrl+K opens over Study Studio and Escape closes palette first');
       assert.equal(entCheck.openedByAlt8, true, 'Enterprise Alt+8 opens Study Studio');
-      assert.equal(entCheck.closedByEnterpriseNav, true, 'Enterprise switchNexusView closes active Study Studio');
+      assert.equal(entCheck.closedByEnterpriseNav, true, 'Enterprise switchNexusView moves cleanly from Study Studio to Analytics');
       assert.equal(entCheck.entNoteAOk && entCheck.entNoteBOk, true, 'Enterprise aiSummarizeActiveNote saves onto original note without overwriting switched note');
       assert.equal(entCheck.botPrevented, true, 'Enterprise Study Studio blocks bottom boundary wheel chaining');
-      assert.equal(entCheck.topDuringLock, `-${entCheck.beforeY}px`);
-      assert.equal(entCheck.restoredY, entCheck.beforeY, 'Enterprise closing Study Studio restores exact scrollY');
+      assert.equal(entCheck.winYDuringLock, 0);
+      assert.equal(entCheck.lockedCls, true);
+      assert.equal(entCheck.dashRestored && entCheck.restoredY === entCheck.beforeY, true, 'Enterprise closing Study Studio restores Dashboard and exact scrollY');
 
-      // Enterprise Tablet (768x1024) & Mobile (360x740) Study Studio full-page geometry
+      // Enterprise Tablet (768x1024) & Mobile (360x740) Study Studio shell-integrated geometry & theme consistency
       for (const vp of [{ width: 768, height: 1024, mobile: false }, { width: 360, height: 740, mobile: true }]) {
         await cdp.send('Emulation.setDeviceMetricsOverride', { width: vp.width, height: vp.height, deviceScaleFactor: 1, mobile: vp.mobile });
         const entVp = await cdp.eval(`(() => {
           openStudyStudio();
           const m = document.getElementById('nexos-study-modal');
           const c = m.querySelector('.ns-card');
+          const topbar = document.querySelector('.main-wrapper > .topbar');
+          const bnav = document.getElementById('mobile-bottom-nav');
           const mr = m.getBoundingClientRect();
           const cr = c.getBoundingClientRect();
+          const tr = topbar ? topbar.getBoundingClientRect() : null;
+          const br = (bnav && getComputedStyle(bnav).display !== 'none') ? bnav.getBoundingClientRect() : null;
+          const overflow = document.documentElement.scrollWidth - window.innerWidth;
           NexStudy.close();
           return {
             iw: window.innerWidth, ih: window.innerHeight,
-            mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom) },
-            cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom) },
+            overflow,
+            mRect: { l: Math.round(mr.left), t: Math.round(mr.top), r: Math.round(mr.right), b: Math.round(mr.bottom), h: Math.round(mr.height) },
+            cRect: { l: Math.round(cr.left), t: Math.round(cr.top), r: Math.round(cr.right), b: Math.round(cr.bottom), h: Math.round(cr.height) },
+            topRect: tr ? { b: Math.round(tr.bottom), h: Math.round(tr.height) } : null,
+            bnavRect: br ? { t: Math.round(br.top), h: Math.round(br.height) } : null,
           };
         })()`);
-        assert.deepEqual(entVp.mRect, { l: 0, t: 0, r: entVp.iw, b: entVp.ih }, `Enterprise ${vp.width}px Study Studio modal fills viewport`);
-        assert.deepEqual(entVp.cRect, { l: 0, t: 0, r: entVp.iw, b: entVp.ih }, `Enterprise ${vp.width}px Study Studio card fills viewport`);
+        assert.ok(entVp.overflow <= 1, `Enterprise ${vp.width}px Study Studio zero horizontal overflow (got ${entVp.overflow})`);
+        assert.ok(entVp.topRect && entVp.topRect.h >= 40 && entVp.mRect.t >= entVp.topRect.b - 2, `Enterprise ${vp.width}px topbar stays visible above Study Studio`);
+        if (entVp.bnavRect) {
+          assert.ok(entVp.cRect.b <= entVp.bnavRect.t + 2, `Enterprise ${vp.width}px Study Studio clears mobile bottom nav (${entVp.cRect.b} <= ${entVp.bnavRect.t})`);
+        }
+        assert.ok(entVp.cRect.h >= 340, `Enterprise ${vp.width}px Study Studio card fills available workspace height (${entVp.cRect.h}px)`);
       }
 
       // ── 5. Standalone HTML checks (contact, privacy, recover) ──

@@ -430,8 +430,13 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .priority-low { background: rgba(16, 185, 129, 0.16); color: var(--accent-emerald); }
 .task-due { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .task-card-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.kanban-filter-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.kanban-filter-bar .input-inline { flex: 1 1 200px; max-width: 280px; }
+.kanban-filter-pills { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
+.kanban-filter-pills .filter-btn { flex: 0 0 auto; padding: 6px 12px; cursor: pointer; }
+.offline-chart-stat { margin-top: 6px; font-size: 12px; color: var(--text-muted); text-align: center; }
 .task-action-btn, .task-move-btn {
-  min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px;
+  min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px;
   background: transparent; color: var(--text-muted); font-size: 13px; line-height: 1;
   transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
@@ -766,10 +771,12 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
   .modal-footer .btn-primary, .modal-footer .btn-outline { flex: 1 1 auto; }
 }
 
-@media (pointer: coarse) {
+@media (max-width: 900px), (pointer: coarse) {
   .nav-item { padding: 12px; }
-  .btn-sm { padding: 8px 14px; }
-  .task-action-btn, .task-move-btn { min-width: 34px; height: 34px; }
+  .btn-sm { padding: 8px 14px; min-height: 36px; }
+  .task-action-btn, .task-move-btn { min-width: 36px; height: 36px; }
+  .habit-edit-btn, .habit-delete-btn { min-width: 36px; min-height: 36px; width: 36px; height: 36px; }
+  .filter-btn { min-height: 36px; padding: 6px 14px; }
   .habit-check { min-height: 38px; }
   .prompt-chip { padding: 9px 14px; }
 }
@@ -1181,4 +1188,15 @@ html details.profile-section.ps-fold { padding-top: 14px; }
 @media(max-width:768px){
  html.nexos-ai-fit,html.nexos-ai-fit body{overflow:hidden;overscroll-behavior:none}
  html.nexos-ai-fit body.nexos-ai-view-active #view-ai.active{height:calc(100vh - var(--nex-ai-top,130px) - var(--nex-ai-bottom,92px));height:calc(100dvh - var(--nex-ai-top,130px) - var(--nex-ai-bottom,92px));min-height:0}
+}
+
+/* Native shell-integrated Study Studio (Classic) */
+html.nexos-study-active,html.nexos-study-active body{height:100vh;height:100dvh;max-height:100dvh;overflow:hidden;overscroll-behavior:none}
+html.nexos-study-active #app{height:100%;min-height:0;overflow:hidden}
+html.nexos-study-active .main-content{flex:1 1 auto;min-width:0;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0!important}
+html.nexos-study-active .view-container{flex:1 1 0;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-top:20px;padding-bottom:var(--nex-study-bottom,20px)!important}
+html.nexos-study-active #view-study.active{flex:1 1 0;min-height:0;display:flex;flex-direction:column;overflow:hidden;animation:none}
+@media(max-width:900px){
+ html.nexos-study-active .view-container{padding-top:12px}
+ body.nexos-study-view-active .fab{display:none!important}
 }

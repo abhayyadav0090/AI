@@ -885,6 +885,7 @@ async function startApp(user, options = {}) {
   if (!(user.offline && options.optimisticPainted)) {
     applyTheme();
     applyProfileTimer();
+    if (typeof restoreClassicPomodoro === 'function') restoreClassicPomodoro();
     startClock();
     setGreeting();
     renderDashboard();
@@ -1187,6 +1188,7 @@ function dayKey(offset = 0) {
 
 // ═══════════════════════════ CLOCK + GREETING ═══════════════════════════
 function startClock() {
+  let lastClockDate = today();
   const tick = () => {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
@@ -1194,6 +1196,17 @@ function startClock() {
     const s = String(now.getSeconds()).padStart(2, '0');
     const el = document.getElementById('topbar-clock');
     if (el) el.textContent = `${h}:${m}:${s}`;
+    const curDate = dateKey(now);
+    if (curDate !== lastClockDate) {
+      lastClockDate = curDate;
+      try {
+        setGreeting();
+        renderDashboard();
+        renderKanban();
+        renderHabits();
+        renderAnalytics();
+      } catch (_) {}
+    }
   };
   tick();
   if (clockTimer) clearInterval(clockTimer);
@@ -1281,17 +1294,64 @@ function syncClassicAIFit() {
   }
 }
 
+let prevViewBeforeStudy = 'dashboard';
+let classicStudyFitWatching = false;
+function syncClassicStudyFit() {
+  const root = document.documentElement;
+  if (!root.classList.contains('nexos-study-active')) return;
+  const nav = document.getElementById('bottom-nav');
+  const navBox = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect() : null;
+  const bottom = navBox ? Math.max(18, Math.round(window.innerHeight - navBox.top) + 12) : 20;
+  root.style.setProperty('--nex-study-bottom', bottom + 'px');
+  if (!classicStudyFitWatching) {
+    classicStudyFitWatching = true;
+    window.addEventListener('resize', syncClassicStudyFit);
+    window.addEventListener('orientationchange', syncClassicStudyFit);
+    if (window.ResizeObserver && nav) new ResizeObserver(syncClassicStudyFit).observe(nav);
+  }
+}
+
+function activateClassicStudyView() {
+  const activeId = document.querySelector('.view.active')?.id || '';
+  const curName = activeId.startsWith('view-') ? activeId.slice(5) : '';
+  if (curName && curName !== 'study') prevViewBeforeStudy = curName;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
+  const studyView = document.getElementById('view-study');
+  if (studyView) studyView.classList.add('active');
+  const navStudy = document.getElementById('nav-study');
+  if (navStudy) { navStudy.classList.add('active'); navStudy.setAttribute('aria-current', 'page'); }
+  document.querySelectorAll('[data-bnav]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-current', 'false'); });
+  if (window.NexUI) NexUI.closeMenus();
+  const breadcrumb = document.getElementById('breadcrumb');
+  if (breadcrumb) breadcrumb.textContent = 'Study Studio';
+  closeClassicAISheet();
+  document.body.classList.remove('nexos-ai-view-active');
+  document.documentElement.classList.remove('nexos-ai-fit');
+  document.body.classList.add('nexos-study-view-active');
+  document.documentElement.classList.add('nexos-study-active');
+  if (window.innerWidth < 900) closeSidebar();
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  syncClassicStudyFit();
+  setTimeout(syncClassicStudyFit, 200);
+}
+
 function switchView(name) {
-  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close();
+  if (name === 'study') { openStudyStudio(); return; }
+  if (window.NexStudy && typeof window.NexStudy.close === 'function') window.NexStudy.close({ fromNav: true });
+  document.body.classList.remove('nexos-study-view-active');
+  document.documentElement.classList.remove('nexos-study-active');
   const previousView = document.querySelector('.view.active')?.id;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const view = document.getElementById('view-' + name);
   if (view) view.classList.add('active');
   const navItem = document.querySelector(`.nav-item[data-view="${name}"]`);
-  if (navItem) navItem.classList.add('active');
+  if (navItem) { navItem.classList.add('active'); navItem.setAttribute('aria-current', 'page'); }
   const breadcrumb = document.getElementById('breadcrumb');
-  const labels = { dashboard: 'Home', kanban: 'Tasks', pomodoro: 'Focus', habits: 'Habits', notes: 'Notes', analytics: 'Insights', ai: 'NexAI' };
+  const labels = { dashboard: 'Home', kanban: 'Tasks', pomodoro: 'Focus', habits: 'Habits', notes: 'Notes', analytics: 'Insights', study: 'Study Studio', ai: 'NexAI' };
   document.querySelectorAll('[data-bnav]').forEach(b => { const on = b.dataset.bnav === name; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
   if (window.NexUI) NexUI.closeMenus();
   if (breadcrumb) breadcrumb.textContent = labels[name] || name;
@@ -1441,7 +1501,7 @@ function askFromHome(event) {
 
 function openNoteFromDash(id) {
   switchView('notes');
-  setTimeout(() => openNote(id), 100);
+  openNote(id);
 }
 
 function updateStats() {
@@ -1487,10 +1547,11 @@ function addTask() {
 function renderKanban() {
   const cols = ['todo', 'inprogress', 'review', 'done'];
   const fm = nexFocusMinutesMap(state);
+  const matchFn = typeof taskMatchesClassicFilter === 'function' ? taskMatchesClassicFilter : () => true;
   cols.forEach(col => {
     const container = document.getElementById('col-' + col);
     const count = document.getElementById('count-' + col);
-    const tasks = state.tasks.filter(t => t.col === col);
+    const tasks = state.tasks.filter(t => t.col === col && matchFn(t));
     if (count) count.textContent = tasks.length;
     if (container) {
       container.innerHTML = tasks.map(t => `
@@ -1501,7 +1562,7 @@ function renderKanban() {
           ${t.desc ? `<div class="task-desc">${escHtml(t.desc.slice(0, 80))}</div>` : ''}
           <div class="task-card-meta">
             <span class="priority-chip priority-${t.priority}">${t.priority}</span>
-            ${t.due ? `<span class="task-due">${fmtDate(t.due)}</span>` : ''}
+            ${t.due ? dueChip(t) : ''}
             ${fm[t.id] ? `<span class="task-due">\u25F7 ${fm[t.id]}m focused</span>` : ''}
             <div class="task-card-actions">
               ${t.col !== 'done' ? `<button class="task-action-btn" onclick="focusOnTask('${t.id}')" title="Start focus on this task" aria-label="Start focus on ${escHtml(t.title)}">\u25B6</button>` : ''}
@@ -1515,6 +1576,34 @@ function renderKanban() {
     }
   });
   if (window.NexUI) NexUI.renderTaskList();
+}
+
+let classicKanbanFilter = 'all';
+function taskMatchesClassicFilter(t) {
+  if (!t) return false;
+  const q = (document.getElementById('kanban-search-input')?.value || '').trim().toLowerCase();
+  if (q) {
+    const tagQ = q.startsWith('#') ? q.slice(1) : q;
+    const hitTitle = (t.title || '').toLowerCase().includes(q);
+    const hitDesc = (t.desc || '').toLowerCase().includes(q);
+    const hitTags = tagQ && Array.isArray(t.tags) && t.tags.some(tg => String(tg || '').toLowerCase().includes(tagQ));
+    if (!hitTitle && !hitDesc && !hitTags) return false;
+  }
+  if (classicKanbanFilter === 'overdue') {
+    const t0 = today();
+    return t.col !== 'done' && !!t.due && t.due < t0;
+  }
+  if (classicKanbanFilter !== 'all') return t.priority === classicKanbanFilter;
+  return true;
+}
+function setClassicKanbanFilter(filter, btn) {
+  classicKanbanFilter = filter || 'all';
+  document.querySelectorAll('#classic-kanban-filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderKanban();
+}
+function filterClassicKanban() {
+  renderKanban();
 }
 
 function moveTaskStep(id, direction) {
@@ -1645,18 +1734,98 @@ async function aiSuggestTask() {
 
 // ═══════════════════════════ POMODORO ═══════════════════════════
 let pomTimer = null;
+let pomAutoStartTimer = null;
 let pomState = { mode: 'focus', remaining: 25 * 60, running: false, sessionCount: 0, endAt: 0 };
 const BASE_TITLE = document.title;
 const pomDurations = { focus: 25, short: 5, long: 15 };
+const CLASSIC_POMO_KEY = 'nexos_classic_pomo_v1';
+
+function cancelClassicAutoStart() {
+  if (pomAutoStartTimer) { clearTimeout(pomAutoStartTimer); pomAutoStartTimer = null; }
+}
+
+function persistClassicPomodoro(extra = {}) {
+  try {
+    const prev = JSON.parse(localStorage.getItem(CLASSIC_POMO_KEY) || 'null') || {};
+    localStorage.setItem(CLASSIC_POMO_KEY, JSON.stringify({
+      mode: pomState.mode,
+      remaining: Math.max(0, Number(pomState.remaining) || 0),
+      running: !!pomState.running,
+      endAt: pomState.running ? pomState.endAt : 0,
+      sessionCount: Number(pomState.sessionCount) || 0,
+      focusTaskId: focusTaskId || '',
+      durations: { ...pomDurations },
+      lastCompletedEndAt: extra.lastCompletedEndAt ?? (prev.lastCompletedEndAt || 0),
+      updatedAt: Date.now()
+    }));
+  } catch (_) {}
+}
+
+function restoreClassicPomodoro() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(CLASSIC_POMO_KEY) || 'null'); } catch (_) {}
+  if (!saved || typeof saved !== 'object') return;
+  if (!Number.isFinite(saved.updatedAt) || Date.now() - saved.updatedAt > 12 * 3600 * 1000) return;
+  if (!state.profile && saved.durations && typeof saved.durations === 'object') {
+    const f = document.getElementById('focus-duration');
+    const sh = document.getElementById('short-duration');
+    const lg = document.getElementById('long-duration');
+    if (f && Number.isFinite(saved.durations.focus)) f.value = saved.durations.focus;
+    if (sh && Number.isFinite(saved.durations.short)) sh.value = saved.durations.short;
+    if (lg && Number.isFinite(saved.durations.long)) lg.value = saved.durations.long;
+    updateDurations();
+  }
+  const mode = ['focus', 'short', 'long'].includes(saved.mode) ? saved.mode : 'focus';
+  pomState.mode = mode;
+  pomState.sessionCount = Math.max(0, Number(saved.sessionCount) || 0);
+  document.querySelectorAll('.pomo-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + mode)?.classList.add('active');
+  if (saved.focusTaskId && state.tasks.some(t => t && t.id === saved.focusTaskId && t.col !== 'done')) {
+    focusTaskId = saved.focusTaskId;
+  }
+  if (saved.running && Number(saved.endAt) > 0) {
+    const left = Math.ceil((Number(saved.endAt) - Date.now()) / 1000);
+    if (left > 0) {
+      pomState.remaining = left;
+      pomState.endAt = Number(saved.endAt);
+      pomState.running = true;
+      const btn = document.getElementById('pomo-play-btn'), miniBtn = document.getElementById('mini-play-btn');
+      if (btn) btn.textContent = '\u23F8';
+      if (miniBtn) miniBtn.textContent = '\u23F8';
+      clearInterval(pomTimer);
+      pomTimer = setInterval(pomTick, 250);
+      renderPomTimer();
+      renderFocusTask();
+      return;
+    }
+    if (Number(saved.lastCompletedEndAt) !== Number(saved.endAt)) {
+      persistClassicPomodoro({ lastCompletedEndAt: Number(saved.endAt) });
+      pomState.running = false;
+      pomState.endAt = 0;
+      pomState.remaining = 0;
+      pomSessionComplete(true);
+      renderFocusTask();
+      return;
+    }
+  }
+  if (Number.isFinite(saved.remaining) && saved.remaining > 0) {
+    pomState.remaining = Math.min((pomDurations[mode] || 25) * 60, saved.remaining);
+  }
+  renderPomTimer();
+  renderFocusTask();
+}
 
 function setMode(mode) {
+  cancelClassicAutoStart();
   if (pomState.running) return;
   pomState.mode = mode;
+  pomState.endAt = 0;
   pomState.remaining = (pomDurations[mode] || 25) * 60;
   updateDurations();
   document.querySelectorAll('.pomo-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + mode)?.classList.add('active');
   renderPomTimer();
+  persistClassicPomodoro();
 }
 
 function updateDurations() {
@@ -1673,10 +1842,12 @@ function updateDurations() {
   if (!pomState.running) {
     pomState.remaining = pomDurations[pomState.mode] * 60;
     renderPomTimer();
+    persistClassicPomodoro();
   }
 }
 
 function togglePomodoro() {
+  cancelClassicAutoStart();
   if (!pomState.running && pomState.remaining <= 0) pomState.remaining = (pomDurations[pomState.mode] || 25) * 60;
   pomState.running = !pomState.running;
   const btn = document.getElementById('pomo-play-btn');
@@ -1688,12 +1859,15 @@ function togglePomodoro() {
     // Count against the clock, not against interval ticks: browsers slow timers in background tabs.
     pomState.endAt = Date.now() + pomState.remaining * 1000;
     pomTimer = setInterval(pomTick, 250);
+    renderPomTimer();
   } else {
     if (btn) btn.textContent = '\u25B6';
     if (miniBtn) miniBtn.textContent = '\u25B6';
     if (pomState.endAt > 0) pomState.remaining = Math.max(0, Math.ceil((pomState.endAt - Date.now()) / 1000));
+    pomState.endAt = 0;
     renderPomTimer();
   }
+  persistClassicPomodoro();
 }
 
 function togglePomodoroFromDash() { togglePomodoro(); }
@@ -1767,7 +1941,11 @@ function focusKeepGoing() { focusPromptId = ''; renderFocusTask(); }
 function clearFocusTask() { focusTaskId = ''; focusPromptId = ''; renderFocusTask(); }
 // ---- end Focus-task actions ----
 
-function pomSessionComplete() {
+function pomSessionComplete(fromRestore = false) {
+  const finishedEndAt = pomState.endAt;
+  pomState.endAt = 0;
+  if (finishedEndAt) persistClassicPomodoro({ lastCompletedEndAt: finishedEndAt });
+  cancelClassicAutoStart();
   const btn = document.getElementById('pomo-play-btn');
   const miniBtn = document.getElementById('mini-play-btn');
   if (btn) btn.textContent = '▶';
@@ -1783,21 +1961,23 @@ function pomSessionComplete() {
     }
     saveState(); updateStats(); renderDashboard(); renderKanban();
     if (document.getElementById('view-analytics')?.classList.contains('active')) renderAnalytics();
-    // Play sound
-    if (document.getElementById('sound-enabled')?.checked) playBeep();
-    try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification('Focus session complete', { body: 'Nice work. Time for a break.', icon: '/nexos-icon-192.png', tag: 'nexos-pomodoro' }); } catch (_) {}
-    // Auto-start break
-    if (document.getElementById('auto-start')?.checked) {
-      const nextMode = pomState.sessionCount % 4 === 0 ? 'long' : 'short';
-      setMode(nextMode);
-      setTimeout(togglePomodoro, 1000);
+    if (!fromRestore) {
+      if (document.getElementById('sound-enabled')?.checked) playBeep();
+      try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification('Focus session complete', { body: 'Nice work. Time for a break.', icon: '/nexos-icon-192.png', tag: 'nexos-pomodoro' }); } catch (_) {}
+    }
+    const nextMode = pomState.sessionCount % 4 === 0 ? 'long' : 'short';
+    setMode(nextMode);
+    if (!fromRestore && document.getElementById('auto-start')?.checked) {
+      pomAutoStartTimer = setTimeout(() => { pomAutoStartTimer = null; togglePomodoro(); }, 1000);
     }
   } else {
-    if (document.getElementById('auto-start')?.checked) {
-      setMode('focus'); setTimeout(togglePomodoro, 1000);
+    setMode('focus');
+    if (!fromRestore && document.getElementById('auto-start')?.checked) {
+      pomAutoStartTimer = setTimeout(() => { pomAutoStartTimer = null; togglePomodoro(); }, 1000);
     }
   }
   renderPomoStats();
+  persistClassicPomodoro();
 }
 
 let pomAudioCtx = null;
@@ -1818,7 +1998,8 @@ function playBeep() {
 }
 
 function resetPomodoro() {
-  clearInterval(pomTimer); pomState.running = false;
+  cancelClassicAutoStart();
+  clearInterval(pomTimer); pomState.running = false; pomState.endAt = 0;
   document.title = BASE_TITLE;
   pomState.remaining = pomDurations[pomState.mode] * 60;
   const playBtn = document.getElementById('pomo-play-btn');
@@ -1826,11 +2007,14 @@ function resetPomodoro() {
   if (playBtn) playBtn.textContent = '▶';
   if (miniBtn) miniBtn.textContent = '▶';
   renderPomTimer();
+  persistClassicPomodoro();
 }
 
 function skipPomodoro() {
+  cancelClassicAutoStart();
   clearInterval(pomTimer);
   pomState.running = false;
+  pomState.endAt = 0;
   document.title = BASE_TITLE;
   const nextMode = pomState.mode === 'focus' ? 'short' : 'focus';
   setMode(nextMode);
@@ -1838,6 +2022,7 @@ function skipPomodoro() {
   const miniBtn = document.getElementById('mini-play-btn');
   if (btn) btn.textContent = '▶';
   if (miniBtn) miniBtn.textContent = '▶';
+  persistClassicPomodoro();
 }
 
 function renderPomTimer() {
@@ -2383,18 +2568,35 @@ async function renderAnalytics() {
     const loaded = await ensureClassicChartLibrary();
     if (renderToken !== classicAnalyticsRenderToken || !document.getElementById('view-analytics')?.classList.contains('active')) return;
     if (!loaded) {
+      const doneTotal = state.tasks.filter(t => t && t.col === 'done').length;
+      const openTotal = state.tasks.filter(t => t && t.col !== 'done').length;
+      const totalFocusRange = (() => {
+        let sum = 0;
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i); const k = dateKey(d);
+          sum += (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === k).reduce((s, l) => s + (Number(l.minutes) || 0), 0);
+        }
+        return sum;
+      })();
+      const summaryByChart = {
+        focusChart: `${totalFocusRange} min deep focus across last ${days} days`,
+        taskDonut: `${openTotal} open · ${doneTotal} completed`,
+        velocityChart: `${doneTotal} completed tasks recorded`
+      };
       ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
         const canvas = document.getElementById(id);
         if (canvas && canvas.parentElement && !canvas.parentElement.querySelector('.chart-unavailable')) {
           const msg = document.createElement('div'); msg.className = 'chart-unavailable empty-state';
           msg.textContent = 'Charts could not load. Check your connection and refresh.';
-          canvas.parentElement.appendChild(msg);
+          const note = document.createElement('div'); note.className = 'offline-chart-stat';
+          note.textContent = summaryByChart[id] || '';
+          canvas.parentElement.append(msg, note);
         }
       });
     }
   }
   if (window.Chart) {
-    document.querySelectorAll('.chart-unavailable').forEach(el => el.remove());
+    document.querySelectorAll('.chart-unavailable, .offline-chart-stat').forEach(el => el.remove());
     renderFocusChart(days);
     renderTaskDonut();
     renderVelocityChart(days);
@@ -4171,7 +4373,7 @@ const VIEW_SHORTCUTS = { Digit1: 'dashboard', Digit2: 'kanban', Digit3: 'pomodor
 const isTypingTarget = el => !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 document.addEventListener('keydown', e => {
   if (!currentUser) return;
-  const fullOverlayOpen = !!document.querySelector('#nexos-study-modal[data-open="1"], #nexos-derail-modal[data-open="1"]');
+  const fullOverlayOpen = !!document.querySelector('#nexos-derail-modal[data-open="1"]');
   if (e.altKey && !e.ctrlKey && !e.metaKey && VIEW_SHORTCUTS[e.code]) { e.preventDefault(); switchView(VIEW_SHORTCUTS[e.code]); return; }
   if (fullOverlayOpen) return;
   if (e.ctrlKey || e.metaKey) {
@@ -4371,6 +4573,15 @@ function openStudyStudio(opts) {
     ensureStudyHabit: classicEnsureStudyHabit,
     recordStudyCheckIn: classicRecordStudyCheckIn,
     addStudyTasks: nexChatAddTasks,
+    onOpen: () => activateClassicStudyView(),
+    onClose: ({ fromNav, savedScrollX, savedScrollY } = {}) => {
+      document.body.classList.remove('nexos-study-view-active');
+      document.documentElement.classList.remove('nexos-study-active');
+      if (!fromNav) {
+        switchView(prevViewBeforeStudy || 'dashboard');
+        window.scrollTo({ left: savedScrollX || 0, top: savedScrollY || 0, behavior: 'instant' });
+      }
+    },
   }, cleanOpts);
 }
 

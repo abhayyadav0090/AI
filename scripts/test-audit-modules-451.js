@@ -166,9 +166,9 @@ function extractSlice(src, startMarker, endMarker) {
   {
     assert.ok(entHtml.includes('refreshDailyInsight') && entHtml.includes("nexLocalInsight(state, today(), focusCfgMins)"), 'Enterprise dashboard insight delegates to nexLocalInsight');
     assert.ok(classicJs.includes("const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string')") && entHtml.includes("const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string')"), 'openStudyStudio filters raw click events cleanly');
-    assert.equal(pkg.version, '4.6.0');
-    assert.ok(compose.includes('com.nexos.version=4.6.0'), 'docker-compose label matches 4.6.0');
-    assert.ok(swJs.includes('?v=4.6.0') && classicHtml.includes('?v=4.6.0') && entHtml.includes('?v=4.6.0'), 'PWA cache and HTML asset versions align on 4.6.0');
+    assert.equal(pkg.version, '4.7.0');
+    assert.ok(compose.includes('com.nexos.version=4.7.0'), 'docker-compose label matches 4.7.0');
+    assert.ok(swJs.includes('?v=4.7.0') && classicHtml.includes('?v=4.7.0') && entHtml.includes('?v=4.7.0'), 'PWA cache and HTML asset versions align on 4.7.0');
   }
 
   console.log('NexOS 4.5.1 9-module audit & cross-module regression tests passed.');

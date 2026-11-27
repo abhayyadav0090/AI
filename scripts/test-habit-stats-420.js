@@ -56,7 +56,7 @@ assert.strictEqual(H.GOAL_OPTIONS.length, 7); assert.strictEqual(H.GOAL_OPTIONS[
 
 // wiring in both pages, precache, goal saved from the edit bar, stored streak untouched
 const classic = read('public/app.js'), ent = read('public/index-redesign.html'), ch = read('public/index.html'), sw = read('public/sw.js');
-assert.ok(ch.includes('habits.js?v=4.6.0') && ent.includes('habits.js?v=4.6.0') && sw.includes("'/habits.js?v=4.6.0'"));
+assert.ok(ch.includes('habits.js?v=4.7.0') && ent.includes('habits.js?v=4.7.0') && sw.includes("'/habits.js?v=4.7.0'"));
 assert.ok(classic.includes('habitStatsHtml(h, streak)') && classic.includes('NexHabits.renderSummary(live, today(), header)'));
 assert.ok(ent.includes('habitStatsHtml(h)') && ent.includes('NexHabits.renderSummary(live, localDateKey(), container)'));
 assert.ok(classic.includes('habit.goal = goal') && ent.includes('habit.goal = goal') && classic.includes('id="habit-edit-goal"') && ent.includes('id="habit-edit-goal"'));

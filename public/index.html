@@ -13,9 +13,9 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="style.css?v=4.6.0">
-<link rel="stylesheet" href="design.css?v=4.6.0">
-<link rel="manifest" href="manifest.json?v=4.6.0">
+<link rel="stylesheet" href="style.css?v=4.7.0">
+<link rel="stylesheet" href="design.css?v=4.7.0">
+<link rel="manifest" href="manifest.json?v=4.7.0">
 <meta name="theme-color" content="#131314">
 <script>
   /* Apply the saved design and theme before first paint so there is no flash. */
@@ -297,6 +297,16 @@
           </div>
         </div>
 
+        <div class="kanban-filter-bar" id="classic-kanban-filter-bar">
+          <input type="search" id="kanban-search-input" placeholder="Search tasks…" aria-label="Search tasks" class="input-inline" oninput="filterClassicKanban()">
+          <div class="kanban-filter-pills" role="group" aria-label="Filter tasks">
+            <button type="button" class="filter-btn active" data-kf="all" onclick="setClassicKanbanFilter('all', this)">All</button>
+            <button type="button" class="filter-btn" data-kf="overdue" onclick="setClassicKanbanFilter('overdue', this)">Overdue</button>
+            <button type="button" class="filter-btn" data-kf="high" onclick="setClassicKanbanFilter('high', this)">High</button>
+            <button type="button" class="filter-btn" data-kf="medium" onclick="setClassicKanbanFilter('medium', this)">Medium</button>
+            <button type="button" class="filter-btn" data-kf="low" onclick="setClassicKanbanFilter('low', this)">Low</button>
+          </div>
+        </div>
         <div class="task-list-view" id="task-list-view" hidden></div>
         <div class="kanban-board" id="kanban-board">
           <div class="kanban-col" data-col="todo">
@@ -603,6 +613,9 @@
           </div>
         </div>
       </section>
+
+      <!-- STUDY STUDIO -->
+      <section id="view-study" class="view" aria-label="Study Studio"></section>
     </div>
   </main>
 </div>
@@ -882,13 +895,13 @@
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="push-client.js?v=4.6.0" defer></script>
-<script src="attach.js?v=4.6.0" defer></script>
-<script src="chat-tasks.js?v=4.6.0" defer></script>
-<script src="habits.js?v=4.6.0" defer></script>
-<script src="derail.js?v=4.6.0" defer></script>
-<script src="study.js?v=4.6.0" defer></script>
-<script src="app.js?v=4.6.0" defer></script>
-<script src="ui.js?v=4.6.0" defer></script>
+<script src="push-client.js?v=4.7.0" defer></script>
+<script src="attach.js?v=4.7.0" defer></script>
+<script src="chat-tasks.js?v=4.7.0" defer></script>
+<script src="habits.js?v=4.7.0" defer></script>
+<script src="derail.js?v=4.7.0" defer></script>
+<script src="study.js?v=4.7.0" defer></script>
+<script src="app.js?v=4.7.0" defer></script>
+<script src="ui.js?v=4.7.0" defer></script>
 </body>
 </html>
