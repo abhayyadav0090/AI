@@ -100,6 +100,24 @@ async function waitForDevToolsWs(port, timeoutMs = 8000) {
 }
 
 (async function main() {
+  // Verify 4.6.0 release consistency across package/lockfile/docs/HTML/SW while preserving historical references
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
+  const compose = fs.readFileSync(path.join(ROOT, 'docker-compose.yml'), 'utf8');
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const sw = fs.readFileSync(path.join(ROOT, 'public', 'sw.js'), 'utf8');
+  const classicHtml = fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8');
+  const entHtml = fs.readFileSync(path.join(ROOT, 'public', 'index-redesign.html'), 'utf8');
+  assert.equal(pkg.version, '4.6.0', 'package.json version must be 4.6.0');
+  assert.equal(lock.version, '4.6.0', 'package-lock.json version must be 4.6.0');
+  assert.equal(lock.packages[''].version, '4.6.0', 'package-lock root package version must be 4.6.0');
+  assert.ok(compose.includes('com.nexos.version=4.6.0'), 'docker-compose label matches 4.6.0');
+  assert.ok(readme.includes('Current source release: 4.6.0.'), 'README identifies 4.6.0 as current release');
+  assert.ok(readme.includes('[Notes](RELEASE-NOTES/NexOS-4.6.0.md)'), 'README links 4.6.0 release notes');
+  assert.ok(fs.existsSync(path.join(ROOT, 'RELEASE-NOTES', 'NexOS-4.6.0.md')), '4.6.0 release notes file exists');
+  assert.ok(sw.includes("const CACHE = 'nexos-shell-v39'"), 'SW cache namespace bumped to v39');
+  assert.ok(!/v=4\.5\.1/.test(sw) && !/v=4\.5\.1/.test(classicHtml) && !/v=4\.5\.1/.test(entHtml), 'No stale ?v=4.5.1 asset queries in active shell/SW');
+  assert.ok(entHtml.includes('PHONE FIXES (2.5.1)'), 'Historical 2.5.1 comment preserved');
   // Verify about.html does not exist and CORS supports PATCH
   assert.equal(fs.existsSync(path.join(ROOT, 'public', 'about.html')), false, 'about.html must not exist on disk');
 

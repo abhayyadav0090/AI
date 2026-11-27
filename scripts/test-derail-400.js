@@ -41,7 +41,7 @@ assert.ok(dp.items.length >= 3 && dp.items.some((i) => i.title.startsWith('Creat
 
 // wiring
 const classic = read('public/app.js'), ent = read('public/index-redesign.html'), ch = read('public/index.html'), sw = read('public/sw.js'), mod = read('public/derail.js');
-assert.ok(ch.includes('derail.js?v=4.5.1') && ent.includes('derail.js?v=4.5.1') && sw.includes("'/derail.js?v=4.5.1'"), 'derail.js loaded in both pages and precached');
+assert.ok(ch.includes('derail.js?v=4.6.0') && ent.includes('derail.js?v=4.6.0') && sw.includes("'/derail.js?v=4.6.0'"), 'derail.js loaded in both pages and precached');
 assert.ok(ch.includes('id="nexos-derail-btn"') && classic.includes('openDayDerailed') && classic.includes('NexDerail.open(derailAdapter())'), 'Classic button');
 assert.ok(ent.includes('onclick="openDayDerailed()"') && ent.includes('NexDerail.open(derailAdapter())'), 'Enterprise buttons');
 assert.ok(classic.includes("NexDerail.openDemo('plan', derailAdapter())") && ent.includes("NexDerail.openDemo('plan', derailAdapter())"), 'guest Action Mode shows the sample');
