@@ -202,9 +202,12 @@
   const overlayObserver = new MutationObserver(records => {
     for (const record of records) syncOverlay(record.target);
   });
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlayObserver.observe(overlay, { attributes: true, attributeFilter: ['class', 'style'] });
-  });
+  function observeModal(el) {
+    if (!el || el.dataset?.nxObserved === '1') return;
+    if (el.dataset) el.dataset.nxObserved = '1';
+    overlayObserver.observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+  }
+  document.querySelectorAll('.modal-overlay').forEach(observeModal);
   document.addEventListener('keydown', e => {
     if (e.key !== 'Tab') return;
     const overlay = [...opened.keys()].pop();
@@ -276,7 +279,7 @@
   window.NexUI = {
     apply, hasPrefs: () => readPrefs().saved, savePrefs, setDesign, setTheme, syncAppearanceControls,
     toast, setSync, closeMenus, toggleNewMenu, toggleAppearanceMenu, newItem, openSettings, openShortcuts, closeShortcuts, closeAll,
-    promptText, setTaskView, renderTaskList,
+    promptText, setTaskView, renderTaskList, observeModal,
   };
 })();
 

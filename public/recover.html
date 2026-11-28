@@ -229,17 +229,42 @@
     habit: SVG('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>'),
     note: SVG('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>')
   };
-  const api = async (method, state) => {
-    const res = await fetch('/api/state', { method, credentials: 'same-origin', cache: 'no-store', headers: state ? { 'Content-Type': 'application/json' } : undefined, body: state ? JSON.stringify({ state }) : undefined });
-    if (!res.ok) { const e = new Error('status ' + res.status); e.status = res.status; throw e; }
+  let nextExpectedRev = null;
+  const apiRaw = async (method, state) => {
+    const expectedRev = nextExpectedRev;
+    nextExpectedRev = null;
+    const body = state ? (Number.isInteger(expectedRev) ? { state, expectedRev } : { state }) : undefined;
+    const res = await fetch('/api/state', { method, credentials: 'same-origin', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
     const payload = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error('status ' + res.status); e.status = res.status; e.payload = payload; throw e; }
+    return payload;
+  };
+  const api = async (method, state) => {
+    const payload = await apiRaw(method, state);
     return method === 'GET' ? (payload.state || {}) : payload;
   };
   const addBack = async (kind, item) => {
-    const state = await api('GET'), key = KEY[kind];
-    state[key] = Array.isArray(state[key]) ? state[key] : [];
-    if (!state[key].some(x => String(x.id) === String(item.id))) state[key].push(item);
-    await api('PUT', state);
+    const key = KEY[kind];
+    let current = await apiRaw('GET');
+    let state = (current && current.state && typeof current.state === 'object') ? { ...current.state } : {};
+    let targetRev = Number.isInteger(current.rev) ? current.rev : (current.state ? 1 : 0);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      state[key] = Array.isArray(state[key]) ? state[key].slice() : [];
+      if (!state[key].some(x => String(x.id) === String(item.id))) state[key].push(item);
+      try {
+        nextExpectedRev = targetRev;
+        await api('PUT', state);
+        return;
+      } catch (err) {
+        if (err.status === 409 && attempt < 2) {
+          const c = err.payload || {};
+          state = (c.state && typeof c.state === 'object') ? { ...c.state } : {};
+          targetRev = Number.isInteger(c.rev) ? c.rev : 1;
+          continue;
+        }
+        throw err;
+      }
+    }
   };
   const ago = at => { const m = Math.max(1, Math.round((Date.now() - at) / 60000)); return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
   const daysLeft = at => Math.max(0, Math.ceil((Number(at) + 30 * 864e5 - Date.now()) / 864e5));
@@ -386,6 +411,7 @@
       taskIds.add(id);
       const priority = validPriorities.has(String(t.priority || '').toLowerCase()) ? String(t.priority).toLowerCase() : 'medium';
       const due = /^\d{4}-\d{2}-\d{2}$/.test(String(t.due || t.dueDate || '')) ? String(t.due || t.dueDate) : '';
+      const rawHour = Number(t.scheduledHour);
       tasks.push({
         id,
         title: String(t.title || 'Untitled task').slice(0, 160),
@@ -394,6 +420,7 @@
         priority,
         due,
         created: Number.isFinite(Number(t.created)) ? Number(t.created) : Date.now(),
+        ...(Number.isInteger(rawHour) && rawHour >= 0 && rawHour <= 23 ? { scheduledHour: rawHour } : {}),
         ...(Number.isFinite(Number(t.doneAt)) ? { doneAt: Number(t.doneAt) } : {}),
         ...(Array.isArray(t.tags) ? { tags: t.tags.slice(0, 20).map((x) => String(x).slice(0, 40)) } : {}),
         ...(Array.isArray(t.subtasks) ? { subtasks: t.subtasks.slice(0, 30).filter((st) => st && typeof st === 'object').map((st, si) => ({ id: safeId(st.id, 'st', si), text: String(st.text || st.title || '').slice(0, 200), title: String(st.title || st.text || '').slice(0, 200), done: Boolean(st.done ?? st.completed), completed: Boolean(st.completed ?? st.done) })) } : {}),
@@ -440,6 +467,7 @@
         tags: Array.isArray(n.tags) ? n.tags.slice(0, 30).map((x) => String(x).slice(0, 40)) : [],
         pinned: Boolean(n.pinned),
         created: Number.isFinite(Number(n.created)) ? Number(n.created) : Date.now(),
+        ...(Number.isFinite(Number(n.updated)) ? { updated: Number(n.updated) } : {}),
       });
     }
 

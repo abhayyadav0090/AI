@@ -791,6 +791,9 @@
         '<div style="margin-top:16px"><div class="ns-dm" id="ns-usage"></div><div class="ns-meter"><i id="ns-meter" style="width:0"></i></div></div>' +
         '<div id="ns-docs"></div></div></div>';
     $('ns-drop').addEventListener('click', () => { if (!busy) $('ns-file').click(); });
+    $('ns-drop').addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !busy) { e.preventDefault(); $('ns-file').click(); }
+    });
     $('ns-question').addEventListener('input', (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 110) + 'px'; });
     renderDocs(); renderChat(); renderQuiz(); renderCards(); renderMindmap(); setTab(tab);
   }
@@ -1489,7 +1492,7 @@
     'quiz-new': () => { quiz = null; setStatus(''); renderQuiz(); },
     flip: () => { if (deck && !deck.done) { deck.flipped = !deck.flipped; renderCards(); } },
     'card-known': () => { if (deck && deck.flipped) { nextCard(true); if (deck.done && adapter && typeof adapter.recordStudyCheckIn === 'function') adapter.recordStudyCheckIn(); } },
-    'card-again': () => { if (deck && deck.flipped) { const c = deck.cards[deck.i]; saveRevision({ topic: c.front, prompt: c.front, answer: c.back }); nextCard(false); } },
+    'card-again': () => { if (deck && deck.flipped) { const c = deck.cards[deck.i]; saveRevision({ topic: c.front, prompt: c.front, answer: c.back }); nextCard(false); if (deck.done && adapter && typeof adapter.recordStudyCheckIn === 'function') adapter.recordStudyCheckIn(); } },
     'cards-retry': () => { if (!deck) return; deck = { cards: deck.missed.slice(), i: 0, flipped: false, known: 0, missed: [], done: false }; renderCards(); },
     'cards-new': () => { deck = null; setStatus(''); renderCards(); },
     'revision-refresh': () => loadRevision(),

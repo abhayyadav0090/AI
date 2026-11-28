@@ -113,10 +113,20 @@ const studyUploadLimiter = rateLimit({
 app.use('/api', globalLimiter);
 // Optional exact-path legacy redirects are configured externally as JSON, so this server
 // contains no application-specific redirect or cross-app business logic.
+let cachedRedirectsRaw = null;
+let cachedRedirectsMap = {};
 app.use((req, res, next) => {
-  let redirects = {};
-  try { redirects = JSON.parse(process.env.LEGACY_REDIRECTS_JSON || '{}'); } catch (_) {}
-  const target = redirects[req.path];
+  const raw = process.env.LEGACY_REDIRECTS_JSON || '{}';
+  if (raw !== cachedRedirectsRaw) {
+    cachedRedirectsRaw = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      cachedRedirectsMap = parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      cachedRedirectsMap = {};
+    }
+  }
+  const target = cachedRedirectsMap[req.path];
   if (typeof target === 'string' && /^https:\/\//i.test(target)) return res.redirect(302, target);
   next();
 });
@@ -242,6 +252,10 @@ const { StudyReview, StudyExamPlan, StudyCalendarConnection } = studyPlanner.def
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const isProd = process.env.NODE_ENV === 'production';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const isValidHexId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id) && mongoose.isValidObjectId(id);
+function clearTokenCookie(req, res) {
+  res.clearCookie('token', { httpOnly: true, secure: isProd || req.secure, sameSite: 'lax' });
+}
 
 // 3.4.2: a successful user lookup is remembered for a short time (60 s since 3.4.3, because messages are usually more than 20 s apart). The database is far from the server
 // (about 230 ms per round trip), so repeating the same lookup on every request was a large share of each
@@ -285,7 +299,7 @@ async function requireAuth(req, res, next) {
     }
     if (!user || (user.sessionsValidAfter && issuedAt < user.sessionsValidAfter.getTime())) {
       invalidateAuthCache(id);
-      res.clearCookie('token');
+      clearTokenCookie(req, res);
       return res.status(401).json({ error: 'Not logged in' });
     }
     req.authUser = user;
@@ -330,7 +344,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('token');
+  clearTokenCookie(req, res);
   res.json({ ok: true });
 });
 
@@ -391,7 +405,7 @@ app.delete('/api/me', requireAuth, wrap(async (req, res) => {
   // every device so none of them can write the deleted data back.
   await User.updateOne({ _id: req.userId }, { sessionsValidAfter: new Date() });
   invalidateAuthCache(req.userId);
-  res.clearCookie('token');
+  clearTokenCookie(req, res);
   res.json({ ok: true });
 }));
 
@@ -400,9 +414,44 @@ app.get('/api/state', requireAuth, wrap(async (req, res) => {
   res.json({ state: doc ? doc.data : null, updatedAt: doc?.updatedAt || null, rev: stateRevisionFor(doc) });
 }));
 
+const UNSAFE_STATE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const MAX_STATE_DEPTH = 24;
+function sanitizeWorkspaceState(value, depth = 0) {
+  if (depth > MAX_STATE_DEPTH) {
+    const err = new Error('Workspace nesting exceeds safe limit.');
+    err.code = 'BAD_STATE';
+    throw err;
+  }
+  if (value === null || value === undefined) return value;
+  const t = typeof value;
+  if (t === 'string' || t === 'boolean') return value;
+  if (t === 'number') return Number.isFinite(value) ? value : null;
+  if (Array.isArray(value)) return value.map((item) => sanitizeWorkspaceState(item, depth + 1));
+  if (t === 'object') {
+    const out = {};
+    for (const key of Object.keys(value)) {
+      if (UNSAFE_STATE_KEYS.has(key)) continue;
+      if (key.startsWith('$')) {
+        const err = new Error(`Invalid workspace key "${key}".`);
+        err.code = 'BAD_STATE';
+        throw err;
+      }
+      out[key] = sanitizeWorkspaceState(value[key], depth + 1);
+    }
+    return out;
+  }
+  return undefined;
+}
+
 app.put('/api/state', requireAuth, wrap(async (req, res) => {
-  const { state } = req.body || {};
-  if (!state || typeof state !== 'object' || Array.isArray(state)) return res.status(400).json({ error: 'state object required' });
+  const { state: rawState } = req.body || {};
+  if (!rawState || typeof rawState !== 'object' || Array.isArray(rawState)) return res.status(400).json({ error: 'state object required' });
+  let state;
+  try {
+    state = sanitizeWorkspaceState(rawState);
+  } catch (err) {
+    return res.status(400).json({ error: err.message || 'Invalid state payload.', code: 'BAD_STATE' });
+  }
 
   const hasExpectedRev = Object.prototype.hasOwnProperty.call(req.body || {}, 'expectedRev')
     && req.body.expectedRev !== undefined && req.body.expectedRev !== null;
@@ -641,7 +690,7 @@ app.post('/api/push/subscribe', requireAuth, wrap(async (req, res) => {
   }
   let endpoint;
   try { endpoint = new URL(sub.endpoint); } catch { return res.status(400).json({ error: 'Invalid push endpoint.' }); }
-  if (endpoint.protocol !== 'https:' || !knownPushHost(endpoint.hostname)) {
+  if (endpoint.protocol !== 'https:' || endpoint.href.length > 2048 || !knownPushHost(endpoint.hostname)) {
     return res.status(400).json({ error: 'Unsupported push service endpoint.' });
   }
   if (fromB64url(sub.keys.p256dh).length !== 65 || fromB64url(sub.keys.auth).length < 16) {
@@ -649,7 +698,7 @@ app.post('/api/push/subscribe', requireAuth, wrap(async (req, res) => {
   }
   await PushSubscription.findOneAndUpdate(
     { endpoint: endpoint.href },
-    { $set: { userId: req.userId, endpoint: endpoint.href, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, app: 'nexos', lastSeenAt: new Date() } },
+    { $set: { userId: req.userId, endpoint: endpoint.href, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, sentKeys: [], app: 'nexos', lastSeenAt: new Date() } },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
   res.json({ ok: true });
@@ -912,6 +961,7 @@ async function askGeminiStream({ system, contents, timeoutMs = 45000, firstToken
           lastStatus = upstream.status;
           timings.upstreamStatus = upstream.status;
           timings.lastAttemptMs = Date.now() - attemptStartedAt;
+          try { upstream.body?.cancel?.().catch(() => {}); } catch (_) {}
           if ([429, 500, 502, 503, 504].includes(upstream.status) && attempt < maxAttempts - 1) {
             retries++; await sleep(upstream.status === 429 ? 900 : 400); continue;
           }
@@ -1171,7 +1221,7 @@ app.post('/api/chat', requireAuth, aiLimiter, aiDailyLimiter, express.json({ lim
     }
     let chat;
     const isNewChat = !chatId;
-    if (chatId && !mongoose.isValidObjectId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
+    if (chatId && !isValidHexId(chatId)) return res.status(400).json({ error: 'Invalid chat.' });
     const recallKey = isNewChat ? null : `${req.userId}:${chatId}`;
     const askedForEarlier = !isNewChat && wantsEarlierMessages(typed);
     const recall = !isNewChat && (askedForEarlier || (isRecallWindowOpen(recallKey) && isRecallFollowUp(typed)));
@@ -1325,21 +1375,21 @@ app.get('/api/chats', requireAuth, wrap(async (req, res) => {
 }));
 
 app.get('/api/chats/:id', requireAuth, wrap(async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
+  if (!isValidHexId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
   const chat = await Chat.findOne({ _id: req.params.id, userId: req.userId }).lean();
   if (!chat) return res.status(404).json({ error: 'Chat not found.' });
   res.json({ chat: { id: chat._id, title: chat.title, updatedAt: chat.updatedAt, messages: chat.messages } });
 }));
 
 app.delete('/api/chats/:id', requireAuth, wrap(async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
+  if (!isValidHexId(req.params.id)) return res.status(404).json({ error: 'Chat not found.' });
   await Chat.deleteOne({ _id: req.params.id, userId: req.userId });
   res.json({ ok: true });
 }));
 
 app.post('/api/complete', requireAuth, aiLimiter, aiDailyLimiter, async (req, res) => {
   const { prompt, system } = req.body || {};
-  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required' });
+  if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'prompt required' });
   try {
     const result = await nexaiReliability.askWithAutoContinuation({
       askOnce: (opts) => askGemini({ ...opts, returnMeta: true }),

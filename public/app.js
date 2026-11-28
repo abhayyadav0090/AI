@@ -9,6 +9,42 @@ function notify(message, options) {
   if (window.NexUI && NexUI.toast) return NexUI.toast(message, options);
   try { alert(message); } catch (_) {}
 }
+let lastQuotaToastAt = 0;
+function safeLocalSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    const isQuota = err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014);
+    if (isQuota && Date.now() - lastQuotaToastAt > 20000) {
+      lastQuotaToastAt = Date.now();
+      notify('Browser storage is full. Export a backup or remove unused items.', { type: 'error' });
+    }
+    return false;
+  }
+}
+function sanitizeImportedObject(value, depth = 0) {
+  if (depth > 20 || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(item => sanitizeImportedObject(item, depth + 1));
+  const out = {};
+  for (const key of Object.keys(value)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    out[key] = sanitizeImportedObject(value[key], depth + 1);
+  }
+  return out;
+}
+function setFieldInvalid(el, invalid) {
+  if (!el) return;
+  if (invalid) {
+    el.setAttribute('aria-invalid', 'true');
+    if (el.dataset.nxInvalidBound !== '1') {
+      el.dataset.nxInvalidBound = '1';
+      el.addEventListener('input', () => el.removeAttribute('aria-invalid'), { once: true });
+    }
+  } else {
+    el.removeAttribute('aria-invalid');
+  }
+}
 let sessionExpiredShown = false;
 function handleSessionExpired() {
   if (sessionExpiredShown || isGuest()) return;
@@ -363,7 +399,10 @@ function renderAfterRemoteMerge() {
 
 function cacheState() {
   if (wipingLocalData) return;
-  try { localStorage.setItem(isGuest() ? GUEST_STATE_KEY : CACHE_KEY, JSON.stringify(state)); } catch (_) {}
+  const payload = JSON.stringify(state);
+  const targetKey = isGuest() ? GUEST_STATE_KEY : CACHE_KEY;
+  if (typeof safeLocalSet === 'function') { safeLocalSet(targetKey, payload); return; }
+  try { localStorage.setItem(targetKey, payload); } catch (_) {}
 }
 
 function clearPendingSyncFlag() {
@@ -714,7 +753,7 @@ async function handleGoogleLogin(response) {
 
 function startGuest() {
   try { localStorage.setItem(GUEST_FLAG_KEY, '1'); } catch (_) {}
-  startApp({ name: 'Guest', guest: true });
+  return startApp({ name: 'Guest', guest: true });
 }
 
 async function logout() {
@@ -1532,7 +1571,8 @@ function addTask() {
   const input = document.getElementById('new-task-input');
   const priority = document.getElementById('new-task-priority').value;
   const title = input.value.trim().slice(0, 160);
-  if (!title) { input.focus(); return; }
+  if (!title) { if (typeof setFieldInvalid === 'function') setFieldInvalid(input, true); input.focus(); if (typeof notify === 'function') notify('Enter a task title first.'); return; }
+  if (typeof setFieldInvalid === 'function') setFieldInvalid(input, false);
   const task = { id: uid(), title, col: 'todo', priority, desc: '', due: '', created: Date.now() };
   state.tasks.push(task);
   input.value = '';
@@ -1548,10 +1588,12 @@ function renderKanban() {
   const cols = ['todo', 'inprogress', 'review', 'done'];
   const fm = nexFocusMinutesMap(state);
   const matchFn = typeof taskMatchesClassicFilter === 'function' ? taskMatchesClassicFilter : () => true;
+  let visibleCount = 0;
   cols.forEach(col => {
     const container = document.getElementById('col-' + col);
     const count = document.getElementById('count-' + col);
     const tasks = state.tasks.filter(t => t.col === col && matchFn(t));
+    visibleCount += tasks.length;
     if (count) count.textContent = tasks.length;
     if (container) {
       container.innerHTML = tasks.map(t => `
@@ -1575,10 +1617,29 @@ function renderKanban() {
         </div>`).join('') || `<div style="height:40px"></div>`;
     }
   });
+  const emptyBanner = document.getElementById('classic-kanban-filter-empty');
+  if (emptyBanner) {
+    const filteredOut = state.tasks.length > 0 && visibleCount === 0;
+    emptyBanner.hidden = !filteredOut;
+    if (filteredOut) {
+      emptyBanner.innerHTML = `<span>No tasks match the current search or filter (${state.tasks.length} hidden).</span><button type="button" class="btn-sm" onclick="clearClassicKanbanFilters()">Clear filters</button>`;
+    } else {
+      emptyBanner.innerHTML = '';
+    }
+  }
   if (window.NexUI) NexUI.renderTaskList();
 }
 
 let classicKanbanFilter = 'all';
+function clearClassicKanbanFilters() {
+  classicKanbanFilter = 'all';
+  const searchEl = document.getElementById('kanban-search-input');
+  if (searchEl) searchEl.value = '';
+  document.querySelectorAll('#classic-kanban-filter-bar .filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.kf === 'all');
+  });
+  renderKanban();
+}
 function taskMatchesClassicFilter(t) {
   if (!t) return false;
   const q = (document.getElementById('kanban-search-input')?.value || '').trim().toLowerCase();
@@ -1691,12 +1752,17 @@ function closeTaskModal(e) {
     editingTaskId = null;
   }
 }
+let classicAiSuggestSeq = 0;
 function saveTaskModal() {
   if (!editingTaskId) return;
   const task = state.tasks.find(t => t.id === editingTaskId);
   if (!task) return;
+  const titleEl = document.getElementById('modal-title-input');
+  const cleanTitle = titleEl.value.trim().slice(0, 160);
+  if (!cleanTitle) { if (typeof setFieldInvalid === 'function') setFieldInvalid(titleEl, true); titleEl.focus(); if (typeof notify === 'function') notify('Enter a task title.'); return; }
+  if (typeof setFieldInvalid === 'function') setFieldInvalid(titleEl, false);
   delete task.sample; // edited by the user, so it is no longer a sample
-  task.title = document.getElementById('modal-title-input').value.trim() || task.title;
+  task.title = cleanTitle;
   task.desc = document.getElementById('modal-desc-input').value;
   task.priority = document.getElementById('modal-priority-input').value;
   task.due = document.getElementById('modal-due-input').value;
@@ -1710,12 +1776,17 @@ async function aiSuggestTask() {
   if (isGuest()) { notify('NexAI needs a Google sign-in.'); return; }
   const titleInput = document.getElementById('modal-title-input');
   const title = titleInput.value.trim();
-  if (!title) { titleInput.placeholder = 'Enter a task title first…'; titleInput.focus(); return; }
+  if (!title) { titleInput.placeholder = 'Enter a task title first…'; setFieldInvalid(titleInput, true); titleInput.focus(); return; }
   const descInput = document.getElementById('modal-desc-input');
+  const btn = document.querySelector('#task-modal button[onclick*="aiSuggestTask"]');
+  const seq = ++classicAiSuggestSeq;
+  const taskIdSnapshot = editingTaskId;
   const prevDesc = descInput.value;
+  if (btn) btn.disabled = true;
   descInput.value = 'AI is generating a description…';
   try {
     const res = await callAI(`For the task "${title}", write a concise 1-2 sentence actionable description and suggest a priority (low/medium/high). Format: DESCRIPTION: ... | PRIORITY: ...`);
+    if (seq !== classicAiSuggestSeq || editingTaskId !== taskIdSnapshot) return;
     const match = res.match(/DESCRIPTION:\s*(.+?)\s*\|\s*PRIORITY:\s*(low|medium|high)/i);
     if (match) {
       descInput.value = match[1];
@@ -1727,8 +1798,10 @@ async function aiSuggestTask() {
       notify('NexAI did not return a suggestion.');
     }
   } catch (e) {
-    descInput.value = prevDesc;
-    notify((e && e.userMessage) || 'Could not generate suggestion.');
+    if (seq === classicAiSuggestSeq && editingTaskId === taskIdSnapshot) descInput.value = prevDesc;
+    if (seq === classicAiSuggestSeq) notify((e && e.userMessage) || 'Could not generate suggestion.');
+  } finally {
+    if (seq === classicAiSuggestSeq && btn) btn.disabled = false;
   }
 }
 
@@ -2076,7 +2149,8 @@ function addHabit() {
   const input = document.getElementById('new-habit-input');
   const color = document.getElementById('new-habit-color').value;
   const name = input.value.trim().slice(0, 80);
-  if (!name) { input.focus(); return; }
+  if (!name) { if (typeof setFieldInvalid === 'function') setFieldInvalid(input, true); input.focus(); if (typeof notify === 'function') notify('Give the habit a name.'); return; }
+  if (typeof setFieldInvalid === 'function') setFieldInvalid(input, false);
   state.habits.push({ id: uid(), name, color, checks: {}, streak: 0 });
   input.value = '';
   saveState(); renderHabits(); renderDashboard(); updateStats(); updateContextPanel(); renderAnalytics();
@@ -2499,6 +2573,7 @@ function filterNotes(filter, btn) {
 }
 
 let summarizingNoteId = null;
+let classicNoteSummarizeSeq = 0;
 async function summarizeNote() {
   if (summarizingNoteId) return;
   flushNoteEdits();
@@ -2507,30 +2582,36 @@ async function summarizeNote() {
   const targetId = note.id;
   const contentEl = document.getElementById('note-content');
   const original = note.content;
+  const seq = ++classicNoteSummarizeSeq;
   summarizingNoteId = targetId;
-  if (contentEl) {
-    contentEl.value = 'AI is summarizing\u2026';
-    contentEl.disabled = true;
-  }
+  setNoteSaveState('Summarizing…');
+  notify('NexAI is summarizing…');
   try {
     const summary = await callAI(`Summarize this note concisely in 2-3 sentences:\n\n${original.slice(0, 12000)}`);
+    if (seq !== classicNoteSummarizeSeq) return;
     if (!summary || !summary.trim()) throw new Error('Empty AI summary');
     const target = state.notes.find(n => n.id === targetId);
     if (!target) return;
     delete target.sample;
-    target.content = `## AI Summary\n${summary.trim()}\n\n---\n\n${original}`;
+    const liveContent = (state.currentNoteId === targetId && contentEl) ? contentEl.value : target.content;
+    const baseText = (liveContent !== undefined && liveContent !== null) ? liveContent : original;
+    target.content = `## AI Summary\n${summary.trim()}\n\n---\n\n${baseText}`;
     target.updated = Date.now();
     if (contentEl && state.currentNoteId === targetId) {
       contentEl.value = target.content;
+      contentEl.disabled = false;
       updateWordCount();
     }
-    saveState(); renderNoteList();
+    saveState(); renderNoteList(); setNoteSaveState('Saved');
     if (state.currentNoteId !== targetId) notify('AI summary saved to "' + (target.title || 'your note') + '".');
   } catch (e) {
-    if (contentEl && state.currentNoteId === targetId) contentEl.value = original;
-    notify(e.userMessage || 'Could not summarize this note.', { type: 'error' });
+    if (seq === classicNoteSummarizeSeq) {
+      if (contentEl && state.currentNoteId === targetId) contentEl.disabled = false;
+      setNoteSaveState('Ready');
+      notify(e.userMessage || 'Could not summarize this note.', { type: 'error' });
+    }
   } finally {
-    summarizingNoteId = null;
+    if (seq === classicNoteSummarizeSeq) summarizingNoteId = null;
     if (contentEl) contentEl.disabled = false;
   }
 }
@@ -2570,6 +2651,7 @@ async function renderAnalytics() {
     if (!loaded) {
       const doneTotal = state.tasks.filter(t => t && t.col === 'done').length;
       const openTotal = state.tasks.filter(t => t && t.col !== 'done').length;
+      const overdueTotal = state.tasks.filter(t => t && t.col !== 'done' && t.due && t.due < today()).length;
       const totalFocusRange = (() => {
         let sum = 0;
         for (let i = days - 1; i >= 0; i--) {
@@ -2580,23 +2662,31 @@ async function renderAnalytics() {
       })();
       const summaryByChart = {
         focusChart: `${totalFocusRange} min deep focus across last ${days} days`,
-        taskDonut: `${openTotal} open · ${doneTotal} completed`,
+        taskDonut: `${openTotal} open${overdueTotal ? ` (${overdueTotal} overdue)` : ''} · ${doneTotal} completed`,
         velocityChart: `${doneTotal} completed tasks recorded`
       };
       ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
         const canvas = document.getElementById(id);
-        if (canvas && canvas.parentElement && !canvas.parentElement.querySelector('.chart-unavailable')) {
+        const parent = canvas && canvas.parentElement;
+        if (parent) {
+          canvas.style.display = 'none';
+          parent.classList.add('is-offline');
+          parent.querySelectorAll('.chart-unavailable, .offline-chart-stat').forEach(el => el.remove());
           const msg = document.createElement('div'); msg.className = 'chart-unavailable empty-state';
           msg.textContent = 'Charts could not load. Check your connection and refresh.';
           const note = document.createElement('div'); note.className = 'offline-chart-stat';
           note.textContent = summaryByChart[id] || '';
-          canvas.parentElement.append(msg, note);
+          parent.append(msg, note);
         }
       });
     }
   }
   if (window.Chart) {
     document.querySelectorAll('.chart-unavailable, .offline-chart-stat').forEach(el => el.remove());
+    ['focusChart', 'taskDonut', 'velocityChart'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c) { c.style.display = ''; c.parentElement?.classList.remove('is-offline'); }
+    });
     renderFocusChart(days);
     renderTaskDonut();
     renderVelocityChart(days);
@@ -3641,8 +3731,9 @@ async function importData(event) {
   const file = input?.files?.[0];
   if (!file) return;
   try {
+    if (file.size > 5 * 1024 * 1024) throw new Error('Backup file is too large (max 5 MB).');
     const raw = await file.text();
-    const parsed = JSON.parse(raw);
+    const parsed = sanitizeImportedObject(JSON.parse(raw));
     const incoming = parsed && parsed.state && typeof parsed.state === 'object' ? parsed.state : parsed;
     if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming) ||
         !['tasks', 'habits', 'notes'].some(key => Array.isArray(incoming[key]))) {
@@ -3668,8 +3759,8 @@ async function importData(event) {
     checkDueNotifications();
     notify('NexOS backup restored.');
   } catch (e) {
-    console.error('Import failed.', e);
-    notify(e.message && e.message.includes('does not look') ? e.message : 'Could not import this file. Make sure it is a valid NexOS JSON backup.');
+    console.warn('Import rejected:', e && e.message);
+    notify(e.message && (e.message.includes('does not look') || e.message.includes('too large')) ? e.message : 'Could not import this file. Make sure it is a valid NexOS JSON backup.');
   } finally {
     if (input) input.value = '';
   }
@@ -4353,7 +4444,7 @@ async function readChatStream(response, onText) {
     if (answer.trim()) return { text: answer, incomplete: true, interrupted: true, incompleteReason: 'STREAM_INTERRUPTED', chatId: activeChatId };
     throw new Error('NexAI stream ended before the reply was saved. Please retry.');
   }
-  return { ...meta, text: answer };
+  return { ...meta, text: answer || meta.text || "I couldn't produce an answer for that." };
 }
 
 function callAIChat(chatId, message, system, attachments, onText) {
@@ -4482,6 +4573,7 @@ function initNexAIActionMode() {
       if (event.target === modal) closeNexAIActionMode();
     });
     document.body.appendChild(modal);
+    if (window.NexUI && typeof NexUI.observeModal === 'function') NexUI.observeModal(modal);
     document.getElementById('nexos-action-close').addEventListener('click', closeNexAIActionMode);
     document.getElementById('nexos-action-draft-btn').addEventListener('click', draftNexAIActionPlan);
     document.getElementById('nexos-action-approve-btn').addEventListener('click', applyNexAIActionDraft);

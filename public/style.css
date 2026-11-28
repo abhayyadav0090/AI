@@ -416,6 +416,7 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
   position: relative; padding: 12px 14px;
   background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md);
   cursor: grab; transition: border-color var(--transition), box-shadow var(--transition);
+  contain: layout style;
 }
 .task-card:hover { border-color: var(--glass-border-hover); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22); }
 .task-card:active { cursor: grabbing; }
@@ -545,7 +546,7 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .filter-btn:hover { color: var(--text-primary); }
 .filter-btn.active { background: var(--grad-brand); color: var(--on-accent); font-weight: 600; }
 .notes-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.note-list-item { padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer; transition: border-color var(--transition), background var(--transition); }
+.note-list-item { padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer; transition: border-color var(--transition), background var(--transition); contain: layout style; }
 .note-list-item:hover { background: var(--bg-card-hover); }
 .note-list-item.active { background: var(--accent-soft); border-color: var(--accent-line); }
 .note-list-title { margin-bottom: 3px; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -572,6 +573,9 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .analytics-card.full-span { grid-column: 1 / -1; }
 .analytics-card h4 { margin-bottom: 14px; font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text-primary); text-transform: none; }
 .chart-wrap { position: relative; width: 100%; }
+.chart-wrap.is-offline { height: auto !important; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 14px 12px; text-align: center; }
+.chart-wrap.is-offline .chart-unavailable { padding: 8px 10px; }
+.chart-wrap.is-offline .offline-chart-stat { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
 .donut-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; }
 .habit-bars-container { display: flex; flex-direction: column; gap: 10px; }
 .score-card { display: flex; flex-direction: column; align-items: center; }
@@ -775,11 +779,20 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
   .nav-item { padding: 12px; }
   .btn-sm { padding: 8px 14px; min-height: 36px; }
   .task-action-btn, .task-move-btn { min-width: 36px; height: 36px; }
+  .dash-task-focus { width: 36px; height: 36px; min-width: 36px; min-height: 36px; font-size: 12px; }
+  .pomo-task-clear:not([hidden]), .pomo-task-btn:not([hidden]) { min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; }
   .habit-edit-btn, .habit-delete-btn { min-width: 36px; min-height: 36px; width: 36px; height: 36px; }
   .filter-btn { min-height: 36px; padding: 6px 14px; }
   .habit-check { min-height: 38px; }
   .prompt-chip { padding: 9px 14px; }
 }
+.kanban-filter-empty {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 14px 16px; margin-bottom: 14px; border-radius: var(--radius-lg);
+  background: var(--bg-card); border: 1px dashed var(--glass-border-hover);
+  font-size: 13.5px; color: var(--text-secondary);
+}
+.kanban-filter-empty[hidden] { display: none; }
 
 /* ---------- 16. Guest mode, login extras, privacy page ---------- */
 .login-divider { display: flex; align-items: center; gap: 12px; width: 100%; font-size: 12px; color: var(--text-muted); }
