@@ -480,24 +480,38 @@
       .slice(0, 3000)
       .map((l) => ({ date: String(l.date), minutes: Number(l.minutes), ...(l.taskId ? { taskId: String(l.taskId).slice(0, 80) } : {}) }));
 
+    const rawStats = (src.pomodoroStats && typeof src.pomodoroStats === 'object' && !Array.isArray(src.pomodoroStats)) ? src.pomodoroStats : {};
+    const sanitizeStats = {
+      totalToday: Math.max(0, Math.min(100000, Math.round(Number(rawStats.totalToday) || 0))),
+      sessionsToday: Math.max(0, Math.min(1000, Math.round(Number(rawStats.sessionsToday) || 0))),
+      longestStreak: Math.max(0, Math.min(1000, Math.round(Number(rawStats.longestStreak) || 0))),
+      lastDate: /^\d{4}-\d{2}-\d{2}$/.test(String(rawStats.lastDate || '')) ? String(rawStats.lastDate) : '',
+      ...(Number.isFinite(Number(rawStats.totalMins)) ? { totalMins: Math.max(0, Math.round(Number(rawStats.totalMins))) } : {}),
+      ...(Number.isFinite(Number(rawStats.sessions)) ? { sessions: Math.max(0, Math.round(Number(rawStats.sessions))) } : {}),
+      ...(Number.isFinite(Number(rawStats.streak)) ? { streak: Math.max(0, Math.round(Number(rawStats.streak))) } : {}),
+    };
+    const validExportedAt = (typeof parsed.exportedAt === 'string' && !Number.isNaN(Date.parse(parsed.exportedAt)))
+      ? parsed.exportedAt
+      : null;
+
     const cleanState = {
       tasks,
       habits,
       notes,
       pomodoroLog,
-      pomodoroStats: src.pomodoroStats && typeof src.pomodoroStats === 'object' ? src.pomodoroStats : { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
+      pomodoroStats: sanitizeStats,
       theme: ['light', 'dark', 'system'].includes(src.theme) ? src.theme : 'system',
       design: src.design === 'apple' || src.design === 'microsoft' ? 'apple' : 'google',
       currentNoteId: notes.some((n) => n.id === src.currentNoteId) ? src.currentNoteId : (notes[0]?.id || null),
       seeded: Boolean(src.seeded),
-      ...(src.profile && typeof src.profile === 'object' ? { profile: src.profile } : {}),
-      ...(src.enterpriseWorkspace && typeof src.enterpriseWorkspace === 'object' ? { enterpriseWorkspace: src.enterpriseWorkspace } : {}),
+      ...(src.profile && typeof src.profile === 'object' && !Array.isArray(src.profile) ? { profile: { ...(typeof src.profile.goal === 'string' ? { goal: src.profile.goal.slice(0, 40) } : {}) } } : {}),
+      ...(src.enterpriseWorkspace && typeof src.enterpriseWorkspace === 'object' && !Array.isArray(src.enterpriseWorkspace) ? { enterpriseWorkspace: src.enterpriseWorkspace } : {}),
     };
 
     return {
       state: cleanState,
       skipped,
-      exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : null,
+      exportedAt: validExportedAt,
       counts: { tasks: tasks.length, habits: habits.length, notes: notes.length, sessions: pomodoroLog.length },
     };
   }
@@ -603,9 +617,11 @@
     });
   }
 
+  let backupRestoreBusy = false;
   async function applyBackupRestore(mode) {
-    if (!validatedBackup) return;
+    if (!validatedBackup || backupRestoreBusy) return;
     if (mode === 'replace' && !window.confirm('Replace your current workspace items with this backup? This overwrites current tasks, habits, and notes.')) return;
+    backupRestoreBusy = true;
     bMergeBtn.disabled = true;
     bReplaceBtn.disabled = true;
     sayBackup('Restoring backup…', '');
@@ -649,6 +665,7 @@
     } catch (err) {
       sayBackup(err.message || 'Restore failed. Please try again.', 'bad');
     } finally {
+      backupRestoreBusy = false;
       bMergeBtn.disabled = false;
       bReplaceBtn.disabled = false;
     }

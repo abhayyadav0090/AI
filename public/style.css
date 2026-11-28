@@ -671,7 +671,7 @@ input[type="checkbox"] { accent-color: var(--accent-violet); width: 16px; height
 .ai-action-card.confirmed { border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.09); }
 
 /* ---------- 13. Modals, search, plan ---------- */
-.modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); backdrop-filter: blur(6px); overscroll-behavior: contain; touch-action: pan-y; }
+.modal-overlay { position: fixed; inset: 0; z-index: 2600; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); backdrop-filter: blur(6px); overscroll-behavior: contain; touch-action: pan-y; }
 .modal { width: min(480px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 24px; background: var(--bg-surface); border: 1px solid var(--glass-border-hover); border-radius: var(--radius-xl); box-shadow: var(--shadow-pop); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
 .modal-header h3 { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
@@ -1259,9 +1259,21 @@ html[data-minimal="1"] #guide-card { display: none !important; }
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
   background: transparent; color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
 }
+.sidebar-collapse-btn .ic { transition: transform 0.18s ease; }
+.sidebar-collapse-btn[aria-pressed="true"] .ic { transform: rotate(180deg); }
 .sidebar-collapse-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
 @media (max-width: 900px) { .sidebar-collapse-btn { display: none; } }
+
+.classic-rail-tooltip {
+  position: fixed; left: 0; top: 0; z-index: 3200; pointer-events: none;
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--glass-border-hover); box-shadow: var(--shadow-pop);
+  font-size: 12px; font-weight: 600; opacity: 0; transition: opacity 0.1s ease;
+}
+.classic-rail-tooltip.visible { opacity: 1; }
 
 .sidebar-aux { padding: 4px 10px 6px; display: flex; flex-direction: column; gap: 2px; }
 .sidebar-aux[hidden], .sidebar-aux-item[hidden] { display: none !important; }
@@ -1291,8 +1303,9 @@ html[data-minimal="1"] #guide-card { display: none !important; }
 
 @media (min-width: 901px) {
   body.sidebar-compact { --sidebar-w: 76px; }
-  body.sidebar-compact .sidebar { align-items: stretch; overflow: visible; }
-  body.sidebar-compact .sidebar-logo { justify-content: center; padding: 14px 8px; gap: 6px; flex-direction: column; height: auto; }
+  body.sidebar-compact .sidebar { align-items: stretch; }
+  body.sidebar-compact .sidebar-logo { justify-content: center; padding: 14px 8px 10px; gap: 8px; flex-direction: column; height: auto; }
+  body.sidebar-compact .sidebar-collapse-btn { margin-left: 0; }
   body.sidebar-compact .logo-text,
   body.sidebar-compact .nav-label,
   body.sidebar-compact .nav-badge,
@@ -1300,19 +1313,11 @@ html[data-minimal="1"] #guide-card { display: none !important; }
   body.sidebar-compact .logout-btn,
   body.sidebar-compact .sidebar-aux,
   body.sidebar-compact .nav-group-toggle,
-  body.sidebar-compact .nav-pin-dot { display: none !important; }
-  body.sidebar-compact .sidebar-nav { padding: 6px 8px; overflow: visible; }
-  body.sidebar-compact .nav-item { justify-content: center; padding: 10px 0; position: relative; }
-  body.sidebar-compact .sidebar-footer { justify-content: center; padding: 12px 8px; }
-  body.sidebar-compact .nav-item[data-tooltip]:hover::after,
-  body.sidebar-compact .nav-item[data-tooltip]:focus-visible::after {
-    content: attr(data-tooltip);
-    position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-    z-index: 300; white-space: nowrap; padding: 5px 10px; border-radius: 8px;
-    background: var(--bg-surface); color: var(--text-primary);
-    border: 1px solid var(--glass-border-hover); box-shadow: var(--shadow-pop);
-    font-size: 12px; font-weight: 600; pointer-events: none;
-  }
+  body.sidebar-compact .nav-pin-dot,
+  body.sidebar-compact .experience-switch.in-drawer { display: none !important; }
+  body.sidebar-compact .sidebar-nav { padding: 6px 8px; gap: 4px; overflow-y: auto; overflow-x: hidden; align-items: center; scrollbar-width: thin; }
+  body.sidebar-compact .nav-item { justify-content: center; padding: 0; gap: 0; width: 44px; height: 44px; min-height: 44px; margin: 0 auto; border-radius: 14px; position: relative; flex-shrink: 0; }
+  body.sidebar-compact .sidebar-footer { justify-content: center; padding: 10px 8px 14px; }
 }
 
 /* Adaptive Topbar & Focus Mode HUD */

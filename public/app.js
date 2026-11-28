@@ -948,6 +948,9 @@ async function startApp(user, options = {}) {
     updateNotifButtonUI();
   }
   closeSidebar();
+  classicQuickStartAutoOpened = Boolean(askQuickStart);
+  if (askQuickStart) openQuickStart('new');
+  if (typeof initClassicOnboarding === 'function') initClassicOnboarding();
   await loadTaskReminderTime();
   const reminderToggle = document.getElementById('task-reminders-enabled');
   if (reminderToggle && !reminderToggle.dataset.bound) { reminderToggle.addEventListener('change', () => { updateTaskReminderControls(); saveTaskReminderTime(); }); reminderToggle.dataset.bound = '1'; }
@@ -956,7 +959,6 @@ async function startApp(user, options = {}) {
   if (!dueNotificationTimer) dueNotificationTimer = setInterval(checkDueNotifications, 10 * 60 * 1000);
   initChat(); // loads saved chats in the background
   performance.mark?.('nexos-classic-workspace-ready');
-  if (askQuickStart) openQuickStart('new');
   if (!user.guest && new URLSearchParams(location.search).get('study') === 'revision') {
     setTimeout(() => openStudyStudio({ tab: 'revision' }), 150);
   }
@@ -1150,6 +1152,18 @@ async function finishQuickStart(skip) {
   }
   state.profile = { goal, at: Date.now() };
   if (!rerun) { seedStarter(goal || 'explore'); state.seeded = true; }
+  if (typeof NexAdaptive !== 'undefined') {
+    const curAp = typeof getClassicAdaptivePrefs === 'function' ? getClassicAdaptivePrefs() : NexAdaptive.sanitizePrefs(state.adaptivePrefs);
+    state.adaptivePrefs = {
+      ...curAp,
+      updatedAt: Date.now(),
+      onboarding: {
+        ...(curAp.onboarding || {}),
+        welcomeCompleted: true,
+        ...(skip ? { welcomeSkippedAt: Date.now() } : {}),
+      },
+    };
+  }
   closeQuickStart();
   saveState();
   applyProfileTimer();
@@ -1379,7 +1393,7 @@ function activateClassicStudyView() {
   document.documentElement.classList.remove('nexos-ai-fit');
   document.body.classList.add('nexos-study-view-active');
   document.documentElement.classList.add('nexos-study-active');
-  if (window.innerWidth < 900) closeSidebar();
+  if (isClassicDrawerLayout()) closeSidebar();
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
@@ -1412,10 +1426,13 @@ function switchView(name) {
   document.documentElement.classList.toggle('nexos-ai-fit', name === 'ai');
   if (name === 'ai') { window.scrollTo(0, 0); syncClassicAIFit(); setTimeout(syncClassicAIFit, 400); }
   // Close the mobile drawer after navigation.
-  if (window.innerWidth < 900) closeSidebar();
+  if (window.innerWidth <= 900) closeSidebar();
+  if (typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('view-switch', name);
   // A different primary view starts at its own top; reselecting the active view preserves position.
   if (previousView !== 'view-' + name) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }
 }
+
+function isClassicDrawerLayout() { return window.innerWidth <= 900; }
 
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -1424,11 +1441,12 @@ function toggleSidebar() {
 }
 
 function openSidebar() {
-  if (window.innerWidth >= 900) return;
+  if (!isClassicDrawerLayout()) return;
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
   const toggle = document.getElementById('menu-toggle');
   if (!sidebar) return;
+  if (typeof hideClassicRailTooltip === 'function') hideClassicRailTooltip();
   sidebar.classList.add('open');
   backdrop?.classList.add('visible');
   sidebar.setAttribute('aria-hidden', 'false');
@@ -1445,16 +1463,18 @@ function closeSidebar() {
   sidebar?.classList.remove('open');
   backdrop?.classList.remove('visible');
   // On wide screens the navigation is always visible, so it must stay exposed to assistive tech.
-  sidebar?.setAttribute('aria-hidden', window.innerWidth < 900 ? 'true' : 'false');
+  sidebar?.setAttribute('aria-hidden', isClassicDrawerLayout() ? 'true' : 'false');
   toggle?.setAttribute('aria-expanded', 'false');
   document.body.classList.remove('sidebar-open');
-  if (wasOpen && window.innerWidth < 900 && sidebar.contains(document.activeElement)) toggle?.focus();
+  if (wasOpen && isClassicDrawerLayout() && sidebar.contains(document.activeElement)) toggle?.focus();
 }
 window.addEventListener('resize', () => {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
-  if (window.innerWidth >= 900) closeSidebar();
+  if (!isClassicDrawerLayout()) closeSidebar();
   else if (!sidebar.classList.contains('open')) sidebar.setAttribute('aria-hidden', 'true');
+  if (typeof hideClassicRailTooltip === 'function') hideClassicRailTooltip();
+  if (typeof applyClassicSidebarPrefs === 'function') applyClassicSidebarPrefs();
 });
 
 // ═══════════════════════════ DASHBOARD ═══════════════════════════
@@ -2036,8 +2056,18 @@ function pomSessionComplete(fromRestore = false) {
   if (pomState.mode === 'focus') {
     const mins = pomDurations.focus;
     focusLogSession(mins);
-    state.pomodoroStats.sessionsToday = (state.pomodoroStats.sessionsToday || 0) + 1;
-    state.pomodoroStats.totalToday = (state.pomodoroStats.totalToday || 0) + mins;
+    const todayKey = today();
+    const todayLogs = (Array.isArray(state.pomodoroLog) ? state.pomodoroLog : []).filter(l => l && l.date === todayKey);
+    if (state.pomodoroStats.lastDate !== todayKey) {
+      state.pomodoroStats.sessionsToday = 0;
+      state.pomodoroStats.totalToday = 0;
+    }
+    state.pomodoroStats.sessionsToday = Math.max(todayLogs.length, (state.pomodoroStats.sessionsToday || 0) + 1);
+    state.pomodoroStats.totalToday = Math.max(
+      todayLogs.reduce((s, l) => s + (Number(l.minutes) || 0), 0),
+      (state.pomodoroStats.totalToday || 0) + mins
+    );
+    state.pomodoroStats.lastDate = todayKey;
     pomState.sessionCount++;
     if (pomState.sessionCount >= (state.pomodoroStats.longestStreak || 0)) {
       state.pomodoroStats.longestStreak = pomState.sessionCount;
@@ -2585,11 +2615,11 @@ function filterNotes(filter, btn) {
 let summarizingNoteId = null;
 let classicNoteSummarizeSeq = 0;
 async function summarizeNote() {
-  if (summarizingNoteId) return;
   flushNoteEdits();
   const note = state.notes.find(n => n.id === state.currentNoteId);
   if (!note || !(note.content || '').trim()) { notify('Write something in the note first.'); return; }
   const targetId = note.id;
+  if (summarizingNoteId === targetId) return;
   const contentEl = document.getElementById('note-content');
   const original = note.content;
   const seq = ++classicNoteSummarizeSeq;
@@ -3813,6 +3843,7 @@ function renderProfile() {
   show('profile-trash-row', !guest);
   if (window.NexUI) NexUI.syncAppearanceControls();
   show('profile-guest-section', guest);
+  show('classic-settings-guest-notif', guest);
   const nameInput = document.getElementById('profile-name-input');
   if (nameInput) nameInput.value = currentUser.name || '';
   syncNameSave();
@@ -4664,7 +4695,7 @@ function classicRecordStudyCheckIn() {
 function openStudyStudio(opts) {
   if (!window.NexStudy) { notify('Study Studio is still loading. Try again in a moment.'); return; }
   if (window.NexUI) NexUI.closeMenus();
-  if (window.innerWidth < 900) closeSidebar();
+  if (isClassicDrawerLayout()) closeSidebar();
   const cleanOpts = (opts && typeof opts === 'object' && typeof opts.tab === 'string') ? { tab: opts.tab } : undefined;
   NexStudy.open({
     isGuest: () => isGuest(),
@@ -5067,12 +5098,12 @@ let classicDraggedWidget = null;
 const CLASSIC_VIEW_META = {
   dashboard: { label: 'Home', icon: 'home', classicView: 'dashboard', group: 'workspace' },
   kanban: { label: 'Tasks', icon: 'board', classicView: 'kanban', group: 'workspace' },
-  focus: { label: 'Focus', icon: 'timer', classicView: 'pomodoro', group: 'growth' },
-  habits: { label: 'Habits', icon: 'check', classicView: 'habits', group: 'growth' },
+  focus: { label: 'Focus', icon: 'timer', classicView: 'pomodoro', group: 'productivity' },
+  habits: { label: 'Habits', icon: 'check', classicView: 'habits', group: 'productivity' },
   notes: { label: 'Notes', icon: 'note', classicView: 'notes', group: 'workspace' },
-  analytics: { label: 'Insights', icon: 'chart', classicView: 'analytics', group: 'growth' },
-  study: { label: 'Study Studio', icon: 'book', classicView: 'study', group: 'growth' },
-  ai: { label: 'NexAI', icon: 'sparkle', classicView: 'ai', group: 'growth' },
+  analytics: { label: 'Insights', icon: 'chart', classicView: 'analytics', group: 'productivity' },
+  study: { label: 'Study Studio', icon: 'book', classicView: 'study', group: 'productivity' },
+  ai: { label: 'NexAI', icon: 'sparkle', classicView: 'ai', group: 'productivity' },
 };
 const CLASSIC_WIDGET_NAMES = { tasks: 'Today’s priorities', pomodoro: 'Focus timer', habits: 'Habit streaks', notes: 'Recent notes' };
 
@@ -5103,7 +5134,7 @@ function commitClassicAdaptivePrefs(nextPrefs, opts = {}) {
   const clean = NexAdaptive.sanitizePrefs(nextPrefs);
   if (!opts.preserveTimestamp) clean.updatedAt = Date.now();
   state.adaptivePrefs = clean;
-  NexAdaptive.writeDevicePrefs(classicAdaptiveIdentity(), clean);
+  if (!opts.skipSave) NexAdaptive.writeDevicePrefs(classicAdaptiveIdentity(), clean);
   NexAdaptive.applyDocumentTokens(clean, 'classic');
   applyClassicAdaptiveVisuals();
   if (!opts.skipSave && stateLoadedOk) {
@@ -5111,6 +5142,9 @@ function commitClassicAdaptivePrefs(nextPrefs, opts = {}) {
     saveState();
   } else {
     updateClassicSettingsSaveBadge(isGuest() ? 'Saved locally' : 'Saved');
+  }
+  if (opts.renderControls && document.getElementById('profile-modal')?.classList.contains('is-open')) {
+    renderClassicSettingsControls();
   }
 }
 
@@ -5163,8 +5197,13 @@ function applyClassicAdaptiveVisuals() {
   });
   const resetBtn = document.getElementById('classic-reset-dash-btn');
   if (resetBtn) resetBtn.hidden = !(ap.workspace.hiddenWidgets.length || ap.profileId === 'custom' || Object.values(ap.workspace.widgetSizes).some(s => s !== 'normal'));
+  const isCompact = ap.navigation.sidebarMode === 'compact' && !isClassicDrawerLayout();
   const sbBtn = document.getElementById('classic-sidebar-collapse');
-  if (sbBtn) sbBtn.setAttribute('aria-pressed', String(ap.navigation.sidebarMode === 'compact'));
+  if (sbBtn) {
+    sbBtn.setAttribute('aria-pressed', String(ap.navigation.sidebarMode === 'compact'));
+    sbBtn.setAttribute('aria-label', isCompact ? 'Expand sidebar' : 'Collapse sidebar');
+    sbBtn.setAttribute('title', isCompact ? 'Expand sidebar' : 'Collapse sidebar');
+  }
   applyHomeOrder();
   renderClassicWidgetCustomizeStrips();
   applyClassicSidebarPrefs();
@@ -5188,7 +5227,7 @@ function applyClassicPreset(presetId) {
 
 function restoreClassicWorkspaceDefaults() {
   if (typeof NexAdaptive === 'undefined') return;
-  const next = NexAdaptive.restoreDefaults();
+  const next = NexAdaptive.restoreDefaults(getClassicAdaptivePrefs());
   if (!pomState.running) {
     const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
     put('focus-duration', 25); put('short-duration', 5); put('long-duration', 15);
@@ -5215,6 +5254,61 @@ function toggleClassicDashCustomize() {
   const btn = document.getElementById('classic-customize-dash-btn');
   if (btn) btn.setAttribute('aria-pressed', String(classicDashCustomizing));
   renderClassicWidgetCustomizeStrips();
+  if (classicDashCustomizing && typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('dash-customize');
+}
+
+let classicQuickStartAutoOpened = false;
+function initClassicOnboarding() {
+  if (typeof NexOnboarding === 'undefined' || typeof NexAdaptive === 'undefined') return;
+  NexOnboarding.init({
+    surface: 'classic',
+    getPrefs: getClassicAdaptivePrefs,
+    previewPrefs: (nextPreview) => {
+      const p = NexAdaptive.PRESETS[nextPreview.profileId];
+      if (p && !pomState.running) {
+        const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        put('focus-duration', p.timer.focus); put('short-duration', p.timer.short); put('long-duration', p.timer.long);
+        updateDurations();
+      }
+      commitClassicAdaptivePrefs(nextPreview, { skipSave: true, preserveTimestamp: true });
+    },
+    commitPrefs: (next, opts) => {
+      if (opts && (opts.restoreBaseline || !opts.skipSave) && next) {
+        const p = NexAdaptive.PRESETS[next.profileId];
+        const g = !pomState.running && next.updatedAt === 0 && state.profile && GOALS[state.profile.goal]
+          ? GOALS[state.profile.goal].timer
+          : (p ? p.timer : { focus: 25, short: 5, long: 15 });
+        if (g && !pomState.running) {
+          const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+          put('focus-duration', g.focus); put('short-duration', g.short); put('long-duration', g.long);
+          updateDurations();
+        }
+      }
+      commitClassicAdaptivePrefs(next, opts);
+    },
+    isWorkspaceEmpty: () => !(state.tasks?.length || state.habits?.length || state.notes?.length),
+    seedEmptyWorkspace: (presetId) => {
+      if (state.seeded || state.tasks?.length || state.habits?.length || state.notes?.length) return;
+      const goal = presetId === 'study' ? 'study' : presetId === 'deep-work' ? 'projects' : 'explore';
+      state.profile = state.profile || { goal, at: Date.now() };
+      seedStarter(goal);
+      state.seeded = true;
+      renderAllAfterQuickStart();
+    },
+    contextSnapshot: () => ({
+      hasTasks: (state.tasks || []).length > 0,
+      hasHabits: (state.habits || []).length > 0,
+      hasNotes: (state.notes || []).length > 0,
+      hasGoals: Boolean(state.profile || classicQuickStartAutoOpened || document.getElementById('quickstart-modal')?.classList.contains('is-open')),
+      seeded: Boolean(state.seeded),
+      isExistingUser: Boolean(state.seeded || state.profile || (state.tasks || []).length || (state.habits || []).length || (state.notes || []).length),
+    }),
+    isNarrow: isClassicDrawerLayout,
+    openDrawer: () => openSidebar(),
+    closeDrawer: () => closeSidebar(),
+    closeModalsForTour: () => { if (typeof closeProfile === 'function') closeProfile(); },
+    toast: notify,
+  });
 }
 
 function renderClassicWidgetCustomizeStrips() {
@@ -5312,6 +5406,31 @@ renderDashboard = function () {
 };
 
 // Sidebar & Mobile Nav Personalization
+function showClassicRailTooltip(target) {
+  if (!document.body.classList.contains('sidebar-compact') || isClassicDrawerLayout()) return;
+  const label = target?.dataset?.tooltip || target?.getAttribute('aria-label') || target?.getAttribute('title') || '';
+  if (!label) return;
+  let tip = document.getElementById('classic-rail-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'classic-rail-tooltip';
+    tip.className = 'classic-rail-tooltip';
+    document.body.appendChild(tip);
+  }
+  tip.textContent = label;
+  const r = target.getBoundingClientRect();
+  const sbR = document.getElementById('sidebar')?.getBoundingClientRect();
+  tip.style.left = `${Math.round(Math.max(r.right + 10, (sbR ? sbR.right : 0) + 10))}px`;
+  tip.style.top = `${Math.round(r.top + r.height / 2)}px`;
+  tip.style.transform = 'translateY(-50%)';
+  tip.classList.add('visible');
+}
+
+function hideClassicRailTooltip() {
+  const tip = document.getElementById('classic-rail-tooltip');
+  if (tip) tip.classList.remove('visible');
+}
+
 function toggleClassicSidebarCompact() {
   const ap = getClassicAdaptivePrefs();
   if (!ap) return;
@@ -5330,6 +5449,43 @@ function applyClassicSidebarPrefs() {
   const nav = document.getElementById('classic-sidebar-nav');
   if (!ap || !nav) return;
 
+  const isCompact = ap.navigation.sidebarMode === 'compact' && !isClassicDrawerLayout();
+  document.body.classList.toggle('sidebar-compact', isCompact);
+  if (!isCompact) hideClassicRailTooltip();
+
+  const sbBtn = document.getElementById('classic-sidebar-collapse');
+  if (sbBtn) {
+    sbBtn.setAttribute('aria-pressed', String(ap.navigation.sidebarMode === 'compact'));
+    sbBtn.setAttribute('aria-label', isCompact ? 'Expand sidebar' : 'Collapse sidebar');
+    sbBtn.setAttribute('title', isCompact ? 'Expand sidebar' : 'Collapse sidebar');
+    if (!sbBtn.dataset.tipBound) {
+      sbBtn.dataset.tipBound = '1';
+      sbBtn.addEventListener('pointerenter', () => showClassicRailTooltip(sbBtn));
+      sbBtn.addEventListener('pointerleave', hideClassicRailTooltip);
+      sbBtn.addEventListener('focus', () => showClassicRailTooltip(sbBtn));
+      sbBtn.addEventListener('blur', hideClassicRailTooltip);
+    }
+  }
+  const avatarBtn = document.getElementById('user-avatar');
+  if (avatarBtn && !avatarBtn.dataset.tipBound) {
+    avatarBtn.dataset.tipBound = '1';
+    avatarBtn.addEventListener('pointerenter', () => showClassicRailTooltip(avatarBtn));
+    avatarBtn.addEventListener('pointerleave', hideClassicRailTooltip);
+  }
+  if (!nav.dataset.navKeysBound) {
+    nav.dataset.navKeysBound = '1';
+    nav.addEventListener('scroll', hideClassicRailTooltip, { passive: true });
+    nav.addEventListener('keydown', e => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+      const btns = [...nav.querySelectorAll('.nav-item')].filter(b => b.offsetParent !== null);
+      const cur = btns.indexOf(document.activeElement);
+      if (cur < 0) return;
+      e.preventDefault();
+      const idx = e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1 : (cur + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+      btns[idx]?.focus();
+    });
+  }
+
   // Ensure group toggle headers exist cleanly without disturbing static button markup
   let grpWs = document.getElementById('classic-grp-workspace');
   let grpGr = document.getElementById('classic-grp-growth');
@@ -5342,11 +5498,11 @@ function applyClassicSidebarPrefs() {
   if (!grpGr) {
     grpGr = document.createElement('button');
     grpGr.type = 'button'; grpGr.id = 'classic-grp-growth'; grpGr.className = 'nav-group-toggle';
-    grpGr.onclick = () => commitClassicAdaptivePrefs(NexAdaptive.toggleGroup(getClassicAdaptivePrefs(), 'growth'));
+    grpGr.onclick = () => commitClassicAdaptivePrefs(NexAdaptive.toggleGroup(getClassicAdaptivePrefs(), 'productivity'));
     nav.insertBefore(grpGr, document.getElementById('nav-profile'));
   }
   const wsCollapsed = ap.navigation.collapsedGroups.includes('workspace');
-  const grCollapsed = ap.navigation.collapsedGroups.includes('growth');
+  const grCollapsed = ap.navigation.collapsedGroups.includes('productivity');
   grpWs.textContent = `Workspace ${wsCollapsed ? '▸' : '▾'}`;
   grpWs.setAttribute('aria-expanded', String(!wsCollapsed));
   grpWs.style.order = '1';
@@ -5355,16 +5511,23 @@ function applyClassicSidebarPrefs() {
   grpGr.style.order = '20';
 
   nav.querySelectorAll('.nav-item').forEach(btn => {
+    if (!btn.dataset.tipBound) {
+      btn.dataset.tipBound = '1';
+      btn.addEventListener('pointerenter', () => showClassicRailTooltip(btn));
+      btn.addEventListener('pointerleave', hideClassicRailTooltip);
+      btn.addEventListener('focus', () => showClassicRailTooltip(btn));
+      btn.addEventListener('blur', hideClassicRailTooltip);
+    }
     const rawView = btn.dataset.view || '';
     if (btn.id === 'nav-profile') { btn.style.order = '99'; return; }
     const canon = NexAdaptive.canonicalViewId(rawView);
     const orderIdx = ap.navigation.order.indexOf(canon);
     const grp = (CLASSIC_VIEW_META[canon] && CLASSIC_VIEW_META[canon].group) || 'workspace';
-    const isHidden = ap.navigation.hidden.includes(canon);
-    const isCollapsed = (grp === 'workspace' && wsCollapsed) || (grp === 'growth' && grCollapsed);
+    const isHidden = canon !== 'dashboard' && ap.navigation.hidden.includes(canon);
+    const isCollapsed = canon !== 'dashboard' && ((grp === 'workspace' && wsCollapsed) || (grp === 'productivity' && grCollapsed));
     btn.dataset.navHidden = isHidden ? '1' : '0';
     btn.dataset.navCollapsed = isCollapsed ? '1' : '0';
-    btn.style.order = String((grp === 'growth' ? 21 : 2) + (orderIdx >= 0 ? orderIdx : 0));
+    btn.style.order = String((grp === 'productivity' ? 21 : 2) + (orderIdx >= 0 ? orderIdx : 0));
   });
   const spacer = nav.querySelector('.nav-spacer');
   if (spacer) spacer.style.order = '90';
@@ -5373,9 +5536,9 @@ function applyClassicSidebarPrefs() {
 
   // Pinned bar
   const pinHost = document.getElementById('classic-nav-pinned');
-  const activeCanon = NexAdaptive.canonicalViewId(document.querySelector('.view.active')?.id?.replace('view-', '') || 'dashboard');
+  const activeCanon = NexAdaptive.canonicalViewId(document.querySelector('.view.active')?.id?.replace('view-', '') || (document.body.classList.contains('nexos-study-view-active') ? 'study' : 'dashboard'));
   if (pinHost) {
-    const validPins = ap.navigation.pinned.filter(v => CLASSIC_VIEW_META[v]);
+    const validPins = ap.navigation.pinned.filter(v => CLASSIC_VIEW_META[v] && (v === 'dashboard' || !ap.navigation.hidden.includes(v)));
     const sig = validPins.join(',');
     if (pinHost.dataset.clsPinSig !== sig) {
       pinHost.dataset.clsPinSig = sig;
@@ -5383,16 +5546,18 @@ function applyClassicSidebarPrefs() {
       pinHost.innerHTML = validPins.length
         ? '<div class="sidebar-aux-label">Pinned</div>' + validPins.map(v => {
           const m = CLASSIC_VIEW_META[v];
-          return `<button type="button" class="sidebar-aux-item" data-cview="${v}" onclick="switchView('${m.classicView}')"><svg class="ic" aria-hidden="true"><use href="#i-${m.icon}"/></svg><span>${m.label}</span></button>`;
+          const click = v === 'study' ? 'closeSidebar();openStudyStudio()' : `switchView('${m.classicView}')`;
+          return `<button type="button" class="sidebar-aux-item" data-cview="${v}" onclick="${click}"><svg class="ic" aria-hidden="true"><use href="#i-${m.icon}"/></svg><span>${m.label}</span></button>`;
         }).join('')
         : '';
     }
     pinHost.querySelectorAll('.sidebar-aux-item').forEach(btn => btn.classList.toggle('active', btn.dataset.cview === activeCanon));
   }
 
-  // Recent bar (fixed 3-slot pool avoids DOM churn on view switch)
+  // Recent bar (fixed 3-slot pool avoids DOM churn on view switch, excludes active & pinned)
   if (recentHost) {
-    const rec = ap.navigation.recent.filter(v => CLASSIC_VIEW_META[v]).slice(0, 3);
+    const pinSet = new Set(ap.navigation.pinned);
+    const rec = ap.navigation.recent.filter(v => CLASSIC_VIEW_META[v] && v !== activeCanon && !pinSet.has(v) && (v === 'dashboard' || !ap.navigation.hidden.includes(v))).slice(0, 3);
     if (!recentHost.dataset.clsSlotsReady) {
       recentHost.dataset.clsSlotsReady = '1';
       recentHost.innerHTML = '<div class="sidebar-aux-label">Recent</div>' + [0, 1, 2].map(() =>
@@ -5408,7 +5573,7 @@ function applyClassicSidebarPrefs() {
       btn.classList.toggle('active', activeCanon === v);
       btn.querySelector('use')?.setAttribute('href', `#i-${m.icon}`);
       btn.querySelector('span').textContent = m.label;
-      btn.onclick = () => switchView(m.classicView);
+      btn.onclick = v === 'study' ? () => { closeSidebar(); openStudyStudio(); } : () => switchView(m.classicView);
     });
   }
 }
@@ -5418,7 +5583,13 @@ function renderClassicMobileNav() {
   const bar = document.getElementById('bottom-nav');
   if (!ap || !bar) return;
   const activeRaw = document.querySelector('.view.active')?.id?.replace('view-', '') || (document.body.classList.contains('nexos-study-view-active') ? 'study' : 'dashboard');
-  const slots = ap.navigation.mobilePrimary.filter(v => CLASSIC_VIEW_META[v]).slice(0, 4);
+  const slots = [];
+  ap.navigation.mobilePrimary
+    .filter(v => CLASSIC_VIEW_META[v])
+    .concat(['dashboard', 'kanban', 'focus', 'notes', 'habits', 'analytics', 'study', 'ai'])
+    .forEach(v => {
+      if (slots.length < 4 && CLASSIC_VIEW_META[v] && !slots.includes(v)) slots.push(v);
+    });
   const sig = slots.join(',');
   if (bar.dataset.clsMobSig !== sig) {
     bar.dataset.clsMobSig = sig;
@@ -5612,6 +5783,9 @@ function setClassicSettingsCat(cat) {
     b.setAttribute('aria-selected', String(on));
   });
   filterClassicSettings();
+  if (typeof NexOnboarding !== 'undefined' && document.getElementById('profile-modal')?.classList.contains('is-open')) {
+    NexOnboarding.notifySignal('settings-tab', classicActiveSettingsCat);
+  }
 }
 
 function filterClassicSettings() {
@@ -5623,8 +5797,14 @@ function filterClassicSettings() {
   const wide = settingsIsWide();
   let visibleCount = 0;
   document.querySelectorAll('#profile-modal [data-settings-cat]').forEach(sec => {
-    if (isGuest() && (sec.id === 'profile-name-section' || sec.id === 'profile-delete-section' || sec.id === 'profile-reminders-section')) return;
-    if (!isGuest() && sec.id === 'profile-guest-section') return;
+    if (isGuest() && (sec.id === 'profile-name-section' || sec.id === 'profile-delete-section' || sec.id === 'profile-reminders-section')) {
+      sec.hidden = true;
+      return;
+    }
+    if (!isGuest() && (sec.id === 'profile-guest-section' || sec.id === 'classic-settings-guest-notif')) {
+      sec.hidden = true;
+      return;
+    }
     const cats = String(sec.dataset.settingsCat || '').split(/\s+/);
     const catOk = cat === 'all' || cats.includes(cat);
     const textBlob = `${sec.textContent || ''} ${sec.dataset.settingsKeywords || ''}`.toLowerCase();
@@ -5643,9 +5823,10 @@ function filterClassicSettings() {
       hitsBox.innerHTML = '';
     } else {
       const matched = CLASSIC_SETTINGS_INDEX.filter(item => {
-        if (isGuest() && item.id === 'profile-reminders-section') return false;
         return item.label.toLowerCase().includes(q) || item.group.toLowerCase().includes(q) || item.cat.includes(q);
-      }).slice(0, 6);
+      }).map(item => (isGuest() && item.id === 'profile-reminders-section'
+        ? { ...item, id: 'classic-settings-guest-notif', secId: 'classic-settings-guest-notif' }
+        : item)).slice(0, 6);
       if (!matched.length) {
         hitsBox.hidden = true;
         hitsBox.innerHTML = '';
@@ -5705,12 +5886,16 @@ function resetAllClassicPreferences() {
 }
 
 function refreshClassicPushStatus() {
-  const el = document.getElementById('classic-push-status-text');
-  if (!el) return;
-  if (!('Notification' in window)) { el.textContent = 'Browser notifications are not supported on this browser.'; return; }
-  const perm = Notification.permission;
-  const label = perm === 'granted' ? 'Granted (notifications allowed)' : perm === 'denied' ? 'Blocked in browser settings' : 'Not requested yet';
-  el.textContent = 'Browser notification permission: ' + label + (isGuest() ? ' · Sign in to receive background push delivery.' : '.');
+  const targets = [document.getElementById('classic-push-status-text'), document.getElementById('classic-guest-push-status')].filter(Boolean);
+  if (!targets.length) return;
+  let text;
+  if (!('Notification' in window)) { text = 'Browser notifications are not supported on this browser.'; }
+  else {
+    const perm = Notification.permission;
+    const label = perm === 'granted' ? 'Granted (notifications allowed)' : perm === 'denied' ? 'Blocked in browser settings' : 'Not requested yet';
+    text = 'Browser notification permission: ' + label + (isGuest() ? ' · Sign in to receive background push delivery.' : '.');
+  }
+  targets.forEach(el => { el.textContent = text; });
 }
 
 function renderClassicSettingsControls() {
@@ -5722,6 +5907,7 @@ function renderClassicSettingsControls() {
   setVal('classic-pref-landing', ap.general.landingView);
   setVal('classic-pref-startup', ap.general.startupBehavior);
   setChk('classic-pref-autozen', ap.focusMode.autoZenOnStart);
+  setChk('classic-pref-tips-enabled', !(ap.onboarding && ap.onboarding.neverShowHints));
   setChk('classic-pref-minimal-chrome', ap.workspace.minimalChrome);
   setChk('classic-pref-reduced-motion', ap.appearance.reducedMotion);
   setChk('classic-pref-high-contrast', ap.appearance.highContrast);
@@ -5774,14 +5960,16 @@ function renderClassicSettingsControls() {
   const nList = document.getElementById('classic-settings-nav-list');
   if (nList) {
     const views = ap.navigation.order.filter(v => CLASSIC_VIEW_META[v]);
+    const atPinCap = ap.navigation.pinned.length >= 6;
     nList.innerHTML = views.map((v, idx) => {
       const m = CLASSIC_VIEW_META[v];
       const pinned = ap.navigation.pinned.includes(v);
       const hidden = ap.navigation.hidden.includes(v);
+      const pinDisabled = !pinned && atPinCap ? ' disabled title="Maximum 6 pinned destinations reached — unpin one first"' : '';
       return `<div class="settings-item-row">
         <span class="settings-item-title">${escHtml(m.label)}</span>
         <div class="settings-item-actions">
-          <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.togglePin(getClassicAdaptivePrefs(),'${v}'))" aria-pressed="${pinned}">${pinned ? 'Pinned ★' : 'Pin'}</button>
+          <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.togglePin(getClassicAdaptivePrefs(),'${v}'))" aria-pressed="${pinned}"${pinDisabled}>${pinned ? 'Pinned ★' : 'Pin'}</button>
           ${v !== 'dashboard' ? `<button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.toggleNavHidden(getClassicAdaptivePrefs(),'${v}'))">${hidden ? 'Show' : 'Hide'}</button>` : ''}
           <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.moveNav(getClassicAdaptivePrefs(),'${v}',-1))" ${idx === 0 ? 'disabled' : ''} aria-label="Move ${escHtml(m.label)} up">↑</button>
           <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.moveNav(getClassicAdaptivePrefs(),'${v}',1))" ${idx === views.length - 1 ? 'disabled' : ''} aria-label="Move ${escHtml(m.label)} down">↓</button>
@@ -5850,6 +6038,7 @@ openSearchModal = function () {
   input.value = '';
   runGlobalSearch();
   warmClassicStudySearchCache();
+  if (typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('cmd-used');
   setTimeout(() => input.focus(), 0);
 };
 

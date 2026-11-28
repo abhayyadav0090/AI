@@ -228,7 +228,7 @@ async function runBrowserSignatureSuite() {
     await cdp.send('Network.enable');
 
     // Verify all declared HTTP icon/manifest assets serve 200 OK
-    for (const urlPath of ['/favicon.svg', '/favicon.ico', '/favicon-16x16.png', '/favicon-32x32.png', '/apple-touch-icon.png', '/nexos-icon-192.png', '/nexos-icon-512.png', '/nexos-icon-maskable-512.png', '/manifest.json?v=4.8.0']) {
+    for (const urlPath of ['/favicon.svg', '/favicon.ico', '/favicon-16x16.png', '/favicon-32x32.png', '/apple-touch-icon.png', '/nexos-icon-192.png', '/nexos-icon-512.png', '/nexos-icon-maskable-512.png', '/manifest.json?v=4.9.2']) {
       const res = await fetch(`${base}${urlPath}`);
       assert.equal(res.status, 200, `Asset ${urlPath} serves 200 OK`);
     }
@@ -251,16 +251,22 @@ async function runBrowserSignatureSuite() {
       const exportSvg = document.querySelector('#ent-sb-export-btn svg')?.getBoundingClientRect();
 
       const gWork = document.querySelector('.nav-group-toggle[data-group="workspace"]')?.getBoundingClientRect().top || 0;
-      const gGrowth = document.querySelector('.nav-group-toggle[data-group="growth"]')?.getBoundingClientRect().top || 0;
-      const gKnow = document.querySelector('.nav-group-toggle[data-group="knowledge"]')?.getBoundingClientRect().top || 0;
-      const dashTop = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="dashboard"]')?.getBoundingClientRect().top || 0;
-      const focusTop = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="focus"]')?.getBoundingClientRect().top || 0;
-      const notesTop = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="notes"]')?.getBoundingClientRect().top || 0;
+      const gProd = document.querySelector('.nav-group-toggle[data-group="productivity"]')?.getBoundingClientRect().top || 0;
+      const gThird = document.querySelector('.nav-group-toggle[data-group="knowledge"]');
+      const wsList = document.getElementById('ent-grp-list-workspace');
+      const prodList = document.getElementById('ent-grp-list-productivity');
+      const dashBtn = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="dashboard"]');
+      const calBtn = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="calendar"]');
+      const focusBtn = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="focus"]');
+      const notesBtn = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="notes"]');
+      const dashTop = dashBtn?.getBoundingClientRect().top || 0;
+      const focusTop = focusBtn?.getBoundingClientRect().top || 0;
+      const notesTop = notesBtn?.getBoundingClientRect().top || 0;
 
-      // Collapse group click
-      document.querySelector('.nav-group-toggle[data-group="knowledge"]')?.click();
-      const notesCollapsed = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="notes"]')?.dataset.navCollapsed === '1';
-      document.querySelector('.nav-group-toggle[data-group="knowledge"]')?.click();
+      // Collapse Productivity group click and confirm inline hiding without affecting Workspace
+      document.querySelector('.nav-group-toggle[data-group="productivity"]')?.click();
+      const notesCollapsed = prodList?.hidden === true && notesBtn?.dataset.navCollapsed === '1' && wsList?.hidden === false;
+      document.querySelector('.nav-group-toggle[data-group="productivity"]')?.click();
 
       // ArrowDown focus movement
       const firstNav = document.querySelector('#ent-sidebar-nav .nav-btn[data-view="dashboard"]');
@@ -293,7 +299,10 @@ async function runBrowserSignatureSuite() {
         brandSvgOk: !!(brandSvg && brandSvg.width >= 16 && brandSvg.height >= 16),
         allHaveSvg,
         footerIconsOk: !!(alertsSvg && alertsSvg.width >= 12 && exportSvg && exportSvg.width >= 12),
-        sectionOrderOk: gWork > 0 && gWork < dashTop && dashTop < gGrowth && gGrowth < focusTop && focusTop < gKnow && gKnow < notesTop,
+        twoGroupCount: document.querySelectorAll('#ent-sidebar-nav .nav-group-toggle').length,
+        hasNoThirdGroup: !gThird,
+        nestedContainmentOk: Boolean(wsList?.contains(dashBtn) && wsList?.contains(document.querySelector('#ent-sidebar-nav .nav-btn[data-view="kanban"]')) && prodList?.contains(calBtn) && prodList?.contains(focusBtn) && prodList?.contains(notesBtn)),
+        sectionOrderOk: gWork > 0 && gWork < dashTop && dashTop < gProd && gProd < focusTop && gProd < notesTop,
         notesCollapsed,
         nextFocusedView,
         compactW: Math.round(sbRect.width),
@@ -309,8 +318,11 @@ async function runBrowserSignatureSuite() {
     assert.equal(sbCheck.brandSvgOk, true, 'Unified NexOS vector brand emblem renders in Enterprise sidebar');
     assert.equal(sbCheck.allHaveSvg, true, 'All 9 Enterprise sidebar views render uniform crisp SVG icons at runtime');
     assert.equal(sbCheck.footerIconsOk, true, 'Sidebar Alerts & Export SVG icons render unclipped with full geometry');
-    assert.equal(sbCheck.sectionOrderOk, true, '3 sidebar sections position visually above their own items');
-    assert.equal(sbCheck.notesCollapsed, true, 'Clicking Knowledge group header collapses group items');
+    assert.equal(sbCheck.twoGroupCount, 2, 'Enterprise sidebar has exactly 2 expandable groups');
+    assert.equal(sbCheck.hasNoThirdGroup, true, 'Legacy Knowledge third group is removed');
+    assert.equal(sbCheck.nestedContainmentOk, true, 'Group child items reside inside their own DOM containers');
+    assert.equal(sbCheck.sectionOrderOk, true, '2 sidebar sections position visually above their own items');
+    assert.equal(sbCheck.notesCollapsed, true, 'Clicking Productivity group header collapses only Productivity items');
     assert.equal(sbCheck.nextFocusedView, 'kanban', 'ArrowDown keyboard navigation moves focus to next visible destination');
     assert.ok(sbCheck.compactW <= 80, `Compact rail width <= 80px (got ${sbCheck.compactW}px)`);
     assert.equal(sbCheck.tipVisibleOutside, true, `Floating rail tooltip renders outside sidebar bounds without clipping (got tipLeft=${sbCheck.tipLeft}, sbRight=${sbCheck.sbRight}, visible=${sbCheck.tipVisibleClass}, text=${sbCheck.tipText})`);

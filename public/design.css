@@ -390,7 +390,7 @@ html[data-design] .chat-list-item { border-radius: var(--radius-md); } html[data
 html[data-design] .typing-dot { background: var(--text-3); }
 
 /* ---------- 9. Dialogs, palette, menus, toasts ---------- */
-html[data-design] .modal-overlay { background: var(--scrim); backdrop-filter: none; }
+html[data-design] .modal-overlay { z-index: 2600; background: var(--scrim); backdrop-filter: none; }
 html[data-design] .modal { background: var(--surface); border: 0; border-radius: var(--radius-xl); box-shadow: var(--shadow-3); color: var(--text); }
 html[data-design] .modal-header h3 { font-size: 20px; font-weight: 500; }
 html[data-design] .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--text-2); }
@@ -723,8 +723,36 @@ html[data-design][data-density="spacious"] .stat-card,
 html[data-design][data-density="spacious"] .widget { padding: 26px; }
 
 @media (min-width: 901px) {
-  html[data-design="apple"] body.sidebar-compact .sidebar { width: calc(var(--sidebar-w) - 10px); }
-  html[data-design] body.sidebar-compact .sidebar-logo { height: auto; min-height: 64px; }
+  html[data-design] body.sidebar-compact { --sidebar-w: 76px; }
+  html[data-design="apple"] body.sidebar-compact { --sidebar-w: 88px; }
+  html[data-design="apple"] body.sidebar-compact .sidebar { width: 64px; border-radius: 22px; }
+  html[data-design] body.sidebar-compact .sidebar-logo {
+    height: auto; min-height: 64px; padding: 14px 8px 10px; gap: 8px;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  html[data-design] body.sidebar-compact .sidebar-collapse-btn { margin-left: 0; }
+  html[data-design] body.sidebar-compact .sidebar-nav {
+    padding: 6px 8px; gap: 4px; overflow-y: auto; overflow-x: hidden; align-items: center;
+  }
+  html[data-design] body.sidebar-compact .nav-item {
+    justify-content: center; padding: 0; gap: 0; width: 44px; height: 44px; min-height: 44px;
+    margin: 0 auto; border-radius: 14px; flex-shrink: 0;
+  }
+  html[data-design="apple"] body.sidebar-compact .nav-item { width: 44px; height: 42px; min-height: 42px; border-radius: 14px; }
+  html[data-design] body.sidebar-compact .sidebar-footer { padding: 10px 8px 14px; justify-content: center; }
+  html[data-design] body.sidebar-compact .sidebar-aux,
+  html[data-design] body.sidebar-compact .nav-group-toggle,
+  html[data-design] body.sidebar-compact .logo-text,
+  html[data-design] body.sidebar-compact .nav-label,
+  html[data-design] body.sidebar-compact .nav-badge,
+  html[data-design] body.sidebar-compact .user-info,
+  html[data-design] body.sidebar-compact .logout-btn,
+  html[data-design] body.sidebar-compact .nav-pin-dot,
+  html[data-design] body.sidebar-compact .experience-switch.in-drawer { display: none !important; }
+  html[data-design] body:not(.nexos-focus-mode) .toasts {
+    left: calc(var(--sidebar-w, 256px) + 20px);
+    max-width: min(420px, calc(100vw - var(--sidebar-w, 256px) - 44px));
+  }
 }
 html[data-design="apple"] .focus-mode-hud { background: var(--g-bg-strong); border-color: var(--g-line); backdrop-filter: var(--g-blur); }
 @media (max-width: 900px) {

@@ -18,8 +18,9 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-<script src="/push-client.js?v=4.8.0" defer></script>
-<script src="/adaptive.js?v=4.8.0" defer></script>
+<script src="/push-client.js?v=4.9.2" defer></script>
+<script src="/adaptive.js?v=4.9.2" defer></script>
+<script src="/onboarding.js?v=4.9.2" defer></script>
 
 <style>
 /* ==========================================================================
@@ -2045,12 +2046,16 @@ html[data-minimal="1"] .quick-action-strip { display: none !important; }
 .ent-aux-item:hover { background: var(--bg-card-hover); color: var(--text-main); }
 .ent-aux-item.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; border-color: var(--border-medium); }
 
+.ent-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.ent-nav-group + .ent-nav-group { margin-top: 8px; }
+.ent-nav-group[hidden] { display: none !important; }
+.ent-nav-group-items { display: flex; flex-direction: column; gap: 2px; }
+.ent-nav-group-items[hidden] { display: none !important; }
 .nav-group-toggle {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: 5px 8px 3px; margin-top: 10px; border: 0; border-radius: 6px; background: transparent;
-  color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer;
+  padding: 5px 8px 4px; margin-top: 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer;
 }
-.nav-group-toggle[data-first-group="1"] { margin-top: 2px; }
 .nav-group-toggle:hover { color: var(--text-main); background: var(--bg-card); }
 .nav-group-caret { display: inline-flex; transition: transform 0.16s ease; opacity: 0.8; }
 .nav-group-toggle[aria-expanded="false"] .nav-group-caret { transform: rotate(-90deg); }
@@ -2079,6 +2084,10 @@ html[data-minimal="1"] .quick-action-strip { display: none !important; }
   body.sidebar-compact .ent-sb-extra-act,
   body.sidebar-compact .sidebar-experience-switch,
   body.sidebar-compact .ent-sb-util-label { display: none !important; }
+  body.sidebar-compact .ent-nav-group + .ent-nav-group { margin-top: 4px; }
+  body.sidebar-compact .ent-nav-group-items[hidden] { display: flex !important; }
+  body.sidebar-compact .nav-btn[data-nav-collapsed="1"] { display: flex !important; }
+  body.sidebar-compact .nav-btn[data-nav-hidden="1"] { display: none !important; }
   body.sidebar-compact .nav-btn { justify-content: center; padding: 9px 0; min-height: 38px; position: relative; }
   body.sidebar-compact .user-card { justify-content: center; padding: 6px; }
   body.sidebar-compact .ent-sb-util-main { width: 40px; height: 36px; flex: none; margin: 0 auto; padding: 0; }
@@ -2216,7 +2225,7 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
 .command-result-item.active { background: var(--bg-card-hover); color: var(--text-main); outline: 1px solid var(--accent-primary); }
 </style>
 <script>(()=>{try{var D=document.documentElement,L=localStorage,S=(k,v)=>v&&D.setAttribute('data-'+k,v),t=L.getItem('nexos_enterprise_theme');t={'fluent-dark':'apple-dark','fluent-light':'apple-light','material-dark':'apple-dark','material-light':'apple-light'}[t]||t;if(['apple-dark','apple-light','cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'].indexOf(t)>-1)S('theme',t);var u=JSON.parse(L.getItem('nexos_last_user_v1')||'null'),k='nexos_adaptive_guest_v1';if(L.getItem('nexos_guest_mode_v1')!=='1'&&u&&(u.email||u._id||u.id)){var s=String(u.email||u._id||u.id).trim().toLowerCase(),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);k='nexos_adaptive_user_'+(h>>>0).toString(36);}var cfg=JSON.parse(L.getItem(k)||'null')||{},p=cfg.appearance;if(p){S('density',p.interfaceDensity);S('text-scale',p.textScale&&String(p.textScale));S('reduced-motion',p.reducedMotion&&'1');S('contrast',p.highContrast&&'high');S('accent',p.accentPreset);}}catch(e){}})();</script>
-<link rel="manifest" href="/manifest.json?v=4.8.0">
+<link rel="manifest" href="/manifest.json?v=4.9.2">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 </head>
 <body>
@@ -2245,51 +2254,66 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
         <div class="ent-sidebar-aux" id="ent-nav-pinned" aria-label="Pinned destinations" hidden></div>
 
         <nav class="sidebar-nav" id="ent-sidebar-nav" aria-label="Workspace views">
-          <button class="nav-btn active" data-view="dashboard" data-tooltip="Dashboard" onclick="switchNexusView('dashboard')">
-            <span class="nav-icon">⬡</span>
-            <span>Dashboard</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="1">Alt+1</span>
-          </button>
-          <button class="nav-btn" data-view="kanban" data-tooltip="Kanban Board" onclick="switchNexusView('kanban')">
-            <span class="nav-icon">▦</span>
-            <span>Kanban Board</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
-          </button>
-          <button class="nav-btn" data-view="focus" data-tooltip="Deep Focus" onclick="switchNexusView('focus')">
-            <span class="nav-icon">◎</span>
-            <span>Deep Focus</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="3">Alt+3</span>
-          </button>
-          <button class="nav-btn" data-view="habits" data-tooltip="Habit Mastery" onclick="switchNexusView('habits')">
-            <span class="nav-icon">◈</span>
-            <span>Habit Mastery</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="4">Alt+4</span>
-          </button>
-          <button class="nav-btn" data-view="notes" data-tooltip="Smart Notes" onclick="switchNexusView('notes')">
-            <span class="nav-icon">◧</span>
-            <span>Smart Notes</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="5">Alt+5</span>
-          </button>
-          <button class="nav-btn" data-view="analytics" data-tooltip="Analytics" onclick="switchNexusView('analytics')">
-            <span class="nav-icon">◬</span>
-            <span>Analytics</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
-          </button>
-          <button class="nav-btn" data-view="calendar" data-tooltip="Timeblocking" onclick="switchNexusView('calendar')">
-            <span class="nav-icon">◷</span>
-            <span>Timeblocking</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
-          </button>
-          <button class="nav-btn" id="nav-study" data-tooltip="Study Studio" onclick="closeSidebarDrawer();openStudyStudio()">
-            <span class="nav-icon">❖</span>
-            <span>Study Studio</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
-          </button>
-          <button class="nav-btn" data-view="ai" data-tooltip="NexAI" onclick="switchNexusView('ai')">
-            <span class="nav-icon">✦</span>
-            <span>NexAI</span>
-            <span class="nav-kbd" aria-hidden="true" data-key="9">Alt+9</span>
-          </button>
+          <section class="ent-nav-group" data-group="workspace">
+            <button type="button" class="nav-group-toggle" id="ent-grp-btn-workspace" data-group="workspace" aria-expanded="true" aria-controls="ent-grp-list-workspace" onclick="toggleEnterpriseGroup('workspace')">
+              <span>Workspace</span><span class="nav-group-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ent-nav-group-items" id="ent-grp-list-workspace" role="group" aria-labelledby="ent-grp-btn-workspace">
+              <button class="nav-btn active" data-view="dashboard" data-tooltip="Dashboard" onclick="switchNexusView('dashboard')">
+                <span class="nav-icon">⬡</span>
+                <span>Dashboard</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="1">Alt+1</span>
+              </button>
+              <button class="nav-btn" data-view="kanban" data-tooltip="Kanban Board" onclick="switchNexusView('kanban')">
+                <span class="nav-icon">▦</span>
+                <span>Kanban Board</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="ent-nav-group" data-group="productivity">
+            <button type="button" class="nav-group-toggle" id="ent-grp-btn-productivity" data-group="productivity" aria-expanded="true" aria-controls="ent-grp-list-productivity" onclick="toggleEnterpriseGroup('productivity')">
+              <span>Productivity</span><span class="nav-group-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="ent-nav-group-items" id="ent-grp-list-productivity" role="group" aria-labelledby="ent-grp-btn-productivity">
+              <button class="nav-btn" data-view="focus" data-tooltip="Deep Focus" onclick="switchNexusView('focus')">
+                <span class="nav-icon">◎</span>
+                <span>Deep Focus</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="3">Alt+3</span>
+              </button>
+              <button class="nav-btn" data-view="habits" data-tooltip="Habit Mastery" onclick="switchNexusView('habits')">
+                <span class="nav-icon">◈</span>
+                <span>Habit Mastery</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="4">Alt+4</span>
+              </button>
+              <button class="nav-btn" data-view="notes" data-tooltip="Smart Notes" onclick="switchNexusView('notes')">
+                <span class="nav-icon">◧</span>
+                <span>Smart Notes</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="5">Alt+5</span>
+              </button>
+              <button class="nav-btn" data-view="analytics" data-tooltip="Analytics" onclick="switchNexusView('analytics')">
+                <span class="nav-icon">◬</span>
+                <span>Analytics</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
+              </button>
+              <button class="nav-btn" data-view="calendar" data-tooltip="Timeblocking" onclick="switchNexusView('calendar')">
+                <span class="nav-icon">◷</span>
+                <span>Timeblocking</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
+              </button>
+              <button class="nav-btn" id="nav-study" data-tooltip="Study Studio" onclick="closeSidebarDrawer();openStudyStudio()">
+                <span class="nav-icon">❖</span>
+                <span>Study Studio</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
+              </button>
+              <button class="nav-btn" data-view="ai" data-tooltip="NexAI" onclick="switchNexusView('ai')">
+                <span class="nav-icon">✦</span>
+                <span>NexAI</span>
+                <span class="nav-kbd" aria-hidden="true" data-key="9">Alt+9</span>
+              </button>
+            </div>
+          </section>
         </nav>
 
         <div class="ent-sidebar-aux ent-sidebar-recent" id="ent-nav-recent" aria-label="Recently visited" hidden></div>
@@ -2432,6 +2456,7 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
           </div>
         </div>
 
+        <div id="ent-welcome-host" hidden></div>
         <!-- Quick-start (shown only for a new, empty workspace that has no goal yet) -->
         <div class="dash-card" id="qs-card" hidden style="padding:16px 18px;margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
@@ -3145,7 +3170,7 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
             <button type="button" class="btn-secondary" onclick="clearEnterpriseSettingsSearch()">Clear search</button>
           </div>
 
-          <section class="ent-settings-sec" data-sec-cat="general" data-keywords="general landing startup focus mode goal profile classic experience">
+          <section class="ent-settings-sec" data-sec-cat="general" data-keywords="general landing startup focus mode goal profile classic experience onboarding welcome tour tips">
             <h4>General &amp; Startup</h4>
             <div class="ent-settings-row">
               <label for="ent-pref-landing">Default landing view</label>
@@ -3181,6 +3206,21 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
               <span>Enter Focus Mode HUD automatically when starting Pomodoro</span>
               <input type="checkbox" id="ent-pref-autozen" onchange="updateEnterpriseFocusModePref(this.checked)">
             </label>
+            <div class="ent-settings-row">
+              <span>Workspace setup</span>
+              <button type="button" class="btn-secondary" id="ent-open-welcome-btn" onclick="closeModal('modal-enterprise-settings');switchNexusView('dashboard');NexOnboarding.openWelcome()">Open Welcome Studio</button>
+            </div>
+            <div class="ent-settings-row">
+              <span>Interactive tour</span>
+              <button type="button" class="btn-secondary" id="ent-start-tour-btn" onclick="NexOnboarding.startTour({ surface: 'enterprise' })">Guided Product Tour</button>
+            </div>
+            <div class="ent-settings-row" style="flex-wrap:wrap;gap:8px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ent-pref-tips-enabled" onchange="NexOnboarding.toggleTipsEnabled(this.checked)">
+                <span>Show feature discovery tips</span>
+              </label>
+              <button type="button" class="btn-secondary" style="font-size:12px;padding:4px 10px" onclick="NexOnboarding.resetDismissedHints()">Reset tips</button>
+            </div>
             <div class="ent-settings-row">
               <span>Experience switcher</span>
               <div class="nexos-experience-switch">
@@ -3635,6 +3675,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateEnterpriseConnectionBadge();
     renderQuickStartCard();
   }
+  if (typeof initEnterpriseOnboarding === 'function') initEnterpriseOnboarding();
   performance.mark?.('nexos-enterprise-workspace-ready');
   try { performance.measure?.('nexos-enterprise-cache-to-ready', 'nexos-enterprise-start', 'nexos-enterprise-workspace-ready'); } catch (_) {}
   // Chat history and reminder preferences are not needed to display the workspace.
@@ -3768,6 +3809,7 @@ function switchNexusView(name) {
   closePrefsPopover();
   if (typeof recordEnterpriseNavVisit === 'function') recordEnterpriseNavVisit(name);
   if (typeof renderEnterpriseFocusHud === 'function') renderEnterpriseFocusHud();
+  if (typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('view-switch', name);
   if (previousPane !== 'pane-' + name) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }
 }
 
@@ -4336,19 +4378,24 @@ function renderCalendarTimeline() {
   }
   grid.innerHTML = '';
 
-  const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   const activeTasks = state.tasks.filter(t => t.stage !== 'done');
   const pinnedByHour = new Map();
   const unscheduledTasks = [];
+  let minHour = 8;
+  let maxHour = 20;
   activeTasks.forEach(t => {
     const hr = Number(t.scheduledHour);
-    if (Number.isInteger(hr) && hr >= 8 && hr <= 20) {
+    if (Number.isInteger(hr) && hr >= 0 && hr <= 23) {
       if (!pinnedByHour.has(hr)) pinnedByHour.set(hr, []);
       pinnedByHour.get(hr).push(t);
+      if (hr < minHour) minHour = hr;
+      if (hr > maxHour) maxHour = hr;
     } else {
       unscheduledTasks.push(t);
     }
   });
+  const hours = [];
+  for (let h = minHour; h <= maxHour; h++) hours.push(h);
 
   let autoCursor = 0;
   const nowHour = new Date().getHours();
@@ -4857,6 +4904,7 @@ function finishPomodoroInterval(fromRestore = false) {
     state.pomodoroStats.totalMins = baseTotals.totalMins + mins;
     state.pomodoroStats.sessions = baseTotals.sessions + 1;
     state.pomodoroStats.streak = (state.pomodoroStats.streak || 0) + 1;
+    state.pomodoroStats.lastDate = today();
     focusLogSession(mins);
     saveWorkspaceState();
     renderDashboard();
@@ -5473,6 +5521,11 @@ function renderNotesList() {
 function openNoteInEditor(id) {
   if (noteEditorLoadedId && noteEditorLoadedId !== id) {
     flushEnterpriseNoteEdits(true);
+    const sumBtn = document.getElementById('note-ai-summarize-btn');
+    if (sumBtn && sumBtn.disabled) {
+      sumBtn.disabled = false;
+      sumBtn.textContent = '✦ AI Summarize';
+    }
   }
   state.currentNoteId = id;
   switchNexusView('notes');
@@ -6651,6 +6704,7 @@ function openCommandPalette() {
   const input = document.getElementById('command-palette-input');
   if (input) { input.value = ''; input.focus(); handleCommandPaletteSearch(''); }
   warmEnterpriseStudySearchCache();
+  if (typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('cmd-used');
   playTactileClick();
 }
 
@@ -7743,14 +7797,19 @@ async function persistEnterpriseWorkspace() {
 }
 // ---- Quick-start (Enterprise): same question as Classic, answered here for brand-new empty workspaces ----
 function enterpriseProfile() {
-  const p = enterpriseSession.rootState && enterpriseSession.rootState.profile;
+  const p = (enterpriseSession.rootState && enterpriseSession.rootState.profile)
+    || (enterpriseSession.pendingProfile && enterpriseSession.pendingProfile.profile);
   return p && typeof p === 'object' ? p : null;
 }
 function renderQuickStartCard() {
   const card = document.getElementById('qs-card');
   if (!card) return;
+  const ap = typeof getEnterpriseAdaptivePrefs === 'function' ? getEnterpriseAdaptivePrefs() : null;
+  const welcomeDone = Boolean(ap && ap.onboarding && (ap.onboarding.welcomeCompleted || ap.onboarding.welcomeSkippedAt));
+  const hasWelcomeUi = (typeof NexOnboarding !== 'undefined') && Boolean(document.getElementById('ent-welcome-host'));
   const canAsk = (enterpriseSession.mode === 'account' || enterpriseSession.mode === 'guest') && enterpriseSession.ready
-    && !enterpriseProfile() && !state.tasks.length && !state.habits.length && !state.notes.length;
+    && !enterpriseProfile() && !state.tasks.length && !state.habits.length && !state.notes.length
+    && !welcomeDone && !(hasWelcomeUi && document.getElementById('nex-welcome-card'));
   card.hidden = !canAsk;
   const box = document.getElementById('qs-card-choices');
   if (canAsk && box && !box.childElementCount) {
@@ -7835,8 +7894,11 @@ function enterpriseQuickStart(goal) {
     try { pausePomodoro(); } catch (_) {}
   }
   const profile = { goal: g, at: Date.now() };
-  enterpriseSession.rootState = { ...(enterpriseSession.rootState || {}), profile, seeded: true };
   enterpriseSession.pendingProfile = { profile, seededItems: true };
+  if (state.adaptivePrefs && typeof NexAdaptive !== 'undefined') {
+    const curAp = typeof getEnterpriseAdaptivePrefs === 'function' ? getEnterpriseAdaptivePrefs() : NexAdaptive.sanitizePrefs(state.adaptivePrefs);
+    state.adaptivePrefs = { ...curAp, updatedAt: Date.now(), onboarding: { ...(curAp.onboarding || {}), welcomeCompleted: true, ...(g ? {} : { welcomeSkippedAt: Date.now() }) } };
+  }
   saveWorkspaceState();
   renderAllViews();
   showToast(g ? 'Workspace set up for ' + ENTERPRISE_GOALS[g].label.toLowerCase() + '.' : 'Skipped. Starter items added.');
@@ -8486,18 +8548,17 @@ let entAdaptiveStartupApplied = false;
 const ENT_VIEW_META = {
   dashboard: { label: 'Dashboard', icon: '⬡', group: 'workspace' },
   kanban:    { label: 'Kanban Board', icon: '▦', group: 'workspace' },
-  calendar:  { label: 'Timeblocking', icon: '◷', group: 'workspace' },
-  focus:     { label: 'Deep Focus', icon: '◎', group: 'growth' },
-  study:     { label: 'Study Studio', icon: '❖', group: 'growth' },
-  habits:    { label: 'Habit Mastery', icon: '◈', group: 'growth' },
-  notes:     { label: 'Smart Notes', icon: '◧', group: 'knowledge' },
-  analytics: { label: 'Analytics', icon: '◬', group: 'knowledge' },
-  ai:        { label: 'NexAI', icon: '✦', group: 'knowledge' }
+  focus:     { label: 'Deep Focus', icon: '◎', group: 'productivity' },
+  habits:    { label: 'Habit Mastery', icon: '◈', group: 'productivity' },
+  notes:     { label: 'Smart Notes', icon: '◧', group: 'productivity' },
+  analytics: { label: 'Analytics', icon: '◬', group: 'productivity' },
+  calendar:  { label: 'Timeblocking', icon: '◷', group: 'productivity' },
+  study:     { label: 'Study Studio', icon: '❖', group: 'productivity' },
+  ai:        { label: 'NexAI', icon: '✦', group: 'productivity' }
 };
 const ENT_GROUPS = [
-  { id: 'workspace', label: 'Workspace', baseOrder: 10 },
-  { id: 'growth', label: 'Focus & Learning', baseOrder: 30 },
-  { id: 'knowledge', label: 'Knowledge', baseOrder: 50 }
+  { id: 'workspace', label: 'Workspace' },
+  { id: 'productivity', label: 'Productivity' }
 ];
 const ENT_NAV_SVG = {
   dashboard: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
@@ -8555,7 +8616,7 @@ function commitEnterpriseAdaptivePrefs(nextPrefs, opts = {}) {
   state.density = clean.appearance.interfaceDensity || state.density || 'comfortable';
   const densitySel = document.getElementById('density-selector');
   if (densitySel) densitySel.value = state.density;
-  NexAdaptive.writeDevicePrefs(enterpriseAdaptiveIdentity(), clean);
+  if (!opts.skipSave) NexAdaptive.writeDevicePrefs(enterpriseAdaptiveIdentity(), clean);
   NexAdaptive.applyDocumentTokens(clean, 'enterprise');
   applyEnterpriseAdaptiveVisuals();
   if (!opts.skipSave) {
@@ -8686,7 +8747,7 @@ function restoreEnterpriseWorkspaceDefaults() {
     state.pomoTimeRemaining = 25 * 60;
     renderPomTimerUI();
   }
-  commitEnterpriseAdaptivePrefs(NexAdaptive.restoreDefaults(), { renderControls: true });
+  commitEnterpriseAdaptivePrefs(NexAdaptive.restoreDefaults(getEnterpriseAdaptivePrefs()), { renderControls: true });
   showToast('Restored default workspace layout.');
 }
 
@@ -8700,6 +8761,87 @@ function toggleEnterpriseDashCustomize(force) {
     btn.classList.toggle('active', entDashCustomizing);
   }
   renderEnterpriseDashWidgetControls();
+  if (entDashCustomizing && typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('dash-customize');
+}
+
+function syncEnterpriseTimerFromAdaptive(prefs, opts = {}) {
+  if (typeof NexAdaptive === 'undefined' || !prefs) return;
+  const preset = NexAdaptive.PRESETS[prefs.profileId];
+  const prof = enterpriseProfile();
+  const goalTimer = (opts.restoreBaseline && Number(prefs.updatedAt || 0) === 0 && prof && ENTERPRISE_GOALS[prof.goal])
+    ? ENTERPRISE_GOALS[prof.goal]
+    : null;
+  const focusMin = goalTimer ? goalTimer.focus : (preset ? preset.timer.focus : 25);
+  const shortMin = goalTimer ? goalTimer.short : (preset ? preset.timer.short : 5);
+  const longMin = goalTimer ? ({ study: 20, projects: 15, habits: 10, explore: 15 }[prof.goal] || 15) : (preset ? preset.timer.long : 15);
+  const f = document.getElementById('cfg-focus-min'), sh = document.getElementById('cfg-short-min'), lg = document.getElementById('cfg-long-min');
+  if (f) f.value = focusMin;
+  if (sh) sh.value = shortMin;
+  if (lg) lg.value = longMin;
+  if (!state.pomoRunning) {
+    state.pomoMode = 'focus';
+    state.pomoTotalTime = focusMin * 60;
+    state.pomoTimeRemaining = state.pomoTotalTime;
+    renderPomTimerUI();
+  }
+}
+
+function initEnterpriseOnboarding() {
+  if (typeof NexOnboarding === 'undefined' || typeof NexAdaptive === 'undefined') return;
+  NexOnboarding.init({
+    surface: 'enterprise',
+    getPrefs: getEnterpriseAdaptivePrefs,
+    previewPrefs: (nextPreview) => {
+      syncEnterpriseTimerFromAdaptive(nextPreview);
+      commitEnterpriseAdaptivePrefs(nextPreview, { skipSave: true, preserveTimestamp: true });
+    },
+    commitPrefs: (next, opts) => {
+      if (opts && (opts.restoreBaseline || !opts.skipSave) && next) {
+        syncEnterpriseTimerFromAdaptive(next, opts);
+      }
+      commitEnterpriseAdaptivePrefs(next, opts);
+    },
+    isWorkspaceEmpty: () => !(state.tasks?.length || state.habits?.length || state.notes?.length),
+    seedEmptyWorkspace: (presetId) => {
+      if (enterpriseSession.rootState?.seeded || enterpriseProfile() || state.tasks.length || state.habits.length || state.notes.length) return;
+      const goal = presetId === 'study' ? 'study' : presetId === 'deep-work' ? 'projects' : 'explore';
+      const items = enterpriseStarterItems(goal);
+      state.tasks = items.tasks;
+      state.habits = items.habits;
+      state.notes = items.notes;
+      state.currentNoteId = items.notes[0].id;
+      state.pomoGoalApplied = goal;
+      syncEnterpriseTimerFromAdaptive(NexAdaptive.applyPreset(presetId, getEnterpriseAdaptivePrefs()));
+      const profile = { goal, at: Date.now() };
+      enterpriseSession.pendingProfile = { profile, seededItems: true };
+      renderAllViews();
+    },
+    contextSnapshot: () => ({
+      hasTasks: (state.tasks || []).length > 0,
+      hasHabits: (state.habits || []).length > 0,
+      hasNotes: (state.notes || []).length > 0,
+      hasGoals: Boolean(enterpriseProfile()),
+      seeded: Boolean(enterpriseSession.rootState && enterpriseSession.rootState.seeded),
+      isExistingUser: Boolean(
+        (enterpriseSession.rootState && enterpriseSession.rootState.seeded)
+        || enterpriseProfile()
+        || (state.tasks || []).length
+        || (state.habits || []).length
+        || (state.notes || []).length
+      ),
+    }),
+    isNarrow: isDrawerLayout,
+    openDrawer: () => {
+      const sb = document.getElementById('app-sidebar');
+      if (sb && !sb.classList.contains('open')) toggleSidebarDrawer();
+    },
+    closeDrawer: () => closeSidebarDrawer(),
+    closeModalsForTour: () => {
+      if (typeof closeModal === 'function') closeModal('modal-enterprise-settings');
+      if (typeof closePrefsPopover === 'function') closePrefsPopover();
+    },
+    toast: showToast,
+  });
 }
 
 function moveEnterpriseWidget(wId, delta) {
@@ -8868,7 +9010,9 @@ function applyEnterpriseSidebarPrefs() {
       nav.dataset.navKeysBound = '1';
       nav.addEventListener('keydown', e => {
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
-        const btns = [...nav.querySelectorAll('.nav-btn')].filter(b => b.offsetParent !== null);
+        const btns = [...nav.querySelectorAll('.nav-btn')]
+          .filter(b => b.offsetParent !== null && !b.closest('[hidden]'))
+          .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
         const cur = btns.indexOf(document.activeElement);
         if (cur < 0) return;
         e.preventDefault();
@@ -8881,15 +9025,19 @@ function applyEnterpriseSidebarPrefs() {
     if (legacyBar) legacyBar.remove();
 
     const order = ap.navigation.order;
-    const defaultGrouped = ['dashboard', 'kanban', 'calendar', 'focus', 'study', 'habits', 'notes', 'analytics', 'ai'];
-    const isGroupedOrder = order.every((v, i) => v === defaultGrouped[i]);
     const hidden = new Set(ap.navigation.hidden);
     const collapsedGroups = new Set(ap.navigation.collapsedGroups);
-    const groupVisibleCount = { workspace: 0, growth: 0, knowledge: 0 };
+    const groupVisibleCount = { workspace: 0, productivity: 0 };
 
     nav.querySelectorAll('.nav-btn').forEach(btn => {
       const vId = btn.id === 'nav-study' ? 'study' : btn.dataset.view;
       if (!vId) return;
+      const meta = ENT_VIEW_META[vId];
+      const grpId = (meta && meta.group) || 'workspace';
+      const targetList = document.getElementById('ent-grp-list-' + grpId);
+      if (targetList && btn.parentElement !== targetList) {
+        targetList.appendChild(btn);
+      }
       const iconEl = btn.querySelector('.nav-icon');
       if (iconEl && !iconEl.dataset.svgDone) {
         iconEl.innerHTML = entNavIconMarkup(vId);
@@ -8904,34 +9052,26 @@ function applyEnterpriseSidebarPrefs() {
       }
       const isHidden = vId !== 'dashboard' && hidden.has(vId);
       btn.dataset.navHidden = isHidden ? '1' : '0';
-      const meta = ENT_VIEW_META[vId];
-      if (!isHidden && meta) groupVisibleCount[meta.group] = (groupVisibleCount[meta.group] || 0) + 1;
-      btn.dataset.navCollapsed = (vId !== 'dashboard' && meta && collapsedGroups.has(meta.group)) ? '1' : '0';
+      if (!isHidden) groupVisibleCount[grpId] = (groupVisibleCount[grpId] || 0) + 1;
+      btn.dataset.navCollapsed = collapsedGroups.has(grpId) ? '1' : '0';
       const idx = order.indexOf(vId);
-      if (isGroupedOrder && meta) {
-        const gDef = ENT_GROUPS.find(g => g.id === meta.group) || ENT_GROUPS[0];
-        btn.style.order = String(gDef.baseOrder + 1 + Math.max(0, idx));
-      } else {
-        btn.style.order = String(20 + (idx >= 0 ? idx : 99));
-      }
+      // Order only among siblings inside this group's own container so children never leave their heading
+      btn.style.order = String(idx >= 0 ? idx : 99);
     });
 
-    ENT_GROUPS.forEach((g, gi) => {
-      let gBtn = nav.querySelector(`.nav-group-toggle[data-group="${g.id}"]`);
-      if (!gBtn) {
-        gBtn = document.createElement('button');
-        gBtn.type = 'button';
-        gBtn.className = 'nav-group-toggle';
-        gBtn.dataset.group = g.id;
-        gBtn.onclick = () => toggleEnterpriseGroup(g.id);
-        nav.appendChild(gBtn);
-      }
+    ENT_GROUPS.forEach((g) => {
+      const grpSection = nav.querySelector(`.ent-nav-group[data-group="${g.id}"]`);
+      const gBtn = document.getElementById('ent-grp-btn-' + g.id);
+      const itemsEl = document.getElementById('ent-grp-list-' + g.id);
       const open = !collapsedGroups.has(g.id);
-      gBtn.setAttribute('aria-expanded', String(open));
-      gBtn.dataset.firstGroup = gi === 0 ? '1' : '0';
-      gBtn.style.order = String(isGroupedOrder ? g.baseOrder : (gi + 1));
-      gBtn.hidden = groupVisibleCount[g.id] === 0;
-      gBtn.innerHTML = `<span>${escapeHtml(g.label)}</span><span class="nav-group-caret">${ENT_NAV_SVG.caret}</span>`;
+      const allHidden = groupVisibleCount[g.id] === 0;
+      if (grpSection) grpSection.hidden = allHidden;
+      if (gBtn) {
+        gBtn.setAttribute('aria-expanded', String(open));
+        gBtn.hidden = allHidden;
+        gBtn.innerHTML = `<span>${escapeHtml(g.label)}</span><span class="nav-group-caret">${ENT_NAV_SVG.caret}</span>`;
+      }
+      if (itemsEl) itemsEl.hidden = !open;
     });
   }
 
@@ -9087,6 +9227,9 @@ const ENT_SETTINGS_INDEX = [
   { id: 'ent-pref-startup', cat: 'general', label: 'Startup resume behavior', keys: 'startup last session' },
   { id: 'ent-pref-setup-goal', cat: 'general', label: 'Productivity goal template', keys: 'goal study projects habits' },
   { id: 'ent-pref-autozen', cat: 'general', label: 'Auto Focus Mode HUD on Pomodoro start', keys: 'zen focus hud pomodoro' },
+  { id: 'ent-open-welcome-btn', cat: 'general', label: 'Workspace setup & Welcome Studio', keys: 'welcome setup onboarding preset' },
+  { id: 'ent-start-tour-btn', cat: 'general', label: 'Guided Product Tour (6-step walkthrough)', keys: 'tour onboarding walkthrough guide help' },
+  { id: 'ent-pref-tips-enabled', cat: 'general', label: 'Feature discovery tips & onboarding hints', keys: 'tips hints discovery onboarding' },
   { id: 'ent-settings-themes', cat: 'appearance', label: 'Surface theme (Glass, Daylight, Ember, Cobalt Lime, Violet Orchid)', keys: 'theme palette dark light' },
   { id: 'ent-appearance-preview', cat: 'appearance', label: 'Live theme, density and scale preview', keys: 'preview scale density' },
   { id: 'ent-settings-presets', cat: 'workspace', label: 'Workspace presets (Balanced, Deep Work, Study, Minimal)', keys: 'preset profile' },
@@ -9119,6 +9262,7 @@ function openEnterpriseSettingsModal(cat) {
     if (tm) tm.value = enterpriseReminderPreferences.reminderTime || '09:00';
   }).catch(() => {});
   openModal('modal-enterprise-settings');
+  if (typeof NexOnboarding !== 'undefined') NexOnboarding.notifySignal('settings-tab', entActiveSettingsCat);
 }
 
 function setEnterpriseSettingsCat(cat) {
@@ -9134,6 +9278,9 @@ function setEnterpriseSettingsCat(cat) {
   if (h) h.textContent = meta.title;
   if (d) d.textContent = meta.desc;
   filterEnterpriseSettings();
+  if (typeof NexOnboarding !== 'undefined' && document.getElementById('modal-enterprise-settings')?.classList.contains('open')) {
+    NexOnboarding.notifySignal('settings-tab', entActiveSettingsCat);
+  }
 }
 
 function clearEnterpriseSettingsSearch() {
@@ -9290,6 +9437,7 @@ function resetAllEnterprisePreferences() {
   if (!window.confirm('Reset all workspace, navigation, appearance and accessibility preferences to defaults? Your tasks, habits and notes are preserved.')) return;
   entDashCustomizing = false;
   document.body.classList.remove('ent-dash-customizing');
+  applyNexusTheme('cyber-aubergine');
   restoreEnterpriseWorkspaceDefaults();
 }
 
@@ -9304,6 +9452,7 @@ function renderEnterpriseSettingsControls() {
   setVal('ent-pref-startup', ap.general.startupBehavior);
   setVal('ent-pref-setup-goal', prof && ENTERPRISE_GOALS[prof.goal] ? prof.goal : '');
   setChk('ent-pref-autozen', ap.focusMode.autoZenOnStart);
+  setChk('ent-pref-tips-enabled', !(ap.onboarding && ap.onboarding.neverShowHints));
   setChk('ent-pref-minimal-chrome', ap.workspace.minimalChrome);
   setChk('ent-pref-reduced-motion', ap.appearance.reducedMotion);
   setChk('ent-pref-high-contrast', ap.appearance.highContrast);
@@ -9371,14 +9520,16 @@ function renderEnterpriseSettingsControls() {
   const nBox = document.getElementById('ent-settings-nav-list');
   if (nBox) {
     const views = ap.navigation.order.filter(v => ENT_VIEW_META[v]);
+    const atPinCap = ap.navigation.pinned.length >= 6;
     nBox.innerHTML = views.map((v, idx) => {
       const m = ENT_VIEW_META[v];
       const pinned = ap.navigation.pinned.includes(v);
       const hidden = ap.navigation.hidden.includes(v);
+      const pinDisabled = !pinned && atPinCap ? ' disabled title="Maximum 6 pinned destinations reached — unpin one first"' : '';
       return `<div class="ent-settings-list-row">
         <span>${escapeHtml(m.label)}</span>
         <div class="ent-widget-ctrl-btns">
-          <button type="button" class="btn-secondary" onclick="commitEnterpriseAdaptivePrefs(NexAdaptive.togglePin(getEnterpriseAdaptivePrefs(),'${v}'),{renderControls:true})" aria-pressed="${pinned}">${pinned ? 'Pinned ★' : 'Pin'}</button>
+          <button type="button" class="btn-secondary" onclick="commitEnterpriseAdaptivePrefs(NexAdaptive.togglePin(getEnterpriseAdaptivePrefs(),'${v}'),{renderControls:true})" aria-pressed="${pinned}"${pinDisabled}>${pinned ? 'Pinned ★' : 'Pin'}</button>
           ${v !== 'dashboard' ? `<button type="button" class="btn-secondary" onclick="commitEnterpriseAdaptivePrefs(NexAdaptive.toggleNavHidden(getEnterpriseAdaptivePrefs(),'${v}'),{renderControls:true})">${hidden ? 'Show' : 'Hide'}</button>` : ''}
           <button type="button" class="btn-secondary" onclick="commitEnterpriseAdaptivePrefs(NexAdaptive.moveNav(getEnterpriseAdaptivePrefs(),'${v}',-1),{renderControls:true})" ${idx === 0 ? 'disabled' : ''} aria-label="Move ${escapeHtml(m.label)} up">↑</button>
           <button type="button" class="btn-secondary" onclick="commitEnterpriseAdaptivePrefs(NexAdaptive.moveNav(getEnterpriseAdaptivePrefs(),'${v}',1),{renderControls:true})" ${idx === views.length - 1 ? 'disabled' : ''} aria-label="Move ${escapeHtml(m.label)} down">↓</button>
@@ -9483,10 +9634,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
 });
 </script>
-<script src="attach.js?v=4.8.0" defer></script>
-<script src="chat-tasks.js?v=4.8.0" defer></script>
-<script src="habits.js?v=4.8.0" defer></script>
-<script src="derail.js?v=4.8.0" defer></script>
-<script src="study.js?v=4.8.0" defer></script>
+<script src="attach.js?v=4.9.2" defer></script>
+<script src="chat-tasks.js?v=4.9.2" defer></script>
+<script src="habits.js?v=4.9.2" defer></script>
+<script src="derail.js?v=4.9.2" defer></script>
+<script src="study.js?v=4.9.2" defer></script>
 </body>
 </html>

@@ -463,7 +463,10 @@ function sanitizeServerAdaptivePrefs(raw) {
     }
   }
   const hiddenNavAllowed = new Set(['kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai']);
+  const hintAllowed = new Set(['cmd-center', 'sidebar-compact', 'pin-nav', 'dash-customize', 'settings-search', 'focus-mode']);
   const scale = Number(app.textScale);
+  const rawGroups = Array.isArray(nav.collapsedGroups) ? nav.collapsedGroups.map((g) => (String(g || '').trim().toLowerCase() === 'growth' ? 'productivity' : g)) : [];
+  const obRaw = src.onboarding && typeof src.onboarding === 'object' && !Array.isArray(src.onboarding) ? src.onboarding : {};
   return {
     v: 1,
     updatedAt: Number.isFinite(Number(src.updatedAt)) && Number(src.updatedAt) >= 0 ? Number(src.updatedAt) : 0,
@@ -491,7 +494,7 @@ function sanitizeServerAdaptivePrefs(raw) {
       pinned: sanitizeAdaptiveList(nav.pinned, ADAPTIVE_VIEW_IDS, [], 6),
       hidden: sanitizeAdaptiveList(nav.hidden, hiddenNavAllowed, [], 8),
       order: sanitizeAdaptiveList(nav.order, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai'], 9),
-      collapsedGroups: sanitizeAdaptiveList(nav.collapsedGroups, new Set(['workspace', 'growth', 'knowledge']), [], 3),
+      collapsedGroups: sanitizeAdaptiveList(rawGroups, new Set(['workspace', 'productivity']), [], 2),
       recent: sanitizeAdaptiveList(nav.recent, ADAPTIVE_VIEW_IDS, ['dashboard'], 5),
       mobilePrimary: sanitizeAdaptiveList(nav.mobilePrimary, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'notes'], 4).slice(0, 4),
     },
@@ -500,6 +503,15 @@ function sanitizeServerAdaptivePrefs(raw) {
     },
     focusMode: {
       autoZenOnStart: Boolean(fm.autoZenOnStart),
+    },
+    onboarding: {
+      welcomeCompleted: Boolean(obRaw.welcomeCompleted),
+      welcomeSkippedAt: Number.isFinite(Number(obRaw.welcomeSkippedAt)) && Number(obRaw.welcomeSkippedAt) > 0 ? Number(obRaw.welcomeSkippedAt) : 0,
+      tourCompleted: Boolean(obRaw.tourCompleted),
+      tourSkippedAt: Number.isFinite(Number(obRaw.tourSkippedAt)) && Number(obRaw.tourSkippedAt) > 0 ? Number(obRaw.tourSkippedAt) : 0,
+      dismissedHints: sanitizeAdaptiveList(obRaw.dismissedHints, hintAllowed, [], 8),
+      neverShowHints: Boolean(obRaw.neverShowHints),
+      version: 1,
     },
   };
 }

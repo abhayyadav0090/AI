@@ -9,7 +9,25 @@
   const TEXT_SCALES = [90, 100, 110, 120];
   const ACCENT_PRESETS = ['theme', 'cobalt', 'emerald', 'violet', 'amber'];
   const SIDEBAR_MODES = ['expanded', 'compact'];
-  const GROUP_IDS = ['workspace', 'growth', 'knowledge'];
+  const GROUP_IDS = ['workspace', 'productivity'];
+
+  function normalizeGroupId(id) {
+    const raw = String(id || '').trim().toLowerCase();
+    if (raw === 'workspace') return 'workspace';
+    if (raw === 'productivity' || raw === 'growth') return 'productivity';
+    return '';
+  }
+
+  function migrateCollapsedGroups(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    const rawSet = new Set(rawList.map(x => String(x || '').trim().toLowerCase()));
+    const out = [];
+    if (rawSet.has('workspace')) out.push('workspace');
+    // Preserve Productivity collapse if user explicitly collapsed 'productivity',
+    // Classic 'growth', or collapsed all of the merged 3-group Focus/Knowledge sections.
+    if (rawSet.has('productivity') || rawSet.has('growth')) out.push('productivity');
+    return out;
+  }
 
   const PRESETS = {
     balanced: {
@@ -32,7 +50,7 @@
       sidebarMode: 'expanded',
       pinned: ['dashboard', 'kanban', 'notes'],
       hiddenNav: [],
-      navOrder: ['dashboard', 'kanban', 'calendar', 'focus', 'study', 'habits', 'notes', 'analytics', 'ai'],
+      navOrder: ['dashboard', 'kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai'],
       collapsedGroups: [],
       mobilePrimary: ['dashboard', 'kanban', 'focus', 'notes'],
       timer: { focus: 25, short: 5, long: 15 },
@@ -108,7 +126,7 @@
       pinned: ['dashboard', 'kanban', 'notes'],
       hiddenNav: ['analytics'],
       navOrder: ['dashboard', 'kanban', 'notes', 'focus', 'habits', 'calendar', 'study', 'ai', 'analytics'],
-      collapsedGroups: ['growth'],
+      collapsedGroups: ['productivity'],
       mobilePrimary: ['dashboard', 'kanban', 'notes', 'ai'],
       timer: { focus: 25, short: 5, long: 15 },
     },
@@ -194,6 +212,40 @@
       focusMode: {
         autoZenOnStart: false,
       },
+      onboarding: {
+        welcomeCompleted: false,
+        welcomeSkippedAt: 0,
+        tourCompleted: false,
+        tourSkippedAt: 0,
+        dismissedHints: [],
+        neverShowHints: false,
+        version: 1,
+      },
+    };
+  }
+
+  const ONBOARDING_HINT_IDS = ['cmd-center', 'sidebar-compact', 'pin-nav', 'dash-customize', 'settings-search', 'focus-mode'];
+  function sanitizeOnboarding(raw) {
+    const o = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const hints = [];
+    const seen = new Set();
+    if (Array.isArray(o.dismissedHints)) {
+      for (const h of o.dismissedHints) {
+        const id = String(h || '').trim().toLowerCase();
+        if (ONBOARDING_HINT_IDS.includes(id) && !seen.has(id)) {
+          seen.add(id);
+          hints.push(id);
+        }
+      }
+    }
+    return {
+      welcomeCompleted: Boolean(o.welcomeCompleted),
+      welcomeSkippedAt: Number.isFinite(Number(o.welcomeSkippedAt)) && Number(o.welcomeSkippedAt) > 0 ? Number(o.welcomeSkippedAt) : 0,
+      tourCompleted: Boolean(o.tourCompleted),
+      tourSkippedAt: Number.isFinite(Number(o.tourSkippedAt)) && Number(o.tourSkippedAt) > 0 ? Number(o.tourSkippedAt) : 0,
+      dismissedHints: hints,
+      neverShowHints: Boolean(o.neverShowHints),
+      version: 1,
     };
   }
 
@@ -210,6 +262,7 @@
     const nav = src.navigation && typeof src.navigation === 'object' ? src.navigation : src;
     const a11y = src.accessibility && typeof src.accessibility === 'object' ? src.accessibility : src;
     const fm = src.focusMode && typeof src.focusMode === 'object' ? src.focusMode : {};
+    const ob = sanitizeOnboarding(src.onboarding);
 
     const widgets = uniqueList(ws.widgets, WIDGET_IDS, WIDGET_IDS);
     const hiddenWidgets = uniqueList(ws.hiddenWidgets, WIDGET_IDS, []);
@@ -223,7 +276,7 @@
     const navOrder = uniqueList(nav.order, VIEW_IDS, VIEW_IDS);
     const hiddenNav = uniqueList(nav.hidden, VIEW_IDS.filter(v => v !== 'dashboard'), []);
     const pinned = uniqueList(nav.pinned, VIEW_IDS, []).slice(0, 6);
-    const collapsedGroups = uniqueList(nav.collapsedGroups, GROUP_IDS, []);
+    const collapsedGroups = migrateCollapsedGroups(nav.collapsedGroups);
     const recent = uniqueList(nav.recent, VIEW_IDS, ['dashboard']).slice(0, 5);
     const mobileRaw = uniqueList(nav.mobilePrimary, VIEW_IDS, base.navigation.mobilePrimary);
     const mobilePrimary = mobileRaw.slice(0, 4);
@@ -273,7 +326,23 @@
       focusMode: {
         autoZenOnStart: Boolean(fm.autoZenOnStart),
       },
+      onboarding: ob,
     };
+  }
+
+  function shouldOfferWelcome(ctx) {
+    const c = ctx && typeof ctx === 'object' ? ctx : {};
+    const p = sanitizePrefs(c.prefs);
+    const ob = p.onboarding || {};
+    if (ob.welcomeCompleted || ob.tourCompleted || Number(ob.welcomeSkippedAt) > 0) return false;
+    if (Number(p.updatedAt || 0) > 0) return false;
+    if (p.profileId && p.profileId !== 'balanced') return false;
+    if (Array.isArray(p.navigation.hidden) && p.navigation.hidden.length > 0) return false;
+    if (Array.isArray(p.navigation.collapsedGroups) && p.navigation.collapsedGroups.length > 0) return false;
+    if (c.profile && typeof c.profile === 'object') return false;
+    if (c.hasGoals || c.seeded || c.isExistingUser) return false;
+    if (c.hasItems || c.hasTasks || c.hasHabits || c.hasNotes) return false;
+    return true;
   }
 
   function cloneTouch(prefs, markCustom) {
@@ -292,12 +361,16 @@
     const prev = sanitizePrefs(prevPrefs);
     next.updatedAt = Date.now();
     next.navigation.recent = prev.navigation.recent.slice(0, 5);
+    next.onboarding = sanitizeOnboarding(prev.onboarding);
     return next;
   }
 
-  function restoreDefaults() {
+  function restoreDefaults(prevPrefs) {
     const next = buildDefaults('balanced');
     next.updatedAt = Date.now();
+    if (prevPrefs && typeof prevPrefs === 'object') {
+      next.onboarding = sanitizeOnboarding(prevPrefs.onboarding);
+    }
     return next;
   }
 
@@ -385,9 +458,10 @@
 
   function toggleGroup(prefs, groupId) {
     const next = cloneTouch(prefs, false);
-    if (!GROUP_IDS.includes(groupId)) return next;
+    const gid = normalizeGroupId(groupId);
+    if (!GROUP_IDS.includes(gid)) return next;
     const set = new Set(next.navigation.collapsedGroups);
-    if (set.has(groupId)) set.delete(groupId); else set.add(groupId);
+    if (set.has(gid)) set.delete(gid); else set.add(gid);
     next.navigation.collapsedGroups = [...set];
     return next;
   }
@@ -439,7 +513,8 @@
     el.setAttribute('data-minimal', p.workspace.minimalChrome ? '1' : '0');
     el.style.setProperty('--nex-scale', String(p.appearance.textScale / 100));
     if (document.body) {
-      document.body.classList.toggle('sidebar-compact', p.navigation.sidebarMode === 'compact');
+      const narrow = typeof window !== 'undefined' && (surface === 'enterprise' ? window.innerWidth <= 992 : window.innerWidth <= 900);
+      document.body.classList.toggle('sidebar-compact', p.navigation.sidebarMode === 'compact' && !narrow);
       document.body.classList.toggle('nexos-minimal', p.workspace.minimalChrome);
       document.body.classList.toggle('nexos-reduced-motion', p.appearance.reducedMotion);
       document.body.classList.toggle('nexos-high-contrast', p.appearance.highContrast);
@@ -677,5 +752,10 @@
     readDevicePrefs,
     writeDevicePrefs,
     queryCommandCenter,
+    ONBOARDING_HINT_IDS,
+    normalizeGroupId,
+    migrateCollapsedGroups,
+    sanitizeOnboarding,
+    shouldOfferWelcome,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
