@@ -6,8 +6,11 @@
 <title>NexOS</title>
 <meta name="description" content="NexOS is an AI productivity workspace with tasks, a focus timer, habits and notes.">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="apple-touch-icon" href="nexos-icon-192.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="alternate icon" href="/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
@@ -99,7 +102,7 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <div id="login-screen" class="login-screen" style="display:none">
   <div class="login-card">
-    <div class="login-brand"><div class="logo-mark">N</div><span class="logo-text">NexOS</span></div>
+    <div class="login-brand"><div class="logo-mark" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 64 64" fill="none"><path d="M16.5 47V17h6.4l15.4 19.8V17H45v30h-6.1L23.2 26.8V47h-6.7Z" fill="currentColor"/><path d="M48.5 10.5l1.5 3.7 3.7 1.5-3.7 1.5-1.5 3.7-1.5-3.7-3.7-1.5 3.7-1.5Z" fill="currentColor" opacity="0.88"/></svg></div><span class="logo-text">NexOS</span></div>
     <h1>Plan your day. Stay focused.</h1>
     <p>Tasks, a focus timer, habits and notes in one workspace, with an AI assistant that can see your plan. Sign in to save your work to your account, or try it without one.</p>
     <div id="google-btn"></div>
@@ -122,7 +125,7 @@
   <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
   <nav class="sidebar" id="sidebar" aria-label="Main navigation" aria-hidden="false">
     <div class="sidebar-logo">
-      <div class="logo-mark">N</div>
+      <div class="logo-mark" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 64 64" fill="none"><path d="M16.5 47V17h6.4l15.4 19.8V17H45v30h-6.1L23.2 26.8V47h-6.7Z" fill="currentColor"/><path d="M48.5 10.5l1.5 3.7 3.7 1.5-3.7 1.5-1.5 3.7-1.5-3.7-3.7-1.5 3.7-1.5Z" fill="currentColor" opacity="0.88"/></svg></div>
       <span class="logo-text">NexOS</span>
       <button type="button" class="sidebar-collapse-btn" id="classic-sidebar-collapse" onclick="toggleClassicSidebarCompact()" aria-label="Collapse sidebar" aria-pressed="false" title="Toggle compact sidebar"><svg class="ic" aria-hidden="true"><use href="#i-collapse"/></svg></button>
       <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>

@@ -491,7 +491,7 @@ function sanitizeServerAdaptivePrefs(raw) {
       pinned: sanitizeAdaptiveList(nav.pinned, ADAPTIVE_VIEW_IDS, [], 6),
       hidden: sanitizeAdaptiveList(nav.hidden, hiddenNavAllowed, [], 8),
       order: sanitizeAdaptiveList(nav.order, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai'], 9),
-      collapsedGroups: sanitizeAdaptiveList(nav.collapsedGroups, new Set(['workspace', 'growth']), [], 2),
+      collapsedGroups: sanitizeAdaptiveList(nav.collapsedGroups, new Set(['workspace', 'growth', 'knowledge']), [], 3),
       recent: sanitizeAdaptiveList(nav.recent, ADAPTIVE_VIEW_IDS, ['dashboard'], 5),
       mobilePrimary: sanitizeAdaptiveList(nav.mobilePrimary, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'notes'], 4).slice(0, 4),
     },

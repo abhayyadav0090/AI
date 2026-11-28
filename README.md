@@ -36,9 +36,13 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|
 | ![Enterprise theme picker](docs/screenshots/enterprise-themes.png) | ![Enterprise Kanban board](docs/screenshots/enterprise-kanban.png) |
 
-| Timeblocking |
-|:---:|
-| ![Enterprise timeblocking studio](docs/screenshots/enterprise-timeblocking.png) |
+| Timeblocking | Compact Rail |
+|:---:|:---:|
+| ![Enterprise timeblocking studio](docs/screenshots/enterprise-timeblocking.png) | ![Enterprise collapsed compact sidebar rail with tooltip](docs/screenshots/enterprise-sidebar-collapsed.png) |
+
+| Settings Control Center | Study Studio |
+|:---:|:---:|
+| ![Enterprise Settings Control Center](docs/screenshots/enterprise-settings-center.png) | ![Study Studio workspace](docs/screenshots/study-studio.png) |
 
 **Tasks and NexAI**
 
@@ -46,15 +50,15 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|
 | ![Kanban board](docs/screenshots/kanban.png) | ![NexAI chat](docs/screenshots/nexai.png) |
 
-| NexAI: Add habits and Save as note (3.5.0) |
-|:---:|
-| ![NexAI reply with Add 3 habits and Save as note buttons](docs/screenshots/nexai-actions.png) |
+| NexAI quick actions | Classic Settings Control Center |
+|:---:|:---:|
+| ![NexAI reply with Add 3 habits and Save as note buttons](docs/screenshots/nexai-actions.png) | ![Classic Settings Control Center](docs/screenshots/classic-settings-center.png) |
 
 **On a phone**
 
-| Classic, Soft design | Classic, Glass design | Enterprise |
-|:---:|:---:|:---:|
-| ![Classic on a phone, Soft design](docs/screenshots/mobile.png) | ![Classic on a phone, Glass design](docs/screenshots/mobile-apple.png) | ![Enterprise on a phone](docs/screenshots/enterprise-mobile.png) |
+| Classic, Soft design | Classic, Glass design | Enterprise | Enterprise Mobile Settings |
+|:---:|:---:|:---:|:---:|
+| ![Classic on a phone, Soft design](docs/screenshots/mobile.png) | ![Classic on a phone, Glass design](docs/screenshots/mobile-apple.png) | ![Enterprise on a phone](docs/screenshots/enterprise-mobile.png) | ![Enterprise Mobile Settings](docs/screenshots/enterprise-mobile-settings.png) |
 
 **NexAI, voice and Recently deleted on a phone**
 
@@ -62,7 +66,7 @@ NexOS is developed independently, with AI used as a pair-programming tool.
 |:---:|:---:|:---:|:---:|
 | ![Classic NexAI on a phone](docs/screenshots/classic-nexai.png) | ![Enterprise NexAI on a phone with an attached file and a microphone button](docs/screenshots/enterprise-nexai-attach.png) | ![NexAI Action Mode with a microphone button](docs/screenshots/enterprise-action-mode.png) | ![Recently deleted page](docs/screenshots/recovery-center.png) |
 
-*All screenshots were taken with sample data, not a real account, and show NexOS 3.5.0. Classic screenshots are in guest mode; Enterprise screenshots are in its local preview mode. The NexAI conversations in the Classic desktop screenshots are examples written for this README, the phone NexAI screenshots show the guest sign-in prompt, and the Recently deleted items are sample entries.*
+*All screenshots are freshly captured from the current NexOS interface using sample workspace data (no real user accounts or personal data). Classic screenshots reflect sample workspace state, Enterprise views showcase the redesigned navigation, Settings Control Center, and adaptive workspace layout, and the Recently deleted view shows sample recovery entries.*
 
 ---
 
@@ -276,6 +280,7 @@ Setup notes:
 │   ├── style.css               # Classic base layout and component styles
 │   ├── design.css              # Soft and Glass designs, light/dark tokens
 │   ├── ui.js                   # Shared UI interactions and Classic controls
+│   ├── adaptive.js             # Adaptive workspace profiles, layout customization and Command Center engine
 │   ├── app.js                  # Tasks, timer, habits, notes, analytics and NexAI
 │   ├── attach.js               # NexAI attachment-picker/client handling
 │   ├── habits.js               # Habit statistics: streaks, best streak, rates, goals (shared by Classic and Enterprise)
@@ -288,8 +293,13 @@ Setup notes:
 │   ├── privacy.html            # Privacy page
 │   ├── manifest.json           # Web app manifest
 │   ├── favicon.svg
+│   ├── favicon.ico
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── apple-touch-icon.png
 │   ├── nexos-icon-192.png
-│   └── nexos-icon-512.png
+│   ├── nexos-icon-512.png
+│   └── nexos-icon-maskable-512.png
 ├── lib/
 │   ├── attachments.js          # Server-side file validation for NexAI chat
 │   ├── habit-reminders.js      # Which habit reminders are due now (pure, used by the push scheduler)

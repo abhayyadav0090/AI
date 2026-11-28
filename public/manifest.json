@@ -3,23 +3,29 @@
   "short_name": "NexOS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#131314",
-  "theme_color": "#131314",
+  "background_color": "#0B1020",
+  "theme_color": "#0B1020",
   "icons": [
     {
-      "src": "nexos-icon-192.png",
+      "src": "/nexos-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "nexos-icon-512.png",
+      "src": "/nexos-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "favicon.svg",
+      "src": "/nexos-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

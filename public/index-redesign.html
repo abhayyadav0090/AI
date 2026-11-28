@@ -9,7 +9,10 @@
 <meta name="theme-color" content="#080c14">
 <title>NexOS Enterprise — Dual Experience Workspace</title>
 <meta name="description" content="NexOS Enterprise: tasks, timeblocking, a focus studio, habits, notes and a Gemini-powered assistant. Shares your data with Classic NexOS.">
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="alternate icon" href="/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap">
@@ -322,26 +325,34 @@ body {
 
 /* Sidebar */
 .sidebar {
-  width: 250px; flex-shrink: 0; height: 100vh; height: 100dvh; position: sticky; top: 0;
-  display: flex; flex-direction: column; justify-content: space-between;
+  width: 248px; flex-shrink: 0; height: 100vh; height: 100dvh; position: sticky; top: 0;
+  display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
   background: var(--bg-sidebar); backdrop-filter: blur(24px);
-  border-right: 1px solid var(--border-subtle); padding: 18px 14px;
+  border-right: 1px solid var(--border-subtle); padding: 14px 12px;
   z-index: 40; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.sidebar-body {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-scroll {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 4px; padding-right: 2px;
+  scrollbar-width: thin;
+}
 .sidebar-brand {
-  display: flex; align-items: center; gap: 12px; padding: 6px 10px 18px;
-  border-bottom: 1px solid var(--border-subtle); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle); margin-bottom: 10px;
 }
 .brand-logo-icon {
-  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
   background: var(--accent-gradient); color: #ffffff;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-weight: 800; font-size: 19px;
-  box-shadow: var(--shadow-sm); flex-shrink: 0;
-}
-.brand-text-wrap { display: flex; flex-direction: column; }
-.brand-title {
   font-family: var(--font-display); font-weight: 800; font-size: 18px;
+  box-shadow: var(--shadow-sm); flex-shrink: 0; overflow: hidden;
+}
+.brand-text-wrap { display: flex; flex-direction: column; min-width: 0; }
+.brand-title {
+  font-family: var(--font-display); font-weight: 800; font-size: 17px;
   letter-spacing: -0.02em; line-height: 1.1;
   background: var(--accent-gradient); -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -352,60 +363,66 @@ body {
 }
 
 .sidebar-nav {
-  display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; overflow: visible;
 }
 .nav-btn {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  padding: 10px 14px; border: none; border-radius: var(--radius-sm);
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px;
+  padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-sm);
   background: transparent; color: var(--text-secondary);
-  font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left;
-  transition: all 0.16s ease; position: relative;
+  font-size: 13px; font-weight: 500; cursor: pointer; text-align: left;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease; position: relative;
 }
 .nav-btn:hover {
   background: var(--bg-card-hover); color: var(--text-main);
-  transform: translateX(2px);
 }
 .nav-btn.active {
   background: var(--bg-card-active); color: var(--text-main);
-  font-weight: 600; border: 1px solid var(--border-medium);
+  font-weight: 600; border-color: var(--border-medium);
   box-shadow: var(--shadow-sm);
 }
 .nav-btn.active::before {
-  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  content: ''; position: absolute; left: 0; top: 22%; bottom: 22%;
   width: 3px; border-radius: 0 4px 4px 0; background: var(--accent-primary);
 }
 .nav-icon {
-  font-size: 17px; width: 22px; text-align: center; display: inline-flex;
-  align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 16px; width: 20px; height: 20px; text-align: center; display: inline-flex;
+  align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.85;
 }
+.nav-btn.active .nav-icon, .nav-btn:hover .nav-icon { opacity: 1; }
+.nav-btn.active .nav-icon { color: var(--accent-primary); }
 .nav-kbd {
   margin-left: auto; font-family: var(--font-mono); font-size: 10px;
-  padding: 2px 5px; border-radius: 4px; background: var(--border-subtle);
-  color: var(--text-muted); opacity: 0.7;
+  padding: 1px 5px; border-radius: 4px; background: var(--border-subtle);
+  color: var(--text-muted); opacity: 0.45; transition: opacity 0.14s ease;
 }
+.nav-btn:hover .nav-kbd, .nav-btn:focus-visible .nav-kbd { opacity: 0.9; }
 
 .sidebar-bottom {
-  display: flex; flex-direction: column; gap: 10px; padding-top: 14px;
-  border-top: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 8px; padding-top: 10px; flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle); margin-top: 6px;
 }
 .user-card {
-  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px;
   border-radius: var(--radius-sm); background: var(--bg-card);
   border: 1px solid var(--border-subtle); cursor: pointer;
-  transition: background 0.16s ease;
+  transition: background 0.16s ease, border-color 0.16s ease;
 }
-.user-card:hover { background: var(--bg-card-hover); }
+.user-card:hover { background: var(--bg-card-hover); border-color: var(--border-medium); }
 .user-avatar-pill {
-  width: 32px; height: 32px; border-radius: 50%; background: var(--accent-gradient);
+  width: 30px; height: 30px; border-radius: 50%; background: var(--accent-gradient);
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+  font-weight: 700; font-size: 12.5px; color: #fff; flex-shrink: 0;
 }
 .user-meta { flex: 1; min-width: 0; line-height: 1.25; }
 .user-name-label {
-  font-size: 13px; font-weight: 600; color: var(--text-main);
+  font-size: 12.5px; font-weight: 600; color: var(--text-main);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.user-role-label { font-size: 11px; color: var(--status-done); }
+.user-role-label { font-size: 10.5px; color: var(--status-done); }
+.ent-sidebar-footer-actions { display: flex; align-items: center; gap: 6px; }
+.ent-sb-util-main { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px !important; font-size: 12px; min-height: 34px; }
+.ent-sidebar-footer-actions .ent-sb-util-icon { width: 34px !important; min-width: 34px !important; height: 34px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 34px; }
+.ent-sidebar-footer-actions svg { flex-shrink: 0; display: block; }
 
 /* Main Content Area */
 .main-wrapper {
@@ -1986,63 +2003,85 @@ html[data-contrast="high"][data-theme="apple-light"] {
   --border-medium: rgba(15, 23, 42, 0.58);
 }
 html[data-focus-ring="strong"] :focus-visible { outline: 3px solid var(--accent-primary) !important; outline-offset: 2px; }
-html[data-accent="cobalt"] { --accent-primary: #3B82F6; --accent-glow: rgba(59, 130, 246, 0.35); }
-html[data-accent="emerald"] { --accent-primary: #10B981; --accent-glow: rgba(16, 185, 129, 0.35); }
-html[data-accent="violet"] { --accent-primary: #8B5CF6; --accent-glow: rgba(139, 92, 246, 0.35); }
-html[data-accent="amber"] { --accent-primary: #F59E0B; --accent-glow: rgba(245, 158, 11, 0.35); }
+html[data-accent="cobalt"] { --accent-primary: #3B82F6; --accent-secondary: #60A5FA; --border-focus: #3B82F6; --accent-gradient: linear-gradient(135deg, #2563EB, #3B82F6); --text-on-accent: #ffffff; --accent-glow: rgba(59, 130, 246, 0.35); }
+html[data-accent="emerald"] { --accent-primary: #10B981; --accent-secondary: #34D399; --border-focus: #10B981; --accent-gradient: linear-gradient(135deg, #047857, #059669); --text-on-accent: #ffffff; --accent-glow: rgba(16, 185, 129, 0.35); }
+html[data-accent="violet"] { --accent-primary: #8B5CF6; --accent-secondary: #C084FC; --border-focus: #8B5CF6; --accent-gradient: linear-gradient(135deg, #6D28D9, #7C3AED); --text-on-accent: #ffffff; --accent-glow: rgba(139, 92, 246, 0.35); }
+html[data-accent="amber"] { --accent-primary: #F59E0B; --accent-secondary: #FBBF24; --border-focus: #F59E0B; --accent-gradient: linear-gradient(135deg, #F59E0B, #FBBF24); --text-on-accent: #111827; --accent-glow: rgba(245, 158, 11, 0.35); }
 html[data-minimal="1"] .ai-insight-banner,
 html[data-minimal="1"] .quick-action-strip { display: none !important; }
 
 .sidebar-collapse-btn {
-  margin-left: auto; width: 32px; height: 32px; flex-shrink: 0;
+  margin-left: auto; width: 30px; height: 30px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-xs); border: 1px solid var(--border-subtle);
   background: var(--bg-card); color: var(--text-secondary); cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 .sidebar-collapse-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
 @media (max-width: 992px) { .sidebar-collapse-btn { display: none; } }
 
-.ent-sidebar-aux { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.ent-sidebar-aux { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.ent-pin-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 4px 0; }
+.ent-pin-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; min-height: 28px; max-width: 100%;
+  border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--bg-card);
+  color: var(--text-secondary); font-size: 11.5px; font-weight: 500; cursor: pointer; text-align: left;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.ent-pin-chip:hover { background: var(--bg-card-hover); color: var(--text-main); border-color: var(--border-medium); }
+.ent-pin-chip.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; border-color: var(--accent-primary); }
+.ent-pin-chip svg { width: 13px; height: 13px; flex-shrink: 0; }
+.ent-sidebar-aux.ent-sidebar-recent { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-bottom: 2px; }
 .ent-sidebar-aux[hidden] { display: none !important; }
-.ent-aux-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); padding: 4px 10px 2px; }
+.ent-aux-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 3px; }
+.ent-aux-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.ent-aux-edit-btn { border: 0; background: transparent; color: var(--text-muted); font-size: 10.5px; font-weight: 600; cursor: pointer; padding: 2px 5px; border-radius: 4px; }
+.ent-aux-edit-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
 .ent-aux-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 12px; min-height: 32px;
-  border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
-  font-size: 12.5px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 6px 10px; min-height: 31px;
+  border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary);
+  font-size: 12.5px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.14s ease, color 0.14s ease;
 }
 .ent-aux-item:hover { background: var(--bg-card-hover); color: var(--text-main); }
-.ent-aux-item.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; }
+.ent-aux-item.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; border-color: var(--border-medium); }
 
 .nav-group-toggle {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: 6px 10px 2px; margin-top: 6px; border: 0; background: transparent;
-  color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+  padding: 5px 8px 3px; margin-top: 10px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer;
 }
-.nav-group-toggle:hover { color: var(--text-main); }
+.nav-group-toggle[data-first-group="1"] { margin-top: 2px; }
+.nav-group-toggle:hover { color: var(--text-main); background: var(--bg-card); }
+.nav-group-caret { display: inline-flex; transition: transform 0.16s ease; opacity: 0.8; }
+.nav-group-toggle[aria-expanded="false"] .nav-group-caret { transform: rotate(-90deg); }
 .nav-btn[data-nav-hidden="1"], .nav-btn[data-nav-collapsed="1"] { display: none !important; }
 
+.ent-rail-tooltip {
+  position: fixed; left: 0; top: 0; z-index: 6000; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 6px 10px; border-radius: 8px; background: var(--bg-surface-elevated); color: var(--text-main);
+  border: 1px solid var(--border-medium); box-shadow: var(--shadow-md);
+  font-size: 12px; font-weight: 600; opacity: 0; transition: opacity 0.1s ease;
+}
+.ent-rail-tooltip.visible { opacity: 1; }
+.ent-rail-tooltip kbd { font-family: var(--font-mono); font-size: 10px; padding: 1px 5px; border-radius: 4px; background: var(--border-subtle); color: var(--text-muted); }
+
 @media (min-width: 993px) {
-  body.sidebar-compact .sidebar { width: 76px; padding: 14px 8px; overflow: visible; }
-  body.sidebar-compact .sidebar-brand { flex-direction: column; padding: 4px 0 12px; gap: 8px; }
+  body.sidebar-compact .sidebar { width: 72px; padding: 12px 8px; }
+  body.sidebar-compact .sidebar-brand { flex-direction: column; padding: 2px 0 10px; gap: 8px; margin-bottom: 8px; }
+  body.sidebar-compact .sidebar-collapse-btn { margin-left: 0; }
   body.sidebar-compact .brand-text-wrap,
   body.sidebar-compact .nav-btn > span:not(.nav-icon),
   body.sidebar-compact .nav-kbd,
   body.sidebar-compact .sidebar-bottom .user-meta,
-  body.sidebar-compact .sidebar-bottom > div:last-child,
   body.sidebar-compact .ent-sidebar-aux,
-  body.sidebar-compact .nav-group-toggle { display: none !important; }
-  body.sidebar-compact .sidebar-nav { overflow: visible; }
-  body.sidebar-compact .nav-btn { justify-content: center; padding: 10px 0; position: relative; }
-  body.sidebar-compact .user-card { justify-content: center; padding: 8px; }
-  body.sidebar-compact .nav-btn[data-tooltip]:hover::after,
-  body.sidebar-compact .nav-btn[data-tooltip]:focus-visible::after {
-    content: attr(data-tooltip);
-    position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-    z-index: 400; white-space: nowrap; padding: 5px 10px; border-radius: 8px;
-    background: var(--bg-surface-elevated); color: var(--text-main);
-    border: 1px solid var(--border-medium); box-shadow: var(--shadow-md);
-    font-size: 12px; font-weight: 600; pointer-events: none;
-  }
+  body.sidebar-compact .nav-group-toggle,
+  body.sidebar-compact .ent-sb-extra-act,
+  body.sidebar-compact .sidebar-experience-switch,
+  body.sidebar-compact .ent-sb-util-label { display: none !important; }
+  body.sidebar-compact .nav-btn { justify-content: center; padding: 9px 0; min-height: 38px; position: relative; }
+  body.sidebar-compact .user-card { justify-content: center; padding: 6px; }
+  body.sidebar-compact .ent-sb-util-main { width: 40px; height: 36px; flex: none; margin: 0 auto; padding: 0; }
 }
 
 .ent-preset-pill {
@@ -2099,18 +2138,45 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
 .ent-widget-ctrl-btns .btn-secondary { padding: 4px 8px; font-size: 12px; }
 
 /* Settings Control Center Modal */
-.ent-settings-dialog { width: min(860px, 96vw); max-height: 88dvh; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
-.ent-settings-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border-subtle); }
-.ent-settings-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); flex: 1; min-height: 0; overflow: hidden; }
-.ent-settings-rail { border-right: 1px solid var(--border-subtle); padding: 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-.ent-settings-tab { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; min-height: 38px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: 13px; text-align: left; cursor: pointer; }
+.ent-settings-dialog { width: min(920px, 96vw); height: min(690px, 88dvh); display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.ent-settings-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+.ent-settings-body { display: grid; grid-template-columns: 234px minmax(0, 1fr); flex: 1 1 0; min-height: 0; overflow: hidden; }
+.ent-settings-aside { border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; min-height: 0; background: rgba(128,128,128,0.03); }
+.ent-settings-search-box { position: relative; padding: 12px 12px 8px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+.ent-settings-search-box input { width: 100%; padding: 8px 30px 8px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-main); font-size: 12.5px; }
+.ent-settings-search-clear { position: absolute; right: 17px; top: 50%; transform: translateY(-35%); width: 22px; height: 22px; border: 0; border-radius: 6px; background: var(--border-subtle); color: var(--text-muted); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ent-settings-search-clear[hidden] { display: none !important; }
+.ent-settings-rail { padding: 10px 10px 14px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1; }
+.ent-settings-tab { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 8px 11px; min-height: 36px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: 12.5px; font-weight: 500; text-align: left; cursor: pointer; position: relative; }
+.ent-settings-tab-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .ent-settings-tab:hover { background: var(--bg-card-hover); color: var(--text-main); }
-.ent-settings-tab.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; border: 1px solid var(--border-medium); }
-.ent-settings-main { padding: 16px 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
-.ent-settings-sec { padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-card); display: flex; flex-direction: column; gap: 10px; }
+.ent-settings-tab.active { background: var(--bg-card-active); color: var(--text-main); font-weight: 600; border-color: var(--border-medium); }
+.ent-settings-tab-count { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--border-subtle); color: var(--text-main); }
+.ent-settings-tab-count[hidden] { display: none !important; }
+.ent-settings-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.ent-settings-pane-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 12px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+.ent-settings-pane-header h3 { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; margin: 0; }
+.ent-settings-pane-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.ent-settings-main { padding: 14px 22px 24px; overflow-y: auto; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+.ent-settings-hits { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border-medium); border-radius: var(--radius-md); background: var(--bg-card); }
+.ent-settings-hits[hidden] { display: none !important; }
+.ent-settings-hits-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ent-settings-hit-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: var(--radius-xs); border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-main); font-size: 12px; text-align: left; cursor: pointer; }
+.ent-settings-hit-btn:hover { border-color: var(--accent-primary); background: var(--bg-card-hover); }
+.ent-settings-hit-cat { font-size: 10.5px; color: var(--text-muted); flex-shrink: 0; }
+.ent-settings-sec { padding: 15px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-card); display: flex; flex-direction: column; gap: 10px; }
 .ent-settings-sec[hidden] { display: none !important; }
-.ent-settings-sec h4 { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.ent-settings-sec h4 { font-family: var(--font-display); font-size: 14.5px; font-weight: 700; margin: 0; }
 .ent-settings-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 6px 0; font-size: 13px; }
+.ent-settings-theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; width: 100%; }
+.ent-settings-theme-card { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-main); font-size: 12px; font-weight: 500; cursor: pointer; min-height: 38px; text-align: left; }
+.ent-settings-theme-card:hover { border-color: var(--border-medium); background: var(--bg-card-hover); }
+.ent-settings-theme-card.active { border-color: var(--accent-primary); background: var(--bg-card-active); font-weight: 600; box-shadow: 0 0 0 1px var(--accent-primary); }
+.ent-accent-chip { display: inline-flex; align-items: center; gap: 7px; }
+.ent-accent-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.28); }
+.ent-appearance-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); background: var(--bg-surface); }
+.ent-preview-sample-title { font-family: var(--font-display); font-size: 13.5px; font-weight: 700; color: var(--text-main); }
+.ent-preview-sample-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
 .ent-preset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .ent-preset-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-main); cursor: pointer; text-align: left; min-height: 44px; }
 .ent-preset-card.active { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary); }
@@ -2118,29 +2184,40 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
 .ent-settings-list-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface); font-size: 13px; }
 .ent-shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
 .ent-shortcut-row:last-child { border-bottom: 0; }
+.ent-settings-hit-flash { animation: entHitFlash 1.4s ease; }
+@keyframes entHitFlash { 0% { outline: 2px solid var(--accent-primary); outline-offset: 2px; } 100% { outline: 2px solid transparent; } }
 .ent-dash-adaptive-bar .btn-secondary, .ent-dash-adaptive-bar .quick-action-chip { min-height: 34px; }
 .btn-secondary.active { background: var(--bg-card-active); border-color: var(--accent-primary); color: var(--text-main); font-weight: 600; }
 .ent-nav-pin-dot { font-size: 11px; opacity: 0.85; }
 .ent-aux-item[hidden] { display: none !important; }
 .modal-dialog-card { background: linear-gradient(var(--bg-surface), var(--bg-surface)), var(--bg-app); }
-.modal-overlay-backdrop { background: rgba(0, 0, 0, 0.76); backdrop-filter: blur(14px); }
+.modal-overlay-backdrop { z-index: 2600; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(14px); }
+.ent-num-input { width: 62px; padding: 5px 8px; border-radius: var(--radius-xs); border: 1px solid var(--border-medium); background: var(--bg-surface); color: var(--text-main); text-align: center; font-family: var(--font-mono); font-size: 12.5px; }
+#modal-enterprise-settings[data-single-cat="1"] .ent-settings-sec h4 { display: none; }
 @media (max-width: 992px) {
+  .sidebar { background: linear-gradient(var(--bg-surface), var(--bg-surface)), var(--bg-app) !important; backdrop-filter: blur(28px); }
+  .mobile-sidebar-backdrop { background: rgba(0, 0, 0, 0.74) !important; }
   .toast-shelf { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); right: 12px; left: 12px; }
 }
 @media (max-width: 768px) {
+  .ent-settings-dialog { height: min(92dvh, 760px); }
   .ent-settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .ent-settings-rail { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border-subtle); padding: 8px 12px; flex-shrink: 0; }
-  .ent-settings-tab { width: auto; flex: none; white-space: nowrap; }
-  .ent-preset-grid { grid-template-columns: minmax(0, 1fr); }
+  .ent-settings-aside { border-right: 0; border-bottom: 1px solid var(--border-subtle); }
+  .ent-settings-search-box { padding: 10px 14px 8px; }
+  .ent-settings-rail { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 10px; gap: 6px; scroll-snap-type: x proximity; scrollbar-width: none; -ms-overflow-style: none; }
+  .ent-settings-rail::-webkit-scrollbar { display: none; }
+  .ent-settings-tab { width: auto; flex: none; white-space: nowrap; min-height: 38px; padding: 7px 12px; }
+  .ent-settings-pane-header, .ent-settings-main { padding-left: 16px; padding-right: 16px; }
+  .ent-settings-hits-grid, .ent-preset-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .command-meta-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-muted); }
 .command-result-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .command-result-sub { font-size: 11.5px; color: var(--text-muted); }
 .command-result-item.active { background: var(--bg-card-hover); color: var(--text-main); outline: 1px solid var(--accent-primary); }
 </style>
-<script>(()=>{try{var D=document.documentElement,L=localStorage,S=(k,v)=>v&&D.setAttribute('data-'+k,v),t=L.getItem('nexos_enterprise_theme');t={'fluent-dark':'apple-dark','fluent-light':'apple-light','material-dark':'apple-dark','material-light':'apple-light'}[t]||t;if(['apple-dark','apple-light','cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'].indexOf(t)>-1)S('theme',t);var u=JSON.parse(L.getItem('nexos_last_user_v1')||'null'),k='nexos_adaptive_guest_v1';if(L.getItem('nexos_guest_mode_v1')!=='1'&&u&&(u.email||u._id||u.id)){var s=String(u.email||u._id||u.id).trim().toLowerCase(),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);k='nexos_adaptive_user_'+(h>>>0).toString(36);}var p=(JSON.parse(L.getItem(k)||'null')||{}).appearance;if(p){S('density',p.interfaceDensity);S('text-scale',p.textScale&&String(p.textScale));S('reduced-motion',p.reducedMotion&&'1');S('contrast',p.highContrast&&'high');S('accent',p.accentPreset);}}catch(e){}})();</script>
+<script>(()=>{try{var D=document.documentElement,L=localStorage,S=(k,v)=>v&&D.setAttribute('data-'+k,v),t=L.getItem('nexos_enterprise_theme');t={'fluent-dark':'apple-dark','fluent-light':'apple-light','material-dark':'apple-dark','material-light':'apple-light'}[t]||t;if(['apple-dark','apple-light','cyber-aubergine', 'cobalt-lime-dark', 'violet-orchid-dark'].indexOf(t)>-1)S('theme',t);var u=JSON.parse(L.getItem('nexos_last_user_v1')||'null'),k='nexos_adaptive_guest_v1';if(L.getItem('nexos_guest_mode_v1')!=='1'&&u&&(u.email||u._id||u.id)){var s=String(u.email||u._id||u.id).trim().toLowerCase(),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);k='nexos_adaptive_user_'+(h>>>0).toString(36);}var cfg=JSON.parse(L.getItem(k)||'null')||{},p=cfg.appearance;if(p){S('density',p.interfaceDensity);S('text-scale',p.textScale&&String(p.textScale));S('reduced-motion',p.reducedMotion&&'1');S('contrast',p.highContrast&&'high');S('accent',p.accentPreset);}}catch(e){}})();</script>
 <link rel="manifest" href="/manifest.json?v=4.8.0">
-<link rel="apple-touch-icon" href="/nexos-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 </head>
 <body>
 
@@ -2153,90 +2230,88 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
 <div id="nexus-app">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="app-sidebar" aria-label="Navigation">
-    <div>
+    <div class="sidebar-body">
       <div class="sidebar-brand">
-        <div class="brand-logo-icon">N</div>
+        <div class="brand-logo-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 64 64" fill="none"><path d="M16.5 47V17h6.4l15.4 19.8V17H45v30h-6.1L23.2 26.8V47h-6.7Z" fill="currentColor"/><path d="M48.5 10.5l1.5 3.7 3.7 1.5-3.7 1.5-1.5 3.7-1.5-3.7-3.7-1.5 3.7-1.5Z" fill="currentColor" opacity="0.88"/></svg></div>
         <div class="brand-text-wrap">
           <span class="brand-title">NexOS</span>
           <span class="brand-badge">Enterprise</span>
         </div>
-        <button type="button" class="sidebar-collapse-btn" id="ent-sidebar-collapse" onclick="toggleEnterpriseSidebarCompact()" aria-label="Collapse or expand sidebar" aria-pressed="false" title="Toggle compact sidebar">⇄</button>
+        <button type="button" class="sidebar-collapse-btn" id="ent-sidebar-collapse" onclick="toggleEnterpriseSidebarCompact()" aria-label="Collapse or expand sidebar" aria-pressed="false" title="Toggle compact sidebar (rail)">⇄</button>
         <button class="sidebar-mobile-close-btn" onclick="closeSidebarDrawer()" title="Close navigation" aria-label="Close navigation">✕</button>
       </div>
 
-      <div class="ent-sidebar-aux" id="ent-nav-pinned" aria-label="Pinned destinations" hidden></div>
+      <div class="sidebar-scroll">
+        <div class="ent-sidebar-aux" id="ent-nav-pinned" aria-label="Pinned destinations" hidden></div>
 
-      <nav class="sidebar-nav" id="ent-sidebar-nav" aria-label="Workspace views">
-        <button class="nav-btn active" data-view="dashboard" data-tooltip="Dashboard" onclick="switchNexusView('dashboard')">
-          <span class="nav-icon">⬡</span>
-          <span>Dashboard</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="1">Alt+1</span>
-        </button>
-        <button class="nav-btn" data-view="kanban" data-tooltip="Kanban Board" onclick="switchNexusView('kanban')">
-          <span class="nav-icon">▦</span>
-          <span>Kanban Board</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
-        </button>
-        <button class="nav-btn" data-view="focus" data-tooltip="Deep Focus" onclick="switchNexusView('focus')">
-          <span class="nav-icon">◎</span>
-          <span>Deep Focus</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="3">Alt+3</span>
-        </button>
-        <button class="nav-btn" data-view="habits" data-tooltip="Habit Mastery" onclick="switchNexusView('habits')">
-          <span class="nav-icon">◈</span>
-          <span>Habit Mastery</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="4">Alt+4</span>
-        </button>
-        <button class="nav-btn" data-view="notes" data-tooltip="Smart Notes" onclick="switchNexusView('notes')">
-          <span class="nav-icon">◧</span>
-          <span>Smart Notes</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="5">Alt+5</span>
-        </button>
-        <button class="nav-btn" data-view="analytics" data-tooltip="Analytics" onclick="switchNexusView('analytics')">
-          <span class="nav-icon">◬</span>
-          <span>Analytics</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
-        </button>
-        <button class="nav-btn" data-view="calendar" data-tooltip="Timeblocking" onclick="switchNexusView('calendar')">
-          <span class="nav-icon">◷</span>
-          <span>Timeblocking</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
-        </button>
-        <button class="nav-btn" id="nav-study" data-tooltip="Study Studio" onclick="closeSidebarDrawer();openStudyStudio()">
-          <span class="nav-icon">❖</span>
-          <span>Study Studio</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
-        </button>
-        <button class="nav-btn" data-view="ai" data-tooltip="NexAI" onclick="switchNexusView('ai')">
-          <span class="nav-icon">✦</span>
-          <span>NexAI</span>
-          <span class="nav-kbd" aria-hidden="true" data-key="9">Alt+9</span>
-        </button>
-      </nav>
+        <nav class="sidebar-nav" id="ent-sidebar-nav" aria-label="Workspace views">
+          <button class="nav-btn active" data-view="dashboard" data-tooltip="Dashboard" onclick="switchNexusView('dashboard')">
+            <span class="nav-icon">⬡</span>
+            <span>Dashboard</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="1">Alt+1</span>
+          </button>
+          <button class="nav-btn" data-view="kanban" data-tooltip="Kanban Board" onclick="switchNexusView('kanban')">
+            <span class="nav-icon">▦</span>
+            <span>Kanban Board</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="2">Alt+2</span>
+          </button>
+          <button class="nav-btn" data-view="focus" data-tooltip="Deep Focus" onclick="switchNexusView('focus')">
+            <span class="nav-icon">◎</span>
+            <span>Deep Focus</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="3">Alt+3</span>
+          </button>
+          <button class="nav-btn" data-view="habits" data-tooltip="Habit Mastery" onclick="switchNexusView('habits')">
+            <span class="nav-icon">◈</span>
+            <span>Habit Mastery</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="4">Alt+4</span>
+          </button>
+          <button class="nav-btn" data-view="notes" data-tooltip="Smart Notes" onclick="switchNexusView('notes')">
+            <span class="nav-icon">◧</span>
+            <span>Smart Notes</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="5">Alt+5</span>
+          </button>
+          <button class="nav-btn" data-view="analytics" data-tooltip="Analytics" onclick="switchNexusView('analytics')">
+            <span class="nav-icon">◬</span>
+            <span>Analytics</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="6">Alt+6</span>
+          </button>
+          <button class="nav-btn" data-view="calendar" data-tooltip="Timeblocking" onclick="switchNexusView('calendar')">
+            <span class="nav-icon">◷</span>
+            <span>Timeblocking</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="7">Alt+7</span>
+          </button>
+          <button class="nav-btn" id="nav-study" data-tooltip="Study Studio" onclick="closeSidebarDrawer();openStudyStudio()">
+            <span class="nav-icon">❖</span>
+            <span>Study Studio</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="8">Alt+8</span>
+          </button>
+          <button class="nav-btn" data-view="ai" data-tooltip="NexAI" onclick="switchNexusView('ai')">
+            <span class="nav-icon">✦</span>
+            <span>NexAI</span>
+            <span class="nav-kbd" aria-hidden="true" data-key="9">Alt+9</span>
+          </button>
+        </nav>
+
+        <div class="ent-sidebar-aux ent-sidebar-recent" id="ent-nav-recent" aria-label="Recently visited" hidden></div>
+      </div>
     </div>
 
     <div class="sidebar-bottom">
-      <div class="ent-sidebar-aux" id="ent-nav-recent" aria-label="Recently visited" hidden></div>
-      <div class="user-card" onclick="openProfileModal()">
+      <div class="user-card" role="button" tabindex="0" onclick="openProfileModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProfileModal();}" aria-label="Account and workspace profile">
         <div class="user-avatar-pill" id="sidebar-user-avatar">U</div>
         <div class="user-meta">
           <div class="user-name-label" id="sidebar-user-name">Enterprise Workspace</div>
           <div class="user-role-label" id="enterprise-user-status">● Connecting workspace…</div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="display:flex;gap:6px">
-          <button type="button" class="btn-secondary" style="flex:1;font-size:11.5px;padding:6px" onclick="openEnterpriseSettingsModal('general')">⚙ Settings</button>
-          <button class="btn-secondary" style="font-size:11.5px;padding:6px 10px" onclick="openEnterpriseAlerts()" title="Task alerts" aria-label="Task alerts">🔔</button>
-          <button class="btn-secondary" style="font-size:11.5px;padding:6px 10px" onclick="exportNexusBackup()" title="Backup JSON" aria-label="Export backup">↓ Export</button>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn-secondary" style="flex:1;font-size:11.5px;padding:6px" onclick="loadSampleWorkspaceData()">⚡ Sample Data</button>
-        </div>
-        <div class="nexos-experience-switch sidebar-experience-switch" aria-label="Choose NexOS experience">
-          <a href="/classic" title="Switch to Classic NexOS">Classic NexOS</a>
-          <span class="active" aria-current="page">Enterprise</span>
-        </div>
+      <div class="ent-sidebar-footer-actions">
+        <button type="button" class="btn-secondary ent-sb-util-main" id="ent-sb-settings-btn" onclick="openEnterpriseSettingsModal('general')" title="Open Settings Control Center" aria-label="Settings Control Center"><span id="ent-sb-settings-ico" aria-hidden="true">⚙</span><span class="ent-sb-util-label">Settings</span></button>
+        <button type="button" class="btn-secondary ent-sb-util-icon ent-sb-extra-act" id="ent-sb-alerts-btn" onclick="openEnterpriseAlerts()" title="Task alerts &amp; reminders" aria-label="Task alerts">🔔</button>
+        <button type="button" class="btn-secondary ent-sb-util-icon ent-sb-extra-act" id="ent-sb-export-btn" onclick="exportNexusBackup()" title="Export workspace JSON" aria-label="Export backup">↓</button>
+      </div>
+      <div class="nexos-experience-switch sidebar-experience-switch" aria-label="Choose NexOS experience">
+        <a href="/classic" title="Switch to Classic NexOS">Classic NexOS</a>
+        <span class="active" aria-current="page">Enterprise</span>
       </div>
     </div>
   </aside>
@@ -3028,8 +3103,8 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
   <div class="modal-dialog-card ent-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="ent-settings-title">
     <div class="ent-settings-top">
       <div>
-        <h2 id="ent-settings-title" style="font-family:var(--font-display);font-size:18px;font-weight:700;margin:0">Settings Control Center</h2>
-        <div style="font-size:12px;color:var(--text-muted)">Customize workspace, appearance, navigation, accessibility &amp; data</div>
+        <h2 id="ent-settings-title" style="font-family:var(--font-display);font-size:17.5px;font-weight:700;margin:0">Settings Control Center</h2>
+        <div style="font-size:12px;color:var(--text-muted)">Tailor appearance, workspace modules, navigation, and accessibility</div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="ent-settings-save-status" class="ent-preset-pill" role="status" aria-live="polite">Saved</span>
@@ -3037,228 +3112,261 @@ body.ent-dash-customizing .dash-card { cursor: grab; }
       </div>
     </div>
     <div class="ent-settings-body">
-      <nav class="ent-settings-rail" id="ent-settings-cats" aria-label="Settings categories">
-        <button type="button" class="ent-settings-tab active" data-sec="all" onclick="setEnterpriseSettingsCat('all')">All Settings</button>
-        <button type="button" class="ent-settings-tab" data-sec="general" onclick="setEnterpriseSettingsCat('general')">General</button>
-        <button type="button" class="ent-settings-tab" data-sec="appearance" onclick="setEnterpriseSettingsCat('appearance')">Appearance</button>
-        <button type="button" class="ent-settings-tab" data-sec="workspace" onclick="setEnterpriseSettingsCat('workspace')">Workspace</button>
-        <button type="button" class="ent-settings-tab" data-sec="navigation" onclick="setEnterpriseSettingsCat('navigation')">Navigation</button>
-        <button type="button" class="ent-settings-tab" data-sec="accessibility" onclick="setEnterpriseSettingsCat('accessibility')">Accessibility</button>
-        <button type="button" class="ent-settings-tab" data-sec="notifications" onclick="setEnterpriseSettingsCat('notifications')">Notifications</button>
-        <button type="button" class="ent-settings-tab" data-sec="shortcuts" onclick="setEnterpriseSettingsCat('shortcuts')">Keyboard Shortcuts</button>
-        <button type="button" class="ent-settings-tab" data-sec="data" onclick="setEnterpriseSettingsCat('data')">Data &amp; Privacy</button>
-      </nav>
-      <div class="ent-settings-main" id="ent-settings-main">
-        <div>
+      <div class="ent-settings-aside">
+        <div class="ent-settings-search-box">
           <label for="ent-settings-search" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search settings</label>
-          <input type="search" id="ent-settings-search" placeholder="Search any setting (e.g. contrast, scale, preset, focus, shortcuts, push)…" style="width:100%;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main);font-size:13px" oninput="filterEnterpriseSettings()">
+          <input type="search" id="ent-settings-search" placeholder="Search settings…" oninput="filterEnterpriseSettings()">
+          <button type="button" id="ent-settings-search-clear" class="ent-settings-search-clear" onclick="clearEnterpriseSettingsSearch()" aria-label="Clear search" hidden>✕</button>
         </div>
-        <div id="ent-settings-empty" hidden style="padding:18px;text-align:center;color:var(--text-muted);font-size:13px">No matching settings found. Try another keyword.</div>
-
-        <section class="ent-settings-sec" data-sec-cat="general" data-keywords="general landing startup focus mode goal profile classic experience">
-          <h4>General</h4>
-          <div class="ent-settings-row">
-            <label for="ent-pref-landing">Default landing view</label>
-            <select id="ent-pref-landing" class="audio-select" onchange="updateEnterpriseGeneralPref('landingView', this.value)">
-              <option value="dashboard">Dashboard</option>
-              <option value="kanban">Kanban Board</option>
-              <option value="focus">Deep Focus</option>
-              <option value="habits">Habit Mastery</option>
-              <option value="notes">Smart Notes</option>
-              <option value="calendar">Timeblocking</option>
-              <option value="analytics">Analytics</option>
-              <option value="ai">NexAI</option>
-            </select>
-          </div>
-          <div class="ent-settings-row">
-            <label for="ent-pref-startup">Startup behavior</label>
-            <select id="ent-pref-startup" class="audio-select" onchange="updateEnterpriseGeneralPref('startupBehavior', this.value)">
-              <option value="landing">Open default landing view</option>
-              <option value="last">Resume last visited view</option>
-            </select>
-          </div>
-          <div class="ent-settings-row">
-            <label for="ent-pref-setup-goal">Productivity goal template</label>
-            <select id="ent-pref-setup-goal" class="audio-select" onchange="enterpriseChangeGoal(this.value)">
-              <option value="" disabled>Not chosen</option>
-              <option value="study">Study and exams</option>
-              <option value="projects">Projects and sprints</option>
-              <option value="habits">Daily routine and habits</option>
-              <option value="explore">Just exploring</option>
-            </select>
-          </div>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Enter Focus Mode HUD automatically when starting Pomodoro</span>
-            <input type="checkbox" id="ent-pref-autozen" onchange="updateEnterpriseFocusModePref(this.checked)">
-          </label>
-          <div class="ent-settings-row">
-            <span>Experience switcher</span>
-            <div class="nexos-experience-switch">
-              <a href="/classic" title="Switch to Classic NexOS">Classic NexOS</a>
-              <span class="active" aria-current="page">Enterprise</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="ent-settings-sec" data-sec-cat="appearance" data-keywords="appearance theme glass daylight ember cobalt violet density compact comfortable spacious text scale accent color">
-          <h4>Appearance</h4>
-          <div class="ent-settings-row">
-            <span>Theme</span>
-            <div class="ent-dash-presets" id="ent-settings-themes">
-              <button type="button" class="btn-secondary" data-ent-theme="apple-dark" onclick="applyNexusTheme('apple-dark')">Glass</button>
-              <button type="button" class="btn-secondary" data-ent-theme="apple-light" onclick="applyNexusTheme('apple-light')">Daylight</button>
-              <button type="button" class="btn-secondary" data-ent-theme="cyber-aubergine" onclick="applyNexusTheme('cyber-aubergine')">Ember</button>
-              <button type="button" class="btn-secondary" data-ent-theme="cobalt-lime-dark" onclick="applyNexusTheme('cobalt-lime-dark')">Cobalt Lime</button>
-              <button type="button" class="btn-secondary" data-ent-theme="violet-orchid-dark" onclick="applyNexusTheme('violet-orchid-dark')">Violet Orchid</button>
-            </div>
-          </div>
-          <div class="ent-settings-row">
-            <span>Interface density</span>
-            <div class="ent-dash-presets">
-              <button type="button" class="btn-secondary" data-ent-density="compact" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'compact')">Compact</button>
-              <button type="button" class="btn-secondary" data-ent-density="comfortable" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'comfortable')">Comfortable</button>
-              <button type="button" class="btn-secondary" data-ent-density="spacious" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'spacious')">Spacious</button>
-            </div>
-          </div>
-          <div class="ent-settings-row">
-            <span>Text scale</span>
-            <div class="ent-dash-presets">
-              <button type="button" class="btn-secondary" data-ent-scale="90" onclick="updateEnterpriseAppearancePref('textScale', 90)">90%</button>
-              <button type="button" class="btn-secondary" data-ent-scale="100" onclick="updateEnterpriseAppearancePref('textScale', 100)">100%</button>
-              <button type="button" class="btn-secondary" data-ent-scale="110" onclick="updateEnterpriseAppearancePref('textScale', 110)">110%</button>
-              <button type="button" class="btn-secondary" data-ent-scale="120" onclick="updateEnterpriseAppearancePref('textScale', 120)">120%</button>
-            </div>
-          </div>
-          <div class="ent-settings-row">
-            <span>Accent override</span>
-            <div class="ent-dash-presets">
-              <button type="button" class="btn-secondary" data-ent-accent="theme" onclick="updateEnterpriseAppearancePref('accentPreset', 'theme')">Theme Default</button>
-              <button type="button" class="btn-secondary" data-ent-accent="cobalt" onclick="updateEnterpriseAppearancePref('accentPreset', 'cobalt')">Cobalt</button>
-              <button type="button" class="btn-secondary" data-ent-accent="emerald" onclick="updateEnterpriseAppearancePref('accentPreset', 'emerald')">Emerald</button>
-              <button type="button" class="btn-secondary" data-ent-accent="violet" onclick="updateEnterpriseAppearancePref('accentPreset', 'violet')">Violet</button>
-              <button type="button" class="btn-secondary" data-ent-accent="amber" onclick="updateEnterpriseAppearancePref('accentPreset', 'amber')">Amber</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="ent-settings-sec" data-sec-cat="workspace" data-keywords="workspace preset profile balanced deep work study minimal dashboard widgets order hide size chrome">
-          <div class="ent-settings-row" style="padding:0">
-            <h4>Workspace &amp; Dashboard</h4>
-            <button type="button" class="btn-secondary" onclick="restoreEnterpriseWorkspaceDefaults()">Restore Defaults</button>
-          </div>
-          <div class="ent-preset-grid" id="ent-settings-presets">
-            <button type="button" class="ent-preset-card" data-preset-card="balanced" onclick="applyEnterprisePreset('balanced')"><strong>Balanced Workspace</strong><span>All core modules with comfortable density</span></button>
-            <button type="button" class="ent-preset-card" data-preset-card="deep-work" onclick="applyEnterprisePreset('deep-work')"><strong>Deep Work Workspace</strong><span>Focus &amp; Tasks first, 50m sprint &amp; compact rail</span></button>
-            <button type="button" class="ent-preset-card" data-preset-card="study" onclick="applyEnterprisePreset('study')"><strong>Study Workspace</strong><span>Study Studio pinned, Notes wide &amp; Focus front</span></button>
-            <button type="button" class="ent-preset-card" data-preset-card="minimal" onclick="applyEnterprisePreset('minimal')"><strong>Minimal Workspace</strong><span>Spacious layout focused on Tasks &amp; Notes</span></button>
-          </div>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Minimal dashboard chrome (hide insight banner &amp; quick strip)</span>
-            <input type="checkbox" id="ent-pref-minimal-chrome" onchange="updateEnterpriseWorkspacePref('minimalChrome', this.checked)">
-          </label>
-          <div class="ent-settings-row">
-            <strong>Dashboard widgets (order, visibility &amp; width)</strong>
-            <button type="button" class="btn-secondary" onclick="resetEnterpriseDashboardLayout()">Reset Layout</button>
-          </div>
-          <div id="ent-settings-widgets-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        </section>
-
-        <section class="ent-settings-sec" data-sec-cat="navigation" data-keywords="navigation sidebar compact expanded pin reorder hide mobile bottom bar tabs">
-          <div class="ent-settings-row" style="padding:0">
-            <h4>Navigation</h4>
-            <button type="button" class="btn-secondary" onclick="resetEnterpriseNavigation()">Reset Navigation</button>
-          </div>
-          <div class="ent-settings-row">
-            <span>Desktop sidebar width</span>
-            <div class="ent-dash-presets">
-              <button type="button" class="btn-secondary" id="ent-sb-mode-expanded" onclick="setEnterpriseSidebarMode('expanded')">Expanded</button>
-              <button type="button" class="btn-secondary" id="ent-sb-mode-compact" onclick="setEnterpriseSidebarMode('compact')">Compact Rail</button>
-            </div>
-          </div>
+        <nav class="ent-settings-rail" id="ent-settings-cats" aria-label="Settings categories">
+          <button type="button" class="ent-settings-tab active" data-sec="all" onclick="setEnterpriseSettingsCat('all')"><span class="ent-settings-tab-label">All Settings</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="general" onclick="setEnterpriseSettingsCat('general')"><span class="ent-settings-tab-label">General</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="appearance" onclick="setEnterpriseSettingsCat('appearance')"><span class="ent-settings-tab-label">Appearance</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="workspace" onclick="setEnterpriseSettingsCat('workspace')"><span class="ent-settings-tab-label">Workspace</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="navigation" onclick="setEnterpriseSettingsCat('navigation')"><span class="ent-settings-tab-label">Navigation</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="accessibility" onclick="setEnterpriseSettingsCat('accessibility')"><span class="ent-settings-tab-label">Accessibility</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="notifications" onclick="setEnterpriseSettingsCat('notifications')"><span class="ent-settings-tab-label">Notifications</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="shortcuts" onclick="setEnterpriseSettingsCat('shortcuts')"><span class="ent-settings-tab-label">Keyboard Shortcuts</span><span class="ent-settings-tab-count" hidden></span></button>
+          <button type="button" class="ent-settings-tab" data-sec="data" onclick="setEnterpriseSettingsCat('data')"><span class="ent-settings-tab-label">Data &amp; Privacy</span><span class="ent-settings-tab-count" hidden></span></button>
+        </nav>
+      </div>
+      <div class="ent-settings-right">
+        <div class="ent-settings-pane-header" id="ent-settings-pane-header">
           <div>
-            <strong style="font-size:12.5px;display:block;margin-bottom:6px">Sidebar destinations (pin, reorder, or hide)</strong>
-            <div id="ent-settings-nav-list" style="display:flex;flex-direction:column;gap:6px"></div>
+            <h3 id="ent-settings-cat-heading">All Settings</h3>
+            <div class="ent-settings-pane-desc" id="ent-settings-cat-desc">Browse every preference or jump straight to a setting using search.</div>
           </div>
-          <div>
-            <strong style="font-size:12.5px;display:block;margin-bottom:6px">Mobile bottom bar (4 primary tabs + More menu)</strong>
-            <div id="ent-settings-mobile-nav" class="ent-dash-presets"></div>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">Auto-saved instantly</span>
+        </div>
+        <div class="ent-settings-main" id="ent-settings-main">
+          <div id="ent-settings-search-hits" class="ent-settings-hits" hidden></div>
+          <div id="ent-settings-empty" hidden style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">
+            <div style="margin-bottom:10px">No matching settings found. Try another keyword.</div>
+            <button type="button" class="btn-secondary" onclick="clearEnterpriseSettingsSearch()">Clear search</button>
           </div>
-        </section>
 
-        <section class="ent-settings-sec" data-sec-cat="accessibility" data-keywords="accessibility reduced motion high contrast focus ring audio sound soundscape keyboard">
-          <h4>Accessibility &amp; Audio</h4>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Reduce motion &amp; animations</span>
-            <input type="checkbox" id="ent-pref-reduced-motion" onchange="updateEnterpriseAppearancePref('reducedMotion', this.checked)">
-          </label>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>High contrast borders &amp; surfaces</span>
-            <input type="checkbox" id="ent-pref-high-contrast" onchange="updateEnterpriseAppearancePref('highContrast', this.checked)">
-          </label>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Strong keyboard focus ring</span>
-            <input type="checkbox" id="ent-pref-strong-focus" onchange="updateEnterpriseAccessibilityPref('focusHighlight', this.checked ? 'strong' : 'standard')">
-          </label>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Tactile interface sound effects</span>
-            <input type="checkbox" id="ent-pref-ui-sound" onchange="if (state.uiSoundEnabled !== this.checked) toggleUISound(); saveWorkspaceState(); renderEnterpriseSettingsControls();">
-          </label>
-          <div class="ent-settings-row">
-            <label for="ent-pref-soundscape">Ambient focus soundscape</label>
-            <select id="ent-pref-soundscape" class="audio-select" onchange="const s = document.getElementById('soundscape-select'); if (s) s.value = this.value; changeAmbientTrack(this.value);">
-              <option value="none">Mute</option>
-              <option value="rain">Rain &amp; Thunder</option>
-              <option value="waves">Ocean Waves</option>
-              <option value="cafe">Cafe Ambience</option>
-              <option value="forest">Forest Breeze</option>
-              <option value="binaural">432Hz Alpha Focus</option>
-            </select>
-          </div>
-        </section>
-
-        <section class="ent-settings-sec" data-sec-cat="notifications" data-keywords="notifications push reminders alerts permission time browser">
-          <h4>Notifications &amp; Task Reminders</h4>
-          <label class="ent-settings-row" style="cursor:pointer">
-            <span>Enable due-task daily reminders</span>
-            <input type="checkbox" id="ent-pref-reminders-enabled">
-          </label>
-          <div class="ent-settings-row">
-            <label for="ent-pref-reminder-time">Daily reminder time</label>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input type="time" id="ent-pref-reminder-time" value="09:00" style="padding:6px 8px;border-radius:var(--radius-xs);border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main)">
-              <button type="button" class="btn-secondary" id="ent-save-alerts-btn" onclick="saveEnterpriseAlertsFromSettings()">Save Reminders</button>
+          <section class="ent-settings-sec" data-sec-cat="general" data-keywords="general landing startup focus mode goal profile classic experience">
+            <h4>General &amp; Startup</h4>
+            <div class="ent-settings-row">
+              <label for="ent-pref-landing">Default landing view</label>
+              <select id="ent-pref-landing" class="audio-select" onchange="updateEnterpriseGeneralPref('landingView', this.value)">
+                <option value="dashboard">Dashboard</option>
+                <option value="kanban">Kanban Board</option>
+                <option value="focus">Deep Focus</option>
+                <option value="habits">Habit Mastery</option>
+                <option value="notes">Smart Notes</option>
+                <option value="calendar">Timeblocking</option>
+                <option value="analytics">Analytics</option>
+                <option value="ai">NexAI</option>
+              </select>
             </div>
-          </div>
-          <div id="ent-settings-alert-msg" style="font-size:12px;color:var(--text-muted)"></div>
-          <div class="ent-settings-row">
-            <span id="ent-push-status-text" style="font-size:12px;color:var(--text-muted)">Checking browser notification status…</span>
-            <button type="button" class="btn-secondary" onclick="enableEnterprisePush()">Test / Enable Push</button>
-          </div>
-        </section>
+            <div class="ent-settings-row">
+              <label for="ent-pref-startup">Startup behavior</label>
+              <select id="ent-pref-startup" class="audio-select" onchange="updateEnterpriseGeneralPref('startupBehavior', this.value)">
+                <option value="landing">Open default landing view</option>
+                <option value="last">Resume last visited view</option>
+              </select>
+            </div>
+            <div class="ent-settings-row">
+              <label for="ent-pref-setup-goal">Productivity goal template</label>
+              <select id="ent-pref-setup-goal" class="audio-select" onchange="enterpriseChangeGoal(this.value)">
+                <option value="" disabled>Not chosen</option>
+                <option value="study">Study and exams</option>
+                <option value="projects">Projects and sprints</option>
+                <option value="habits">Daily routine and habits</option>
+                <option value="explore">Just exploring</option>
+              </select>
+            </div>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Enter Focus Mode HUD automatically when starting Pomodoro</span>
+              <input type="checkbox" id="ent-pref-autozen" onchange="updateEnterpriseFocusModePref(this.checked)">
+            </label>
+            <div class="ent-settings-row">
+              <span>Experience switcher</span>
+              <div class="nexos-experience-switch">
+                <a href="/classic" title="Switch to Classic NexOS">Classic NexOS</a>
+                <span class="active" aria-current="page">Enterprise</span>
+              </div>
+            </div>
+          </section>
 
-        <section class="ent-settings-sec" data-sec-cat="shortcuts" data-keywords="keyboard shortcuts hotkeys ctrl cmd alt f k s focus command center">
-          <h4>Keyboard Shortcuts</h4>
-          <div class="ent-shortcut-row"><span>Open Command Center &amp; Global Search</span><kbd class="omni-kbd">Ctrl+K / ⌘K</kbd></div>
-          <div class="ent-shortcut-row"><span>Toggle Distraction-Free Focus Mode HUD</span><kbd class="omni-kbd">Alt+F</kbd></div>
-          <div class="ent-shortcut-row"><span>Switch workspace destination</span><kbd class="omni-kbd">Alt+1 … Alt+9</kbd></div>
-          <div class="ent-shortcut-row"><span>Toggle floating NexAI drawer</span><kbd class="omni-kbd">Ctrl+\</kbd></div>
-          <div class="ent-shortcut-row"><span>Save active Smart Note</span><kbd class="omni-kbd">Ctrl+S</kbd></div>
-          <div class="ent-shortcut-row"><span>Close dialog or exit Focus Mode</span><kbd class="omni-kbd">Esc</kbd></div>
-        </section>
+          <section class="ent-settings-sec" data-sec-cat="appearance" data-keywords="appearance theme glass daylight ember cobalt violet density compact comfortable spacious text scale accent color preview">
+            <h4>Appearance &amp; Theme</h4>
+            <div class="ent-appearance-preview" id="ent-appearance-preview" aria-label="Live appearance preview">
+              <div>
+                <div class="ent-preview-sample-title" id="ent-preview-title">Glass · Comfortable · 100%</div>
+                <div class="ent-preview-sample-sub">Live preview of cards, typography scale, and accent surfaces</div>
+              </div>
+              <button type="button" class="btn-primary" style="pointer-events:none;font-size:12px;padding:6px 12px;white-space:nowrap;flex-shrink:0" tabindex="-1">Primary Action</button>
+            </div>
+            <div>
+              <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:7px">Surface theme</div>
+              <div class="ent-settings-theme-grid" id="ent-settings-themes">
+                <button type="button" class="ent-settings-theme-card" data-ent-theme="apple-dark" onclick="applyNexusTheme('apple-dark')" style="--sw-bg:#07070b;--sw-surface:#2c2c2e;--sw-accent:#0A84FF;--sw-accent2:#64D2FF"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span>Glass</span></button>
+                <button type="button" class="ent-settings-theme-card" data-ent-theme="apple-light" onclick="applyNexusTheme('apple-light')" style="--sw-bg:#f2f2f7;--sw-surface:#ffffff;--sw-accent:#007AFF;--sw-accent2:#AF52DE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span>Daylight</span></button>
+                <button type="button" class="ent-settings-theme-card" data-ent-theme="cyber-aubergine" onclick="applyNexusTheme('cyber-aubergine')" style="--sw-bg:#150f16;--sw-surface:#301b34;--sw-accent:#FAA000;--sw-accent2:#D4A1BE"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span>Ember</span></button>
+                <button type="button" class="ent-settings-theme-card" data-ent-theme="cobalt-lime-dark" onclick="applyNexusTheme('cobalt-lime-dark')" style="--sw-bg:#030407;--sw-surface:#0b1530;--sw-accent:#D4FF24;--sw-accent2:#1558C9"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span>Cobalt Lime</span></button>
+                <button type="button" class="ent-settings-theme-card" data-ent-theme="violet-orchid-dark" onclick="applyNexusTheme('violet-orchid-dark')" style="--sw-bg:#000000;--sw-surface:#1a1a1d;--sw-accent:#8B5CF6;--sw-accent2:#DA70D6"><span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span>Violet Orchid</span></button>
+              </div>
+            </div>
+            <div class="ent-settings-row">
+              <span>Interface density</span>
+              <div class="ent-dash-presets">
+                <button type="button" class="btn-secondary" data-ent-density="compact" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'compact')">Compact</button>
+                <button type="button" class="btn-secondary" data-ent-density="comfortable" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'comfortable')">Comfortable</button>
+                <button type="button" class="btn-secondary" data-ent-density="spacious" onclick="updateEnterpriseAppearancePref('interfaceDensity', 'spacious')">Spacious</button>
+              </div>
+            </div>
+            <div class="ent-settings-row">
+              <span>Text scale</span>
+              <div class="ent-dash-presets">
+                <button type="button" class="btn-secondary" data-ent-scale="90" onclick="updateEnterpriseAppearancePref('textScale', 90)">90%</button>
+                <button type="button" class="btn-secondary" data-ent-scale="100" onclick="updateEnterpriseAppearancePref('textScale', 100)">100%</button>
+                <button type="button" class="btn-secondary" data-ent-scale="110" onclick="updateEnterpriseAppearancePref('textScale', 110)">110%</button>
+                <button type="button" class="btn-secondary" data-ent-scale="120" onclick="updateEnterpriseAppearancePref('textScale', 120)">120%</button>
+              </div>
+            </div>
+            <div class="ent-settings-row">
+              <span>Accent color override</span>
+              <div class="ent-dash-presets">
+                <button type="button" class="btn-secondary ent-accent-chip" data-ent-accent="theme" onclick="updateEnterpriseAppearancePref('accentPreset', 'theme')"><span class="ent-accent-dot" style="background:linear-gradient(135deg,#0A84FF,#8B5CF6)"></span><span>Theme Default</span></button>
+                <button type="button" class="btn-secondary ent-accent-chip" data-ent-accent="cobalt" onclick="updateEnterpriseAppearancePref('accentPreset', 'cobalt')"><span class="ent-accent-dot" style="background:#3B82F6"></span><span>Cobalt</span></button>
+                <button type="button" class="btn-secondary ent-accent-chip" data-ent-accent="emerald" onclick="updateEnterpriseAppearancePref('accentPreset', 'emerald')"><span class="ent-accent-dot" style="background:#10B981"></span><span>Emerald</span></button>
+                <button type="button" class="btn-secondary ent-accent-chip" data-ent-accent="violet" onclick="updateEnterpriseAppearancePref('accentPreset', 'violet')"><span class="ent-accent-dot" style="background:#8B5CF6"></span><span>Violet</span></button>
+                <button type="button" class="btn-secondary ent-accent-chip" data-ent-accent="amber" onclick="updateEnterpriseAppearancePref('accentPreset', 'amber')"><span class="ent-accent-dot" style="background:#F59E0B"></span><span>Amber</span></button>
+              </div>
+            </div>
+          </section>
 
-        <section class="ent-settings-sec" data-sec-cat="data" data-keywords="data privacy backup export recovery deleted account sample reset preferences">
-          <h4>Data &amp; Privacy</h4>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <button type="button" class="btn-secondary" onclick="exportNexusBackup()">Export Workspace Backup (JSON)</button>
-            <a class="btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center" href="/recover.html" onclick="return openRecentlyDeleted(event)">Recently Deleted…</a>
-            <button type="button" class="btn-secondary" onclick="openProfileModal()">Account &amp; Sync Info</button>
-            <button type="button" class="btn-secondary" onclick="loadSampleWorkspaceData(true)">Load Sample Data</button>
-          </div>
-          <div class="ent-settings-row" style="border-top:1px solid var(--border-subtle);padding-top:10px;margin-top:4px">
-            <span style="font-size:12.5px;color:var(--text-secondary)">Reset layout, navigation, theme, density &amp; accessibility prefs (keeps your tasks, notes, habits &amp; logs):</span>
-            <button type="button" class="btn-secondary" style="border-color:rgba(220,38,38,0.5);background:rgba(220,38,38,0.12);color:var(--text-main)" onclick="resetAllEnterprisePreferences()">Reset Preferences</button>
-          </div>
-        </section>
+          <section class="ent-settings-sec" data-sec-cat="workspace" data-keywords="workspace preset profile balanced deep work study minimal dashboard widgets order hide size chrome pomodoro timer">
+            <div class="ent-settings-row" style="padding:0">
+              <h4>Workspace &amp; Dashboard</h4>
+              <button type="button" class="btn-secondary" onclick="restoreEnterpriseWorkspaceDefaults()">Restore Defaults</button>
+            </div>
+            <div class="ent-preset-grid" id="ent-settings-presets">
+              <button type="button" class="ent-preset-card" data-preset-card="balanced" onclick="applyEnterprisePreset('balanced')"><strong>Balanced Workspace</strong><span>All core modules with comfortable density</span></button>
+              <button type="button" class="ent-preset-card" data-preset-card="deep-work" onclick="applyEnterprisePreset('deep-work')"><strong>Deep Work Workspace</strong><span>Focus &amp; Tasks first, 50m sprint &amp; compact rail</span></button>
+              <button type="button" class="ent-preset-card" data-preset-card="study" onclick="applyEnterprisePreset('study')"><strong>Study Workspace</strong><span>Study Studio pinned, Notes wide &amp; Focus front</span></button>
+              <button type="button" class="ent-preset-card" data-preset-card="minimal" onclick="applyEnterprisePreset('minimal')"><strong>Minimal Workspace</strong><span>Spacious layout focused on Tasks &amp; Notes</span></button>
+            </div>
+            <div class="ent-settings-row">
+              <span>Focus sprint durations (min)</span>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px">
+                <label style="display:inline-flex;align-items:center;gap:5px">Focus <input type="number" id="ent-pref-focus-min" min="5" max="120" value="25" class="ent-num-input" onchange="updateEnterpriseTimerPref('focus', this.value)"></label>
+                <label style="display:inline-flex;align-items:center;gap:5px">Short <input type="number" id="ent-pref-short-min" min="1" max="30" value="5" class="ent-num-input" onchange="updateEnterpriseTimerPref('short', this.value)"></label>
+                <label style="display:inline-flex;align-items:center;gap:5px">Long <input type="number" id="ent-pref-long-min" min="5" max="60" value="15" class="ent-num-input" onchange="updateEnterpriseTimerPref('long', this.value)"></label>
+              </div>
+            </div>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Minimal dashboard chrome (hide insight banner &amp; quick strip)</span>
+              <input type="checkbox" id="ent-pref-minimal-chrome" onchange="updateEnterpriseWorkspacePref('minimalChrome', this.checked)">
+            </label>
+            <div class="ent-settings-row">
+              <strong>Dashboard widgets (order, visibility &amp; width)</strong>
+              <button type="button" class="btn-secondary" onclick="resetEnterpriseDashboardLayout()">Reset Layout</button>
+            </div>
+            <div id="ent-settings-widgets-list" style="display:flex;flex-direction:column;gap:6px"></div>
+          </section>
+
+          <section class="ent-settings-sec" data-sec-cat="navigation" data-keywords="navigation sidebar compact expanded pin reorder hide mobile bottom bar tabs">
+            <div class="ent-settings-row" style="padding:0">
+              <h4>Navigation</h4>
+              <button type="button" class="btn-secondary" onclick="resetEnterpriseNavigation()">Reset Navigation</button>
+            </div>
+            <div class="ent-settings-row">
+              <span>Desktop sidebar width</span>
+              <div class="ent-dash-presets">
+                <button type="button" class="btn-secondary" id="ent-sb-mode-expanded" onclick="setEnterpriseSidebarMode('expanded')">Expanded</button>
+                <button type="button" class="btn-secondary" id="ent-sb-mode-compact" onclick="setEnterpriseSidebarMode('compact')">Compact Rail</button>
+              </div>
+            </div>
+            <div>
+              <strong style="font-size:12.5px;display:block;margin-bottom:6px">Sidebar destinations (pin, reorder, or hide)</strong>
+              <div id="ent-settings-nav-list" style="display:flex;flex-direction:column;gap:6px"></div>
+            </div>
+            <div>
+              <strong style="font-size:12.5px;display:block;margin-bottom:6px">Mobile bottom bar (4 primary tabs + More menu)</strong>
+              <div id="ent-settings-mobile-nav" class="ent-dash-presets"></div>
+            </div>
+          </section>
+
+          <section class="ent-settings-sec" data-sec-cat="accessibility" data-keywords="accessibility reduced motion high contrast focus ring audio sound soundscape keyboard">
+            <h4>Accessibility &amp; Audio</h4>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Reduce motion &amp; animations</span>
+              <input type="checkbox" id="ent-pref-reduced-motion" onchange="updateEnterpriseAppearancePref('reducedMotion', this.checked)">
+            </label>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>High contrast borders &amp; surfaces</span>
+              <input type="checkbox" id="ent-pref-high-contrast" onchange="updateEnterpriseAppearancePref('highContrast', this.checked)">
+            </label>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Strong keyboard focus ring</span>
+              <input type="checkbox" id="ent-pref-strong-focus" onchange="updateEnterpriseAccessibilityPref('focusHighlight', this.checked ? 'strong' : 'standard')">
+            </label>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Tactile interface sound effects</span>
+              <input type="checkbox" id="ent-pref-ui-sound" onchange="if (state.uiSoundEnabled !== this.checked) toggleUISound(); saveWorkspaceState(); renderEnterpriseSettingsControls();">
+            </label>
+            <div class="ent-settings-row">
+              <label for="ent-pref-soundscape">Ambient focus soundscape</label>
+              <select id="ent-pref-soundscape" class="audio-select" onchange="const s = document.getElementById('soundscape-select'); if (s) s.value = this.value; changeAmbientTrack(this.value);">
+                <option value="none">Mute</option>
+                <option value="rain">Rain &amp; Thunder</option>
+                <option value="waves">Ocean Waves</option>
+                <option value="cafe">Cafe Ambience</option>
+                <option value="forest">Forest Breeze</option>
+                <option value="binaural">432Hz Alpha Focus</option>
+              </select>
+            </div>
+          </section>
+
+          <section class="ent-settings-sec" data-sec-cat="notifications" data-keywords="notifications push reminders alerts permission time browser">
+            <h4>Notifications &amp; Task Reminders</h4>
+            <div style="font-size:12px;color:var(--text-muted)">Daily push schedules save to your account notification settings when you click Save Reminders.</div>
+            <label class="ent-settings-row" style="cursor:pointer">
+              <span>Enable due-task daily reminders</span>
+              <input type="checkbox" id="ent-pref-reminders-enabled">
+            </label>
+            <div class="ent-settings-row">
+              <label for="ent-pref-reminder-time">Daily reminder time</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="time" id="ent-pref-reminder-time" value="09:00" style="padding:6px 8px;border-radius:var(--radius-xs);border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-main)">
+                <button type="button" class="btn-secondary" id="ent-save-alerts-btn" onclick="saveEnterpriseAlertsFromSettings()">Save Reminders</button>
+              </div>
+            </div>
+            <div id="ent-settings-alert-msg" style="font-size:12px;color:var(--text-muted)" role="status"></div>
+            <div class="ent-settings-row">
+              <span id="ent-push-status-text" style="font-size:12px;color:var(--text-muted)">Checking browser notification status…</span>
+              <button type="button" class="btn-secondary" onclick="enableEnterprisePush()">Test / Enable Push</button>
+            </div>
+          </section>
+
+          <section class="ent-settings-sec" data-sec-cat="shortcuts" data-keywords="keyboard shortcuts hotkeys ctrl cmd alt f k s focus command center">
+            <h4>Keyboard Shortcuts</h4>
+            <div class="ent-shortcut-row"><span>Open Command Center &amp; Global Search</span><kbd class="omni-kbd">Ctrl+K / ⌘K</kbd></div>
+            <div class="ent-shortcut-row"><span>Toggle Distraction-Free Focus Mode HUD</span><kbd class="omni-kbd">Alt+F</kbd></div>
+            <div class="ent-shortcut-row"><span>Switch workspace destination</span><kbd class="omni-kbd">Alt+1 … Alt+9</kbd></div>
+            <div class="ent-shortcut-row"><span>Navigate sidebar items with keyboard</span><kbd class="omni-kbd">↑ / ↓ / Home</kbd></div>
+            <div class="ent-shortcut-row"><span>Toggle floating NexAI drawer</span><kbd class="omni-kbd">Ctrl+\</kbd></div>
+            <div class="ent-shortcut-row"><span>Save active Smart Note</span><kbd class="omni-kbd">Ctrl+S</kbd></div>
+            <div class="ent-shortcut-row"><span>Close dialog or exit Focus Mode</span><kbd class="omni-kbd">Esc</kbd></div>
+          </section>
+
+          <section class="ent-settings-sec" data-sec-cat="data" data-keywords="data privacy backup export recovery deleted account sample reset preferences">
+            <h4>Data &amp; Privacy</h4>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <button type="button" class="btn-secondary" onclick="exportNexusBackup()">Export Workspace Backup (JSON)</button>
+              <a class="btn-secondary" style="text-decoration:none;display:inline-flex;align-items:center" href="/recover.html" onclick="return openRecentlyDeleted(event)">Recently Deleted…</a>
+              <button type="button" class="btn-secondary" onclick="openProfileModal()">Account &amp; Sync Info</button>
+              <button type="button" class="btn-secondary" onclick="loadSampleWorkspaceData(true)">Load Sample Data</button>
+            </div>
+            <div class="ent-settings-row" style="border-top:1px solid var(--border-subtle);padding-top:10px;margin-top:4px">
+              <span style="font-size:12.5px;color:var(--text-secondary)">Reset layout, navigation, theme, density &amp; accessibility prefs (keeps your tasks, notes, habits &amp; logs):</span>
+              <button type="button" class="btn-secondary" style="border-color:rgba(220,38,38,0.5);background:rgba(220,38,38,0.12);color:var(--text-main)" onclick="resetAllEnterprisePreferences()">Reset Preferences</button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   </div>
@@ -3638,7 +3746,7 @@ function switchNexusView(name) {
   document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
   document.documentElement.classList.toggle('view-ai-active', name === 'ai');
   syncTopbarHeight();
-  document.querySelectorAll('.sidebar-nav .nav-btn, .ent-aux-item').forEach(b => {
+  document.querySelectorAll('.sidebar-nav .nav-btn, .ent-aux-item, .ent-pin-chip').forEach(b => {
     const on = b.dataset.view === name;
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -3711,6 +3819,7 @@ function applyNexusTheme(theme) {
   try { localStorage.setItem('nexos_enterprise_theme', theme); } catch (_) {}
   document.documentElement.setAttribute('data-theme', theme);
   syncThemeCards(theme);
+  if (typeof renderEnterpriseSettingsControls === 'function' && document.getElementById('modal-enterprise-settings')?.classList.contains('open')) renderEnterpriseSettingsControls();
   saveWorkspaceState();
   if (document.getElementById('pane-analytics')?.classList.contains('active')) {
     renderAnalyticsCharts();
@@ -8377,14 +8486,37 @@ let entAdaptiveStartupApplied = false;
 const ENT_VIEW_META = {
   dashboard: { label: 'Dashboard', icon: '⬡', group: 'workspace' },
   kanban:    { label: 'Kanban Board', icon: '▦', group: 'workspace' },
-  focus:     { label: 'Deep Focus', icon: '◎', group: 'growth' },
-  habits:    { label: 'Habit Mastery', icon: '◈', group: 'growth' },
-  notes:     { label: 'Smart Notes', icon: '◧', group: 'workspace' },
-  analytics: { label: 'Analytics', icon: '◬', group: 'growth' },
   calendar:  { label: 'Timeblocking', icon: '◷', group: 'workspace' },
+  focus:     { label: 'Deep Focus', icon: '◎', group: 'growth' },
   study:     { label: 'Study Studio', icon: '❖', group: 'growth' },
-  ai:        { label: 'NexAI', icon: '✦', group: 'growth' }
+  habits:    { label: 'Habit Mastery', icon: '◈', group: 'growth' },
+  notes:     { label: 'Smart Notes', icon: '◧', group: 'knowledge' },
+  analytics: { label: 'Analytics', icon: '◬', group: 'knowledge' },
+  ai:        { label: 'NexAI', icon: '✦', group: 'knowledge' }
 };
+const ENT_GROUPS = [
+  { id: 'workspace', label: 'Workspace', baseOrder: 10 },
+  { id: 'growth', label: 'Focus & Learning', baseOrder: 30 },
+  { id: 'knowledge', label: 'Knowledge', baseOrder: 50 }
+];
+const ENT_NAV_SVG = {
+  dashboard: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  kanban: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="14"/></svg>',
+  calendar: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  focus: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>',
+  study: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6s3-2 10-2 10 2 10 2v13s-3-2-10-2-10 2-10 2Z"/><line x1="12" y1="4" x2="12" y2="17"/></svg>',
+  habits: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>',
+  notes: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><polyline points="14 3 14 8 19 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>',
+  analytics: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  ai: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2Z"/></svg>',
+  settings: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>',
+  caret: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>',
+  collapse: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>',
+  expand: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>',
+  bell: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  download: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+};
+function entNavIconMarkup(viewId) { return ENT_NAV_SVG[viewId] || (ENT_VIEW_META[viewId] && ENT_VIEW_META[viewId].icon) || ''; }
 const ENT_WIDGET_LABELS = {
   tasks: 'Today’s Priorities',
   pomodoro: 'Deep Focus Session',
@@ -8684,45 +8816,131 @@ function renderEnterpriseDashWidgetControls() {
   }
 }
 
+function showEnterpriseRailTooltip(target) {
+  if (!document.body.classList.contains('sidebar-compact')) return;
+  const label = target?.dataset?.tooltip || target?.getAttribute('aria-label') || '';
+  if (!label) return;
+  let tip = document.getElementById('ent-rail-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'ent-rail-tooltip';
+    tip.className = 'ent-rail-tooltip';
+    document.body.appendChild(tip);
+  }
+  const kbd = target.querySelector('.nav-kbd')?.textContent || '';
+  tip.innerHTML = `<span>${escapeHtml(label)}</span>${kbd ? `<kbd>${escapeHtml(kbd)}</kbd>` : ''}`;
+  const r = target.getBoundingClientRect();
+  const sbR = document.getElementById('app-sidebar')?.getBoundingClientRect();
+  tip.style.left = `${Math.round(Math.max(r.right + 10, (sbR ? sbR.right : 0) + 10))}px`;
+  tip.style.top = `${Math.round(r.top + r.height / 2)}px`;
+  tip.style.transform = 'translateY(-50%)';
+  tip.classList.add('visible');
+}
+
+function hideEnterpriseRailTooltip() {
+  const tip = document.getElementById('ent-rail-tooltip');
+  if (tip) tip.classList.remove('visible');
+}
+
 function applyEnterpriseSidebarPrefs() {
   const ap = getEnterpriseAdaptivePrefs();
   if (!ap) return;
   const isCompact = ap.navigation.sidebarMode === 'compact' && !isDrawerLayout();
   document.body.classList.toggle('sidebar-compact', isCompact);
+  if (!isCompact) hideEnterpriseRailTooltip();
+
   const cBtn = document.getElementById('ent-sidebar-collapse');
   if (cBtn) {
     cBtn.setAttribute('aria-pressed', String(ap.navigation.sidebarMode === 'compact'));
-    cBtn.textContent = ap.navigation.sidebarMode === 'compact' ? '↦' : '⇄';
+    cBtn.innerHTML = ap.navigation.sidebarMode === 'compact' ? ENT_NAV_SVG.expand : ENT_NAV_SVG.collapse;
+    cBtn.title = ap.navigation.sidebarMode === 'compact' ? 'Expand sidebar' : 'Collapse to compact rail';
   }
+  const sIco = document.getElementById('ent-sb-settings-ico');
+  if (sIco && !sIco.dataset.svgDone) { sIco.innerHTML = ENT_NAV_SVG.settings; sIco.dataset.svgDone = '1'; }
+  const bBtn = document.getElementById('ent-sb-alerts-btn');
+  if (bBtn && !bBtn.dataset.svgDone) { bBtn.innerHTML = ENT_NAV_SVG.bell; bBtn.dataset.svgDone = '1'; }
+  const eBtn = document.getElementById('ent-sb-export-btn');
+  if (eBtn && !eBtn.dataset.svgDone) { eBtn.innerHTML = ENT_NAV_SVG.download; eBtn.dataset.svgDone = '1'; }
 
   const nav = document.getElementById('ent-sidebar-nav');
   if (nav) {
+    if (!nav.dataset.navKeysBound) {
+      nav.dataset.navKeysBound = '1';
+      nav.addEventListener('keydown', e => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+        const btns = [...nav.querySelectorAll('.nav-btn')].filter(b => b.offsetParent !== null);
+        const cur = btns.indexOf(document.activeElement);
+        if (cur < 0) return;
+        e.preventDefault();
+        const nextIdx = e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1 : (cur + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+        btns[nextIdx]?.focus();
+      });
+    }
+
+    const legacyBar = document.getElementById('ent-sidebar-groups');
+    if (legacyBar) legacyBar.remove();
+
     const order = ap.navigation.order;
+    const defaultGrouped = ['dashboard', 'kanban', 'calendar', 'focus', 'study', 'habits', 'notes', 'analytics', 'ai'];
+    const isGroupedOrder = order.every((v, i) => v === defaultGrouped[i]);
     const hidden = new Set(ap.navigation.hidden);
     const collapsedGroups = new Set(ap.navigation.collapsedGroups);
-    let grpBar = document.getElementById('ent-sidebar-groups');
-    if (!grpBar) {
-      grpBar = document.createElement('div');
-      grpBar.id = 'ent-sidebar-groups';
-      grpBar.className = 'ent-sidebar-aux';
-      nav.parentNode.insertBefore(grpBar, nav);
-    }
-    const gWork = !collapsedGroups.has('workspace');
-    const gGrowth = !collapsedGroups.has('growth');
-    grpBar.innerHTML = `
-      <button type="button" class="nav-group-toggle" aria-expanded="${gWork}" onclick="toggleEnterpriseGroup('workspace')"><span>Workspace</span><span>${gWork ? '▾' : '▸'}</span></button>
-      <button type="button" class="nav-group-toggle" aria-expanded="${gGrowth}" onclick="toggleEnterpriseGroup('growth')"><span>Focus &amp; Growth</span><span>${gGrowth ? '▾' : '▸'}</span></button>
-    `;
+    const groupVisibleCount = { workspace: 0, growth: 0, knowledge: 0 };
 
     nav.querySelectorAll('.nav-btn').forEach(btn => {
       const vId = btn.id === 'nav-study' ? 'study' : btn.dataset.view;
       if (!vId) return;
-      const idx = order.indexOf(vId);
-      btn.style.order = String(idx >= 0 ? idx : 99);
-      btn.dataset.navHidden = (vId !== 'dashboard' && hidden.has(vId)) ? '1' : '0';
+      const iconEl = btn.querySelector('.nav-icon');
+      if (iconEl && !iconEl.dataset.svgDone) {
+        iconEl.innerHTML = entNavIconMarkup(vId);
+        iconEl.dataset.svgDone = '1';
+      }
+      if (!btn.dataset.tipBound) {
+        btn.dataset.tipBound = '1';
+        btn.addEventListener('pointerenter', () => showEnterpriseRailTooltip(btn));
+        btn.addEventListener('pointerleave', hideEnterpriseRailTooltip);
+        btn.addEventListener('focus', () => showEnterpriseRailTooltip(btn));
+        btn.addEventListener('blur', hideEnterpriseRailTooltip);
+      }
+      const isHidden = vId !== 'dashboard' && hidden.has(vId);
+      btn.dataset.navHidden = isHidden ? '1' : '0';
       const meta = ENT_VIEW_META[vId];
+      if (!isHidden && meta) groupVisibleCount[meta.group] = (groupVisibleCount[meta.group] || 0) + 1;
       btn.dataset.navCollapsed = (vId !== 'dashboard' && meta && collapsedGroups.has(meta.group)) ? '1' : '0';
+      const idx = order.indexOf(vId);
+      if (isGroupedOrder && meta) {
+        const gDef = ENT_GROUPS.find(g => g.id === meta.group) || ENT_GROUPS[0];
+        btn.style.order = String(gDef.baseOrder + 1 + Math.max(0, idx));
+      } else {
+        btn.style.order = String(20 + (idx >= 0 ? idx : 99));
+      }
     });
+
+    ENT_GROUPS.forEach((g, gi) => {
+      let gBtn = nav.querySelector(`.nav-group-toggle[data-group="${g.id}"]`);
+      if (!gBtn) {
+        gBtn = document.createElement('button');
+        gBtn.type = 'button';
+        gBtn.className = 'nav-group-toggle';
+        gBtn.dataset.group = g.id;
+        gBtn.onclick = () => toggleEnterpriseGroup(g.id);
+        nav.appendChild(gBtn);
+      }
+      const open = !collapsedGroups.has(g.id);
+      gBtn.setAttribute('aria-expanded', String(open));
+      gBtn.dataset.firstGroup = gi === 0 ? '1' : '0';
+      gBtn.style.order = String(isGroupedOrder ? g.baseOrder : (gi + 1));
+      gBtn.hidden = groupVisibleCount[g.id] === 0;
+      gBtn.innerHTML = `<span>${escapeHtml(g.label)}</span><span class="nav-group-caret">${ENT_NAV_SVG.caret}</span>`;
+    });
+  }
+
+  const sBtn = document.getElementById('ent-sb-settings-btn');
+  if (sBtn && !sBtn.dataset.tipBound) {
+    sBtn.dataset.tipBound = '1';
+    sBtn.dataset.tooltip = 'Settings Control Center';
+    sBtn.addEventListener('pointerenter', () => showEnterpriseRailTooltip(sBtn));
+    sBtn.addEventListener('pointerleave', hideEnterpriseRailTooltip);
   }
 
   const activeView = document.querySelector('.view-pane.active')?.id?.replace('pane-', '') || 'dashboard';
@@ -8736,14 +8954,15 @@ function applyEnterpriseSidebarPrefs() {
         pinBox.hidden = true; pinBox.innerHTML = '';
       } else {
         pinBox.hidden = false;
-        pinBox.innerHTML = '<div class="ent-aux-label">Pinned</div>' + valid.map(v => {
+        pinBox.innerHTML = '<div class="ent-aux-head"><span class="ent-aux-label">Pinned</span><button type="button" class="ent-aux-edit-btn" onclick="openEnterpriseSettingsModal(\'navigation\')" title="Customize pinned links">Edit</button></div><div class="ent-pin-chips">' + valid.map(v => {
           const m = ENT_VIEW_META[v];
+          const short = ({ dashboard: 'Home', kanban: 'Kanban', calendar: 'Plan', focus: 'Focus', study: 'Study', habits: 'Habits', notes: 'Notes', analytics: 'Stats', ai: 'NexAI' })[v] || m.label;
           const click = v === 'study' ? 'closeSidebarDrawer();openStudyStudio()' : `switchNexusView('${v}')`;
-          return `<button type="button" class="ent-aux-item" data-view="${v}" onclick="${click}"><span aria-hidden="true">${m.icon}</span><span>${escapeHtml(m.label)}</span></button>`;
-        }).join('');
+          return `<button type="button" class="ent-pin-chip" data-view="${v}" title="${escapeHtml(m.label)}" onclick="${click}"><span class="nav-icon" aria-hidden="true">${entNavIconMarkup(v)}</span><span>${escapeHtml(short)}</span></button>`;
+        }).join('') + '</div>';
       }
     }
-    pinBox.querySelectorAll('.ent-aux-item').forEach(btn => {
+    pinBox.querySelectorAll('.ent-pin-chip').forEach(btn => {
       const on = btn.dataset.view === activeView;
       btn.classList.toggle('active', on);
       if (on) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
@@ -8751,11 +8970,23 @@ function applyEnterpriseSidebarPrefs() {
   }
   const recBox = document.getElementById('ent-nav-recent');
   if (recBox) {
-    const valid = ap.navigation.recent.filter(v => ENT_VIEW_META[v] && (v === 'dashboard' || !ap.navigation.hidden.includes(v))).slice(0, 3);
+    if (!document.getElementById('ent-icon-sprite') && document.body) {
+      const sp = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      sp.id = 'ent-icon-sprite';
+      sp.setAttribute('hidden', '');
+      sp.setAttribute('aria-hidden', 'true');
+      sp.innerHTML = Object.keys(ENT_VIEW_META).map(k => {
+        const inner = (ENT_NAV_SVG[k] || '').replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+        return `<symbol id="ent-ico-${k}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round">${inner}</symbol>`;
+      }).join('');
+      document.body.appendChild(sp);
+    }
+    const pinSet = new Set(ap.navigation.pinned);
+    const valid = ap.navigation.recent.filter(v => ENT_VIEW_META[v] && v !== activeView && !pinSet.has(v) && (v === 'dashboard' || !ap.navigation.hidden.includes(v))).slice(0, 3);
     if (!recBox.dataset.entSlotsReady) {
       recBox.dataset.entSlotsReady = '1';
-      recBox.innerHTML = '<div class="ent-aux-label">Recent</div>' + [0, 1, 2].map(() =>
-        '<button type="button" class="ent-aux-item" hidden><span aria-hidden="true"></span><span></span></button>'
+      recBox.innerHTML = '<div class="ent-aux-head"><span class="ent-aux-label">Recent</span></div>' + [0, 1, 2].map(() =>
+        '<button type="button" class="ent-aux-item" hidden><span class="nav-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#ent-ico-dashboard"/></svg></span><span></span></button>'
       ).join('');
     }
     recBox.hidden = !valid.length;
@@ -8768,7 +8999,8 @@ function applyEnterpriseSidebarPrefs() {
       const on = activeView === v;
       btn.classList.toggle('active', on);
       if (on) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
-      btn.firstElementChild.textContent = m.icon;
+      const useEl = btn.querySelector('use');
+      if (useEl) useEl.setAttribute('href', '#ent-ico-' + v);
       btn.lastElementChild.textContent = m.label;
       btn.onclick = v === 'study' ? () => { closeSidebarDrawer(); openStudyStudio(); } : () => switchNexusView(v);
     });
@@ -8805,6 +9037,7 @@ function recordEnterpriseNavVisit(viewName) {
   renderEnterpriseMobileNav();
 }
 
+const ENT_MOBILE_SHORT = { dashboard: 'Home', kanban: 'Kanban', calendar: 'Plan', focus: 'Focus', study: 'Study', habits: 'Habits', notes: 'Notes', analytics: 'Stats', ai: 'NexAI' };
 function renderEnterpriseMobileNav() {
   const ap = getEnterpriseAdaptivePrefs();
   const bar = document.getElementById('mobile-bottom-nav');
@@ -8818,9 +9051,9 @@ function renderEnterpriseMobileNav() {
     bar.dataset.entMobSig = sig;
     bar.innerHTML = MOBILE_PRIMARY_VIEWS.map(v => {
       const m = ENT_VIEW_META[v];
-      const shortLabel = m.label.split(' ')[0];
+      const shortLabel = ENT_MOBILE_SHORT[v] || m.label.split(' ')[0];
       const click = v === 'study' ? 'openStudyStudio()' : `switchNexusView('${v}')`;
-      return `<button type="button" class="mob-nav-item" data-view="${v}" onclick="${click}"><span class="mob-nav-icon" aria-hidden="true">${m.icon}</span><span class="mob-nav-label">${escapeHtml(shortLabel)}</span></button>`;
+      return `<button type="button" class="mob-nav-item" data-view="${v}" onclick="${click}"><span class="mob-nav-icon" aria-hidden="true">${entNavIconMarkup(v)}</span><span class="mob-nav-label">${escapeHtml(shortLabel)}</span></button>`;
     }).join('') + '<button type="button" class="mob-nav-item" data-view="more" onclick="toggleSidebarDrawer()" aria-label="More views" aria-controls="app-sidebar"><span class="mob-nav-icon" aria-hidden="true">☰</span><span class="mob-nav-label">More</span></button>';
   }
   bar.querySelectorAll('.mob-nav-item').forEach(btn => {
@@ -8836,6 +9069,40 @@ function resetEnterpriseNavigation() {
   commitEnterpriseAdaptivePrefs(NexAdaptive.resetNavigation(ap), { renderControls: true });
   showToast('Navigation reset to defaults.');
 }
+
+const ENT_SETTINGS_CAT_META = {
+  all: { title: 'All Settings', desc: 'Browse every preference or jump straight to a setting using search.' },
+  general: { title: 'General & Startup', desc: 'Configure landing view, session resume behavior, and productivity goal.' },
+  appearance: { title: 'Appearance & Theme', desc: 'Customize surface palette, accent colors, density, and text scale.' },
+  workspace: { title: 'Workspace & Dashboard', desc: 'Choose role presets, sprint durations, and arrange home widgets.' },
+  navigation: { title: 'Navigation & Sidebar', desc: 'Control compact rail mode, pinned destinations, ordering, and mobile tabs.' },
+  accessibility: { title: 'Accessibility & Audio', desc: 'Adjust motion comfort, stronger contrast borders, focus rings, and sounds.' },
+  notifications: { title: 'Notifications & Reminders', desc: 'Manage due-task reminder schedules and browser push delivery.' },
+  shortcuts: { title: 'Keyboard Shortcuts', desc: 'Master quick navigation and command center keyboard bindings.' },
+  data: { title: 'Data & Privacy', desc: 'Export JSON backups, recover deleted items, or reset interface preferences.' }
+};
+
+const ENT_SETTINGS_INDEX = [
+  { id: 'ent-pref-landing', cat: 'general', label: 'Default landing view', keys: 'landing start home' },
+  { id: 'ent-pref-startup', cat: 'general', label: 'Startup resume behavior', keys: 'startup last session' },
+  { id: 'ent-pref-setup-goal', cat: 'general', label: 'Productivity goal template', keys: 'goal study projects habits' },
+  { id: 'ent-pref-autozen', cat: 'general', label: 'Auto Focus Mode HUD on Pomodoro start', keys: 'zen focus hud pomodoro' },
+  { id: 'ent-settings-themes', cat: 'appearance', label: 'Surface theme (Glass, Daylight, Ember, Cobalt Lime, Violet Orchid)', keys: 'theme palette dark light' },
+  { id: 'ent-appearance-preview', cat: 'appearance', label: 'Live theme, density and scale preview', keys: 'preview scale density' },
+  { id: 'ent-settings-presets', cat: 'workspace', label: 'Workspace presets (Balanced, Deep Work, Study, Minimal)', keys: 'preset profile' },
+  { id: 'ent-pref-focus-min', cat: 'workspace', label: 'Pomodoro sprint durations (Focus / Breaks)', keys: 'timer duration sprint minutes' },
+  { id: 'ent-settings-widgets-list', cat: 'workspace', label: 'Dashboard widgets order, size & visibility', keys: 'widgets cards reorder hide' },
+  { id: 'ent-sb-mode-compact', cat: 'navigation', label: 'Sidebar compact icon rail toggle', keys: 'sidebar compact expanded rail' },
+  { id: 'ent-settings-nav-list', cat: 'navigation', label: 'Pin, reorder, or hide sidebar views', keys: 'navigation pin reorder hide' },
+  { id: 'ent-settings-mobile-nav', cat: 'navigation', label: 'Mobile bottom bar 4 primary tabs', keys: 'mobile bottom bar tabs' },
+  { id: 'ent-pref-reduced-motion', cat: 'accessibility', label: 'Reduce motion & animations', keys: 'motion animation' },
+  { id: 'ent-pref-high-contrast', cat: 'accessibility', label: 'High contrast borders & surfaces', keys: 'contrast border' },
+  { id: 'ent-pref-strong-focus', cat: 'accessibility', label: 'Strong keyboard focus ring', keys: 'focus ring outline keyboard' },
+  { id: 'ent-pref-ui-sound', cat: 'accessibility', label: 'Tactile sound effects & soundscape', keys: 'sound audio rain waves' },
+  { id: 'ent-pref-reminders-enabled', cat: 'notifications', label: 'Daily task reminder schedule', keys: 'reminders alerts time' },
+  { id: 'ent-push-status-text', cat: 'notifications', label: 'Browser push notification permission', keys: 'push permission' },
+  { id: 'ent-save-alerts-btn', cat: 'notifications', label: 'Save reminder preferences', keys: 'save reminders' },
+];
 
 function openEnterpriseSettingsModal(cat) {
   closeSidebarDrawer();
@@ -8855,29 +9122,125 @@ function openEnterpriseSettingsModal(cat) {
 }
 
 function setEnterpriseSettingsCat(cat) {
-  entActiveSettingsCat = cat || 'all';
+  entActiveSettingsCat = ENT_SETTINGS_CAT_META[cat] ? cat : 'all';
   document.querySelectorAll('#ent-settings-cats .ent-settings-tab').forEach(btn => {
     const on = btn.dataset.sec === entActiveSettingsCat;
     btn.classList.toggle('active', on);
     btn.setAttribute('aria-current', on ? 'true' : 'false');
   });
+  const meta = ENT_SETTINGS_CAT_META[entActiveSettingsCat] || ENT_SETTINGS_CAT_META.all;
+  const h = document.getElementById('ent-settings-cat-heading');
+  const d = document.getElementById('ent-settings-cat-desc');
+  if (h) h.textContent = meta.title;
+  if (d) d.textContent = meta.desc;
   filterEnterpriseSettings();
+}
+
+function clearEnterpriseSettingsSearch() {
+  const s = document.getElementById('ent-settings-search');
+  if (s) {
+    s.value = '';
+    filterEnterpriseSettings();
+    s.focus();
+  }
+}
+
+function jumpToEnterpriseSetting(elId, cat) {
+  const s = document.getElementById('ent-settings-search');
+  if (s) s.value = '';
+  setEnterpriseSettingsCat(cat || 'all');
+  const el = document.getElementById(elId);
+  const row = el ? (el.closest('.ent-settings-row, .ent-appearance-preview, .ent-settings-sec') || el) : null;
+  if (row) {
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    row.classList.remove('ent-settings-hit-flash');
+    void row.offsetWidth;
+    row.classList.add('ent-settings-hit-flash');
+    if (el && el.focus) el.focus({ preventScroll: true });
+  }
 }
 
 function filterEnterpriseSettings() {
   const q = (document.getElementById('ent-settings-search')?.value || '').trim().toLowerCase();
+  const clr = document.getElementById('ent-settings-search-clear');
+  if (clr) clr.hidden = !q;
+
+  const h = document.getElementById('ent-settings-cat-heading');
+  const d = document.getElementById('ent-settings-cat-desc');
+  if (q && h && d) {
+    h.textContent = 'Search Results';
+    d.textContent = `Showing matching preferences across all categories for "${q}"`;
+  } else if (!q && h && d) {
+    const meta = ENT_SETTINGS_CAT_META[entActiveSettingsCat] || ENT_SETTINGS_CAT_META.all;
+    h.textContent = meta.title;
+    d.textContent = meta.desc;
+  }
+
+  const modalEl = document.getElementById('modal-enterprise-settings');
+  if (modalEl) modalEl.dataset.singleCat = (!q && entActiveSettingsCat !== 'all') ? '1' : '0';
+
   const secs = [...document.querySelectorAll('#ent-settings-main .ent-settings-sec')];
   let shown = 0;
+  const matchedCats = new Set();
   secs.forEach(sec => {
     const catOk = entActiveSettingsCat === 'all' || sec.dataset.secCat === entActiveSettingsCat;
     const text = (sec.dataset.keywords || '') + ' ' + (sec.textContent || '');
     const match = !q || text.toLowerCase().includes(q);
+    if (match && sec.dataset.secCat) matchedCats.add(sec.dataset.secCat);
     const vis = q ? match : catOk;
     sec.hidden = !vis;
     if (vis) shown++;
   });
+
+  document.querySelectorAll('#ent-settings-cats .ent-settings-tab').forEach(btn => {
+    const bdg = btn.querySelector('.ent-settings-tab-count');
+    if (!bdg) return;
+    const sec = btn.dataset.sec;
+    if (!q) { bdg.hidden = true; bdg.textContent = ''; return; }
+    const count = sec === 'all' ? shown : (matchedCats.has(sec) ? 1 : 0);
+    bdg.hidden = !count;
+    if (count) bdg.textContent = sec === 'all' ? String(count) : '•';
+  });
+
+  const hitsBox = document.getElementById('ent-settings-search-hits');
+  if (hitsBox) {
+    if (!q) {
+      hitsBox.hidden = true;
+      hitsBox.innerHTML = '';
+    } else {
+      const hits = ENT_SETTINGS_INDEX.filter(item =>
+        item.label.toLowerCase().includes(q) || item.keys.includes(q) || item.cat.includes(q)
+      ).slice(0, 6);
+      if (!hits.length) {
+        hitsBox.hidden = true;
+        hitsBox.innerHTML = '';
+      } else {
+        hitsBox.hidden = false;
+        hitsBox.innerHTML = `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Jump to setting (${hits.length})</div><div class="ent-settings-hits-grid">` +
+          hits.map(item => `<button type="button" class="ent-settings-hit-btn" onclick="jumpToEnterpriseSetting('${item.id}','${item.cat}')"><span>${escapeHtml(item.label)}</span><span class="ent-settings-hit-cat">${escapeHtml((ENT_SETTINGS_CAT_META[item.cat]?.title || item.cat).split(' ')[0])}</span></button>`).join('') +
+          '</div>';
+      }
+    }
+  }
+
   const empty = document.getElementById('ent-settings-empty');
   if (empty) empty.hidden = shown > 0;
+}
+
+function updateEnterpriseTimerPref(kind, val) {
+  const n = Math.max(1, Math.min(120, Math.round(Number(val) || 25)));
+  const idMap = { focus: 'cfg-focus-min', short: 'cfg-short-min', long: 'cfg-long-min' };
+  const target = document.getElementById(idMap[kind]);
+  if (target) target.value = String(n);
+  if (kind === 'focus' && !state.pomoRunning) {
+    state.pomoMode = 'focus';
+    state.pomoTotalTime = n * 60;
+    state.pomoTimeRemaining = n * 60;
+    if (typeof renderPomTimerUI === 'function') renderPomTimerUI();
+  }
+  saveWorkspaceState();
+  updateEnterpriseSettingsSaveBadge(enterpriseSession.mode === 'account' ? 'Saved' : 'Saved locally');
+  showToast(`Timer ${kind} duration set to ${n}m.`);
 }
 
 function updateEnterpriseGeneralPref(key, value) {
@@ -8947,6 +9310,14 @@ function renderEnterpriseSettingsControls() {
   setChk('ent-pref-strong-focus', ap.accessibility.focusHighlight === 'strong');
   setChk('ent-pref-ui-sound', state.uiSoundEnabled !== false);
   setVal('ent-pref-soundscape', state.ambientTrack || 'none');
+  setVal('ent-pref-focus-min', document.getElementById('cfg-focus-min')?.value || '25');
+  setVal('ent-pref-short-min', document.getElementById('cfg-short-min')?.value || '5');
+  setVal('ent-pref-long-min', document.getElementById('cfg-long-min')?.value || '15');
+
+  const themeLabels = { 'apple-dark': 'Glass', 'apple-light': 'Daylight', 'cyber-aubergine': 'Ember', 'cobalt-lime-dark': 'Cobalt Lime', 'violet-orchid-dark': 'Violet Orchid' };
+  const densLabel = (ap.appearance.interfaceDensity || 'comfortable').replace(/^\w/, c => c.toUpperCase());
+  const prevTitle = document.getElementById('ent-preview-title');
+  if (prevTitle) prevTitle.textContent = `${themeLabels[state.theme] || 'Glass'} · ${densLabel} · ${ap.appearance.textScale}%`;
 
   document.querySelectorAll('[data-ent-theme]').forEach(b => {
     const on = b.dataset.entTheme === state.theme;

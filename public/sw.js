@@ -15,8 +15,13 @@ const PRECACHE_URLS = [
   '/ui.js?v=4.8.0',
   '/manifest.json?v=4.8.0',
   '/favicon.svg',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/apple-touch-icon.png',
   '/nexos-icon-192.png',
   '/nexos-icon-512.png',
+  '/nexos-icon-maskable-512.png',
 ];
 const APP_SHELL_ROUTES = new Set(['/', '/classic', '/classic/']);
 const CACHE_FIRST_ASSETS = new Set(PRECACHE_URLS.filter((url) => url !== '/'));

@@ -376,7 +376,7 @@ async function runBrowserJourneys() {
   UserState.create = async (p) => { serverAuthDoc = { _id: 'st-auth', userId: String(p.userId), data: p.data, rev: p.rev || 1, updatedAt: new Date() }; return serverAuthDoc; };
   UserState.findOneAndUpdate = (f, u) => ({
     select() { return this; },
-    async lean() { serverAuthDoc = { _id: 'st-auth', userId: userAuth, data: u.$set.data, rev: (serverAuthDoc?.rev || 1) + 1, updatedAt: new Date() }; return serverAuthDoc; };
+    async lean() { serverAuthDoc = { _id: 'st-auth', userId: userAuth, data: u.$set.data, rev: (serverAuthDoc?.rev || 1) + 1, updatedAt: new Date() }; return serverAuthDoc; },
   });
   Chat.find = () => ({ sort() { return this; }, limit() { return this; }, select() { return this; }, async lean() { return []; } });
   Chat.findOne = () => ({ select() { return this; }, async lean() { return null; } });
@@ -416,7 +416,8 @@ async function runBrowserJourneys() {
     })()`);
 
     const classicA = await cdp.eval(`(() => {
-      applyClassicPreset('study');
+      document.querySelector('#classic-dash-bar [data-preset="study"]')?.click();
+      document.getElementById('classic-customize-dash-btn')?.click();
       toggleClassicWidgetVisibility('habits', true);
       setClassicWidgetSize('notes', 'wide');
       moveClassicWidget('tasks', -1);
@@ -429,6 +430,7 @@ async function runBrowserJourneys() {
         sizeOk: document.querySelector('#classic-dashboard-widgets [data-widget="notes"]').dataset.widgetSize === 'wide',
         tasksOrder: ap.workspace.widgets[0],
         accent: document.documentElement.getAttribute('data-accent'),
+        bannerVisible: !document.getElementById('classic-dash-hidden-banner').hidden,
       };
     })()`);
     assert.equal(classicA.tasksLen, 1);
@@ -439,20 +441,24 @@ async function runBrowserJourneys() {
     assert.equal(classicA.accent, 'violet', 'Study preset applies violet accent token');
     await snap(cdp, 'classic-desktop-study');
 
-    // Classic reload persistence + Journey D settings + Journey F focus HUD
+    // Classic reload persistence + Journey D settings + Journey F focus HUD + visible UI clicks
     await cdp.send('Page.reload', { ignoreCache: false });
     await cdp.waitFor('document.readyState === "complete" && typeof getClassicAdaptivePrefs === "function" && state.tasks.length === 1');
     const classicAfterReload = await cdp.eval(`(() => {
-      openProfile('all');
-      document.getElementById('classic-settings-search').value = 'contrast';
-      filterClassicSettings();
+      document.getElementById('nav-profile')?.click();
+      const sInp = document.getElementById('classic-settings-search');
+      sInp.value = 'contrast';
+      sInp.dispatchEvent(new Event('input', { bubbles: true }));
       const hiddenSec = [...document.querySelectorAll('#profile-modal [data-settings-cat]')].filter(s => !s.hidden && getComputedStyle(s).display !== 'none').map(s => s.dataset.settingsCat);
-      setClassicSettingsCat('appearance');
-      document.getElementById('classic-settings-search').value = '';
-      filterClassicSettings();
-      updateClassicAppearancePref('textScale', 120);
-      updateClassicAppearancePref('highContrast', true);
-      updateClassicAppearancePref('reducedMotion', true);
+      sInp.value = '';
+      sInp.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelector('#classic-settings-cats [data-cat="accessibility"]')?.click();
+      document.querySelector('#classic-settings-a11y [data-scale-opt="120"]')?.click();
+      const hc = document.getElementById('classic-pref-high-contrast');
+      if (hc && !hc.checked) hc.click();
+      const rm = document.getElementById('classic-pref-reduced-motion');
+      if (rm && !rm.checked) rm.click();
+      document.querySelector('#classic-settings-cats [data-cat="all"]')?.click();
       const scaleAttr = document.documentElement.getAttribute('data-text-scale');
       const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
       return {
@@ -471,11 +477,11 @@ async function runBrowserJourneys() {
     await snap(cdp, 'classic-desktop-settings');
     await cdp.eval(`(() => {
       document.querySelector('#profile-modal .modal-close')?.click();
-      toggleClassicFocusMode(true);
+      document.getElementById('classic-focus-mode-btn')?.click();
     })()`);
     const classicFocusOn = await cdp.eval(`document.body.classList.contains('nexos-focus-mode') && !document.getElementById('classic-focus-hud').hidden`);
-    assert.equal(classicFocusOn, true, 'Classic Focus Mode activates distraction-free HUD');
-    await cdp.eval(`toggleClassicFocusMode(false);`);
+    assert.equal(classicFocusOn, true, 'Classic Focus Mode button activates distraction-free HUD');
+    await cdp.eval(`document.getElementById('classic-focus-exit-btn')?.click();`);
 
     // ==================== ENTERPRISE AUTHENTICATED + FULL JOURNEYS (A–F) ====================
     await cdp.send('Network.setCookie', { name: 'token', value: tokenAuth, domain: '127.0.0.1', path: '/', httpOnly: true });
@@ -597,43 +603,55 @@ async function runBrowserJourneys() {
     const entNotesCountAfter = await cdp.eval('state.notes.length');
     assert.equal(entNotesCountAfter, entNotesCountBefore + 1, 'Journey C: Selecting "Create New Note" via keyboard creates note and opens Smart Notes');
 
-    // Journey D (Enterprise 8-category Settings Search, Live CSS Tokens, Confirmed Reset)
+    // Journey D (Enterprise 8-category Settings Search, Real Visible Controls, Live CSS Tokens, Confirmed Reset)
     await cdp.eval(`(() => {
       switchNexusView('dashboard');
-      openEnterpriseSettingsModal('all');
+      document.getElementById('prefs-btn')?.click();
+      document.querySelector('#prefs-popover button')?.click();
     })()`);
     await cdp.waitFor('document.getElementById("modal-enterprise-settings").classList.contains("open")');
     await snap(cdp, 'ent-desktop-settings');
     const entSettingsCheck = await cdp.eval(`(async () => {
       const tabs = document.querySelectorAll('#ent-settings-cats .ent-settings-tab').length;
-      document.getElementById('ent-settings-search').value = 'contrast';
-      filterEnterpriseSettings();
+      const es = document.getElementById('ent-settings-search');
+      es.value = 'contrast';
+      es.dispatchEvent(new Event('input', { bubbles: true }));
       const filteredCats = [...document.querySelectorAll('#ent-settings-main .ent-settings-sec')].filter(s => !s.hidden).map(s => s.dataset.secCat);
-      document.getElementById('ent-settings-search').value = '';
-      setEnterpriseSettingsCat('appearance');
-      updateEnterpriseAppearancePref('interfaceDensity', 'compact');
-      updateEnterpriseAppearancePref('textScale', 110);
-      updateEnterpriseAppearancePref('reducedMotion', true);
-      updateEnterpriseAppearancePref('highContrast', true);
+      es.value = '';
+      es.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelector('#ent-settings-cats [data-sec="appearance"]')?.click();
+      document.querySelector('[data-ent-density="compact"]')?.click();
+      document.querySelector('[data-ent-scale="110"]')?.click();
+      document.querySelector('[data-ent-accent="cobalt"]')?.click();
+      document.querySelector('#ent-settings-cats [data-sec="accessibility"]')?.click();
+      const rm = document.getElementById('ent-pref-reduced-motion');
+      if (rm && !rm.checked) rm.click();
+      const hc = document.getElementById('ent-pref-high-contrast');
+      if (hc && !hc.checked) hc.click();
+      const sf = document.getElementById('ent-pref-strong-focus');
+      if (sf && !sf.checked) sf.click();
       const tokensOk = document.documentElement.getAttribute('data-density') === 'compact'
         && document.documentElement.getAttribute('data-text-scale') === '110'
+        && document.documentElement.getAttribute('data-accent') === 'cobalt'
         && document.documentElement.getAttribute('data-reduced-motion') === '1'
-        && document.documentElement.getAttribute('data-contrast') === 'high';
+        && document.documentElement.getAttribute('data-contrast') === 'high'
+        && document.documentElement.getAttribute('data-focus-ring') === 'strong';
+      document.querySelector('#ent-settings-cats [data-sec="data"]')?.click();
       const origConf = window.confirm;
       window.confirm = () => false;
-      resetAllEnterprisePreferences();
+      document.querySelector('#modal-enterprise-settings [onclick*="resetAllEnterprisePreferences"]')?.click();
       const canceledKept110 = document.documentElement.getAttribute('data-text-scale') === '110';
       window.confirm = () => true;
-      resetAllEnterprisePreferences();
+      document.querySelector('#modal-enterprise-settings [onclick*="resetAllEnterprisePreferences"]')?.click();
       window.confirm = origConf;
       const resetBackTo100 = document.documentElement.getAttribute('data-text-scale') === '100';
-      closeModal('modal-enterprise-settings');
+      document.querySelector('#modal-enterprise-settings .modal-close-btn')?.click();
       await persistEnterpriseWorkspace();
       return { tabs, filteredCats, tokensOk, canceledKept110, resetBackTo100, itemsIntact: state.tasks.some(t => t.id === 'au_t1') };
     })()`);
     assert.equal(entSettingsCheck.tabs, 9, 'Enterprise Settings renders All + 8 categories cleanly');
     assert.deepEqual(entSettingsCheck.filteredCats, ['accessibility'], 'Enterprise Settings search isolates Accessibility');
-    assert.equal(entSettingsCheck.tokensOk, true, 'Settings toggles apply real HTML design tokens live');
+    assert.equal(entSettingsCheck.tokensOk, true, 'Real clicks on Settings controls apply live HTML design tokens');
     assert.equal(entSettingsCheck.canceledKept110, true, 'Canceling Reset Preferences preserves custom settings');
     assert.equal(entSettingsCheck.resetBackTo100, true, 'Confirming Reset Preferences restores defaults cleanly');
     assert.equal(entSettingsCheck.itemsIntact, true, 'Reset Preferences never deletes workspace data');

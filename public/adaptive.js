@@ -9,7 +9,7 @@
   const TEXT_SCALES = [90, 100, 110, 120];
   const ACCENT_PRESETS = ['theme', 'cobalt', 'emerald', 'violet', 'amber'];
   const SIDEBAR_MODES = ['expanded', 'compact'];
-  const GROUP_IDS = ['workspace', 'growth'];
+  const GROUP_IDS = ['workspace', 'growth', 'knowledge'];
 
   const PRESETS = {
     balanced: {
@@ -32,7 +32,7 @@
       sidebarMode: 'expanded',
       pinned: ['dashboard', 'kanban', 'notes'],
       hiddenNav: [],
-      navOrder: [...VIEW_IDS],
+      navOrder: ['dashboard', 'kanban', 'calendar', 'focus', 'study', 'habits', 'notes', 'analytics', 'ai'],
       collapsedGroups: [],
       mobilePrimary: ['dashboard', 'kanban', 'focus', 'notes'],
       timer: { focus: 25, short: 5, long: 15 },
@@ -420,7 +420,7 @@
     next.navigation.sidebarMode = 'expanded';
     next.navigation.pinned = p.pinned.slice();
     next.navigation.hidden = [];
-    next.navigation.order = [...VIEW_IDS];
+    next.navigation.order = PRESETS.balanced.navOrder.slice();
     next.navigation.collapsedGroups = [];
     next.navigation.mobilePrimary = p.mobilePrimary.slice();
     return next;
@@ -647,6 +647,7 @@
   root.NexAdaptive = {
     SCHEMA_VERSION,
     VIEW_IDS,
+    GROUP_IDS,
     WIDGET_IDS,
     WIDGET_SIZES,
     DENSITIES,

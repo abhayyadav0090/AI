@@ -5533,6 +5533,77 @@ renderPomTimer = function () {
 };
 
 // Rebuilt Settings Control Center (Classic)
+const CLASSIC_SETTINGS_INDEX = [
+  { id: 'classic-pref-landing', secId: 'classic-settings-general', cat: 'general', label: 'Default landing view', group: 'General' },
+  { id: 'classic-pref-startup', secId: 'classic-settings-general', cat: 'general', label: 'Startup behavior', group: 'General' },
+  { id: 'classic-pref-autozen', secId: 'classic-settings-general', cat: 'general', label: 'Auto-open Focus Mode HUD', group: 'General' },
+  { id: 'profile-appearance', secId: 'profile-appearance', cat: 'appearance', label: 'Theme & Design (Glass, Classic, Accent)', group: 'Appearance' },
+  { id: 'classic-settings-a11y', secId: 'classic-settings-a11y', cat: 'accessibility', label: 'Typography scale, density & high contrast', group: 'Accessibility' },
+  { id: 'classic-pref-reduced-motion', secId: 'classic-settings-a11y', cat: 'accessibility', label: 'Reduce motion & animations', group: 'Accessibility' },
+  { id: 'classic-pref-high-contrast', secId: 'classic-settings-a11y', cat: 'accessibility', label: 'High contrast borders & surfaces', group: 'Accessibility' },
+  { id: 'classic-pref-strong-focus', secId: 'classic-settings-a11y', cat: 'accessibility', label: 'Strong keyboard focus ring', group: 'Accessibility' },
+  { id: 'classic-settings-presets', secId: 'classic-settings-workspace', cat: 'workspace', label: 'Workspace presets & dashboard widgets', group: 'Workspace' },
+  { id: 'classic-settings-nav-list', secId: 'classic-settings-navigation', cat: 'navigation', label: 'Sidebar compact rail, pins & mobile bar', group: 'Navigation' },
+  { id: 'profile-reminders-section', secId: 'profile-reminders-section', cat: 'notifications', label: 'Daily task reminders & push permission', group: 'Notifications' },
+  { id: 'profile-data-section', secId: 'profile-data-section', cat: 'data', label: 'Export backup, restore sample data & reset', group: 'Data & Privacy' },
+  { id: 'classic-settings-shortcuts', secId: 'classic-settings-shortcuts', cat: 'shortcuts', label: 'Keyboard shortcuts & hotkeys', group: 'Shortcuts' },
+];
+
+function ensureClassicSettingsSearchUI() {
+  const inp = document.getElementById('classic-settings-search');
+  if (!inp) return;
+  const wrap = inp.closest('.settings-search-wrap') || inp.parentNode;
+  if (wrap && !document.getElementById('classic-settings-search-clear')) {
+    const clr = document.createElement('button');
+    clr.type = 'button';
+    clr.id = 'classic-settings-search-clear';
+    clr.className = 'classic-settings-clear-btn';
+    clr.setAttribute('aria-label', 'Clear settings search');
+    clr.textContent = '✕';
+    clr.hidden = true;
+    clr.onclick = clearClassicSettingsSearch;
+    wrap.appendChild(clr);
+  }
+  if (!document.getElementById('classic-settings-jump-hits')) {
+    const hitsBox = document.createElement('div');
+    hitsBox.id = 'classic-settings-jump-hits';
+    hitsBox.className = 'classic-settings-jump-hits';
+    hitsBox.hidden = true;
+    const tb = document.getElementById('classic-settings-toolbar') || wrap.parentNode;
+    tb.insertAdjacentElement('afterend', hitsBox);
+  }
+  const empty = document.getElementById('classic-settings-empty');
+  if (empty && !empty.querySelector('.classic-settings-empty-clear')) {
+    empty.innerHTML = '<span>No matching settings found.</span> <button type="button" class="btn-sm classic-settings-empty-clear" onclick="clearClassicSettingsSearch()">Clear search</button>';
+  }
+}
+
+function clearClassicSettingsSearch() {
+  const inp = document.getElementById('classic-settings-search');
+  if (inp) {
+    inp.value = '';
+    filterClassicSettings();
+    inp.focus();
+  }
+}
+
+function jumpToClassicSetting(elId, secId, cat) {
+  const inp = document.getElementById('classic-settings-search');
+  if (inp) inp.value = '';
+  setClassicSettingsCat(cat || 'all');
+  const sec = document.getElementById(secId) || document.getElementById(elId)?.closest('[data-settings-cat]');
+  if (sec && sec.tagName === 'DETAILS') sec.open = true;
+  const target = document.getElementById(elId) || sec;
+  if (target) {
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    target.classList.remove('settings-hit-flash');
+    void target.offsetWidth;
+    target.classList.add('settings-hit-flash');
+    const focusEl = target.matches('input,select,button') ? target : target.querySelector('input,select,button,summary');
+    if (focusEl && focusEl.focus) focusEl.focus({ preventScroll: true });
+  }
+}
+
 function setClassicSettingsCat(cat) {
   classicActiveSettingsCat = cat || 'all';
   document.querySelectorAll('#classic-settings-cats .chip').forEach(b => {
@@ -5544,7 +5615,10 @@ function setClassicSettingsCat(cat) {
 }
 
 function filterClassicSettings() {
+  ensureClassicSettingsSearchUI();
   const q = (document.getElementById('classic-settings-search')?.value || '').trim().toLowerCase();
+  const clr = document.getElementById('classic-settings-search-clear');
+  if (clr) clr.hidden = !q;
   const cat = classicActiveSettingsCat;
   const wide = settingsIsWide();
   let visibleCount = 0;
@@ -5562,6 +5636,27 @@ function filterClassicSettings() {
       if (sec.tagName === 'DETAILS' && (q || cat !== 'all' || wide)) sec.open = true;
     }
   });
+  const hitsBox = document.getElementById('classic-settings-jump-hits');
+  if (hitsBox) {
+    if (!q) {
+      hitsBox.hidden = true;
+      hitsBox.innerHTML = '';
+    } else {
+      const matched = CLASSIC_SETTINGS_INDEX.filter(item => {
+        if (isGuest() && item.id === 'profile-reminders-section') return false;
+        return item.label.toLowerCase().includes(q) || item.group.toLowerCase().includes(q) || item.cat.includes(q);
+      }).slice(0, 6);
+      if (!matched.length) {
+        hitsBox.hidden = true;
+        hitsBox.innerHTML = '';
+      } else {
+        hitsBox.hidden = false;
+        hitsBox.innerHTML = '<div class="classic-hits-head">Quick jump to matching controls</div>' + matched.map(item =>
+          `<button type="button" class="classic-hit-pill" onclick="jumpToClassicSetting('${item.id}','${item.secId}','${item.cat}')"><span>${escHtml(item.label)}</span><span class="classic-hit-cat">${escHtml(item.group)}</span></button>`
+        ).join('');
+      }
+    }
+  }
   const empty = document.getElementById('classic-settings-empty');
   if (empty) empty.hidden = visibleCount > 0;
 }
