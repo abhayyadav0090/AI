@@ -416,6 +416,93 @@ app.get('/api/state', requireAuth, wrap(async (req, res) => {
 
 const UNSAFE_STATE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const MAX_STATE_DEPTH = 24;
+const ADAPTIVE_VIEW_IDS = new Set(['dashboard', 'kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai']);
+const ADAPTIVE_WIDGET_IDS = new Set(['tasks', 'pomodoro', 'habits', 'notes']);
+const ADAPTIVE_PRESET_IDS = new Set(['balanced', 'deep-work', 'study', 'minimal', 'custom']);
+const ADAPTIVE_DENSITIES = new Set(['compact', 'comfortable', 'spacious']);
+const ADAPTIVE_ACCENTS = new Set(['theme', 'cobalt', 'emerald', 'violet', 'amber']);
+const ADAPTIVE_SCALES = new Set([90, 100, 110, 120]);
+function sanitizeAdaptiveList(arr, allowedSet, fallback, maxLen = 12) {
+  const out = [];
+  const seen = new Set();
+  if (Array.isArray(arr)) {
+    for (const raw of arr) {
+      let item = String(raw || '').trim().toLowerCase();
+      if (item === 'pomodoro') item = 'focus';
+      if (allowedSet.has(item) && !seen.has(item)) {
+        seen.add(item);
+        out.push(item);
+        if (out.length >= maxLen) break;
+      }
+    }
+  }
+  for (const fb of fallback || []) {
+    if (allowedSet.has(fb) && !seen.has(fb)) { seen.add(fb); out.push(fb); }
+  }
+  return out;
+}
+function sanitizeServerAdaptivePrefs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw;
+  const gen = src.general && typeof src.general === 'object' ? src.general : {};
+  const app = src.appearance && typeof src.appearance === 'object' ? src.appearance : {};
+  const ws = src.workspace && typeof src.workspace === 'object' ? src.workspace : {};
+  const nav = src.navigation && typeof src.navigation === 'object' ? src.navigation : {};
+  const a11y = src.accessibility && typeof src.accessibility === 'object' ? src.accessibility : {};
+  const fm = src.focusMode && typeof src.focusMode === 'object' ? src.focusMode : {};
+  const canonView = (v, fb = 'dashboard') => {
+    const s = String(v || '').trim().toLowerCase();
+    const mapped = s === 'pomodoro' ? 'focus' : s;
+    return ADAPTIVE_VIEW_IDS.has(mapped) ? mapped : fb;
+  };
+  const widgetOrder = ['tasks', 'pomodoro', 'habits', 'notes'];
+  const widgetSizes = { tasks: 'normal', pomodoro: 'normal', habits: 'normal', notes: 'normal' };
+  if (ws.widgetSizes && typeof ws.widgetSizes === 'object') {
+    for (const k of widgetOrder) {
+      if (['compact', 'normal', 'wide'].includes(ws.widgetSizes[k])) widgetSizes[k] = ws.widgetSizes[k];
+    }
+  }
+  const hiddenNavAllowed = new Set(['kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai']);
+  const scale = Number(app.textScale);
+  return {
+    v: 1,
+    updatedAt: Number.isFinite(Number(src.updatedAt)) && Number(src.updatedAt) >= 0 ? Number(src.updatedAt) : 0,
+    profileId: ADAPTIVE_PRESET_IDS.has(src.profileId) ? src.profileId : 'balanced',
+    general: {
+      landingView: canonView(gen.landingView, 'dashboard'),
+      startupBehavior: gen.startupBehavior === 'last' ? 'last' : 'landing',
+    },
+    appearance: {
+      accentPreset: ADAPTIVE_ACCENTS.has(app.accentPreset) ? app.accentPreset : 'theme',
+      textScale: ADAPTIVE_SCALES.has(scale) ? scale : 100,
+      interfaceDensity: ADAPTIVE_DENSITIES.has(app.interfaceDensity) ? app.interfaceDensity : 'comfortable',
+      reducedMotion: Boolean(app.reducedMotion),
+      highContrast: Boolean(app.highContrast),
+    },
+    workspace: {
+      widgets: sanitizeAdaptiveList(ws.widgets, ADAPTIVE_WIDGET_IDS, widgetOrder, 4),
+      hiddenWidgets: sanitizeAdaptiveList(ws.hiddenWidgets, ADAPTIVE_WIDGET_IDS, [], 4),
+      widgetSizes,
+      minimalChrome: Boolean(ws.minimalChrome),
+      focusEmphasis: ws.focusEmphasis !== false,
+    },
+    navigation: {
+      sidebarMode: nav.sidebarMode === 'compact' ? 'compact' : 'expanded',
+      pinned: sanitizeAdaptiveList(nav.pinned, ADAPTIVE_VIEW_IDS, [], 6),
+      hidden: sanitizeAdaptiveList(nav.hidden, hiddenNavAllowed, [], 8),
+      order: sanitizeAdaptiveList(nav.order, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'habits', 'notes', 'analytics', 'calendar', 'study', 'ai'], 9),
+      collapsedGroups: sanitizeAdaptiveList(nav.collapsedGroups, new Set(['workspace', 'growth']), [], 2),
+      recent: sanitizeAdaptiveList(nav.recent, ADAPTIVE_VIEW_IDS, ['dashboard'], 5),
+      mobilePrimary: sanitizeAdaptiveList(nav.mobilePrimary, ADAPTIVE_VIEW_IDS, ['dashboard', 'kanban', 'focus', 'notes'], 4).slice(0, 4),
+    },
+    accessibility: {
+      focusHighlight: a11y.focusHighlight === 'strong' ? 'strong' : 'standard',
+    },
+    focusMode: {
+      autoZenOnStart: Boolean(fm.autoZenOnStart),
+    },
+  };
+}
 function sanitizeWorkspaceState(value, depth = 0) {
   if (depth > MAX_STATE_DEPTH) {
     const err = new Error('Workspace nesting exceeds safe limit.');
@@ -435,6 +522,12 @@ function sanitizeWorkspaceState(value, depth = 0) {
         const err = new Error(`Invalid workspace key "${key}".`);
         err.code = 'BAD_STATE';
         throw err;
+      }
+      if (depth === 0 && key === 'adaptivePrefs') {
+        const safeSubtree = sanitizeWorkspaceState(value[key], depth + 1);
+        const cleanAdaptive = sanitizeServerAdaptivePrefs(safeSubtree);
+        if (cleanAdaptive) out.adaptivePrefs = cleanAdaptive;
+        continue;
       }
       out[key] = sanitizeWorkspaceState(value[key], depth + 1);
     }

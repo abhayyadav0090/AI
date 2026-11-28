@@ -18,7 +18,7 @@
 <link rel="manifest" href="manifest.json?v=4.8.0">
 <meta name="theme-color" content="#131314">
 <script>
-  /* Apply the saved design and theme before first paint so there is no flash. */
+  /* Apply saved design, theme and adaptive workspace tokens before first paint so there is no flash. */
   (function () {
     var root = document.documentElement, ui = {};
     try { ui = JSON.parse(localStorage.getItem('nexos_ui_v1') || '{}'); } catch (e) {}
@@ -26,6 +26,27 @@
     var t = ui.theme === 'light' || ui.theme === 'dark' ? ui.theme : 'system';
     var dark = t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
     root.dataset.theme = dark ? 'dark' : 'light';
+    try {
+      var last = JSON.parse(localStorage.getItem('nexos_last_user_v1') || 'null');
+      var guestFlag = localStorage.getItem('nexos_guest_mode_v1') === '1';
+      var ak = 'nexos_adaptive_guest_v1';
+      if (!guestFlag && last && (last.email || last._id || last.id)) {
+        var id = String(last.email || last._id || last.id).trim().toLowerCase(), h = 2166136261;
+        for (var i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
+        ak = 'nexos_adaptive_user_' + (h >>> 0).toString(36);
+      }
+      var ap = JSON.parse(localStorage.getItem(ak) || 'null');
+      if (ap && typeof ap === 'object') {
+        var app = ap.appearance || {}, ws = ap.workspace || {}, a11y = ap.accessibility || {};
+        if (app.interfaceDensity) root.setAttribute('data-density', app.interfaceDensity);
+        if (app.textScale) { root.setAttribute('data-text-scale', String(app.textScale)); root.style.setProperty('--nex-scale', String(Number(app.textScale) / 100)); }
+        if (app.reducedMotion) root.setAttribute('data-reduced-motion', '1');
+        if (app.highContrast) root.setAttribute('data-contrast', 'high');
+        if (app.accentPreset) root.setAttribute('data-accent', app.accentPreset);
+        if (a11y.focusHighlight) root.setAttribute('data-focus-ring', a11y.focusHighlight);
+        if (ws.minimalChrome) root.setAttribute('data-minimal', '1');
+      }
+    } catch (e) {}
   })();
 </script>
 <style>
@@ -69,6 +90,10 @@
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5zM12 6.5v13"/></symbol>
   <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4M4 4v4h4M4 13a8 8 0 0 0 14 4M20 20v-4h-4"/></symbol>
   <symbol id="i-waffle" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.7"/><circle cx="12" cy="5" r="1.7"/><circle cx="19" cy="5" r="1.7"/><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/><circle cx="5" cy="19" r="1.7"/><circle cx="12" cy="19" r="1.7"/><circle cx="19" cy="19" r="1.7"/></g></symbol>
+  <symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.5 4.5v15M15.5 9.5 13 12l2.5 2.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 </svg>
 
 <a class="skip-link" href="#main">Skip to content</a>
@@ -99,23 +124,26 @@
     <div class="sidebar-logo">
       <div class="logo-mark">N</div>
       <span class="logo-text">NexOS</span>
+      <button type="button" class="sidebar-collapse-btn" id="classic-sidebar-collapse" onclick="toggleClassicSidebarCompact()" aria-label="Collapse sidebar" aria-pressed="false" title="Toggle compact sidebar"><svg class="ic" aria-hidden="true"><use href="#i-collapse"/></svg></button>
       <button type="button" class="sidebar-close" onclick="closeSidebar()" aria-label="Close navigation" title="Close menu"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="experience-switch in-drawer" role="group" aria-label="Choose experience">
       <span class="exp-btn active" aria-current="page">Classic</span>
       <a class="exp-btn" href="/enterprise" title="Open Enterprise mode">Enterprise</a>
     </div>
-    <div class="sidebar-nav">
-      <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Home</span></button>
-      <button class="nav-item" data-view="kanban" onclick="switchView('kanban')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-board"/></svg><span class="nav-label">Tasks</span></button>
-      <button class="nav-item" data-view="pomodoro" onclick="switchView('pomodoro')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-timer"/></svg><span class="nav-label">Focus</span></button>
-      <button class="nav-item" data-view="habits" onclick="switchView('habits')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-check"/></svg><span class="nav-label">Habits</span></button>
-      <button class="nav-item" data-view="notes" onclick="switchView('notes')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-note"/></svg><span class="nav-label">Notes</span></button>
-      <button class="nav-item" data-view="analytics" onclick="switchView('analytics')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-chart"/></svg><span class="nav-label">Insights</span></button>
-      <button class="nav-item" id="nav-study" onclick="closeSidebar();openStudyStudio()"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-book"/></svg><span class="nav-label">Study Studio</span></button>
-      <button class="nav-item" data-view="ai" onclick="switchView('ai')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span class="nav-label">NexAI</span><span class="nav-badge">AI</span></button>
+    <div class="sidebar-aux" id="classic-nav-pinned" aria-label="Pinned destinations" hidden></div>
+    <div class="sidebar-nav" id="classic-sidebar-nav">
+      <button class="nav-item active" data-view="dashboard" data-group="workspace" data-tooltip="Home" onclick="switchView('dashboard')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Home</span></button>
+      <button class="nav-item" data-view="kanban" data-group="workspace" data-tooltip="Tasks" onclick="switchView('kanban')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-board"/></svg><span class="nav-label">Tasks</span></button>
+      <button class="nav-item" data-view="pomodoro" data-group="growth" data-tooltip="Focus" onclick="switchView('pomodoro')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-timer"/></svg><span class="nav-label">Focus</span></button>
+      <button class="nav-item" data-view="habits" data-group="growth" data-tooltip="Habits" onclick="switchView('habits')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-check"/></svg><span class="nav-label">Habits</span></button>
+      <button class="nav-item" data-view="notes" data-group="workspace" data-tooltip="Notes" onclick="switchView('notes')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-note"/></svg><span class="nav-label">Notes</span></button>
+      <button class="nav-item" data-view="analytics" data-group="growth" data-tooltip="Insights" onclick="switchView('analytics')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-chart"/></svg><span class="nav-label">Insights</span></button>
+      <button class="nav-item" id="nav-study" data-view="study" data-group="growth" data-tooltip="Study Studio" onclick="closeSidebar();openStudyStudio()"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-book"/></svg><span class="nav-label">Study Studio</span></button>
+      <button class="nav-item" data-view="ai" data-group="growth" data-tooltip="NexAI" onclick="switchView('ai')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span class="nav-label">NexAI</span><span class="nav-badge">AI</span></button>
       <div class="nav-spacer"></div>
-      <button class="nav-item" id="nav-profile" onclick="openProfile()"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="nav-label">Settings</span></button>
+      <div class="sidebar-aux sidebar-recent" id="classic-nav-recent" aria-label="Recently visited" hidden></div>
+      <button class="nav-item" id="nav-profile" data-tooltip="Settings" onclick="openProfile('general')"><svg class="ic nav-icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="nav-label">Settings</span></button>
     </div>
     <div class="sidebar-footer">
       <div class="user-avatar" id="user-avatar" onclick="openProfile()" title="Profile">U</div>
@@ -128,11 +156,27 @@
   </nav>
 
   <main class="main-content" id="main">
+    <div class="focus-mode-hud" id="classic-focus-hud" role="region" aria-label="Focus mode controls" hidden>
+      <div class="focus-hud-left">
+        <span class="focus-hud-badge">Focus Mode</span>
+        <strong class="focus-hud-timer" id="classic-focus-hud-timer">25:00</strong>
+        <button type="button" class="btn-sm" id="classic-focus-hud-play" onclick="togglePomodoro()">Start / Pause</button>
+        <span class="focus-hud-ctx" id="classic-focus-hud-ctx">Deep Work Context</span>
+      </div>
+      <div class="focus-hud-actions">
+        <button type="button" class="btn-sm" onclick="switchView('pomodoro')">Timer</button>
+        <button type="button" class="btn-sm" onclick="switchView('notes')">Notes</button>
+        <button type="button" class="btn-sm" onclick="openStudyStudio()">Study</button>
+        <button type="button" class="btn-primary focus-hud-exit" id="classic-focus-exit-btn" onclick="toggleClassicFocusMode(false)">Exit Focus Mode</button>
+      </div>
+    </div>
+
     <header class="topbar">
       <div class="topbar-left">
         <button class="menu-toggle" id="menu-toggle" onclick="toggleSidebar()" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg></button>
         <div class="brand-inline" aria-hidden="true"><svg class="ic waffle ic-fill"><use href="#i-waffle"/></svg><span>NexOS</span></div>
         <div class="breadcrumb" id="breadcrumb">Home</div>
+        <button type="button" class="preset-pill-btn" id="classic-preset-pill" onclick="openProfile('workspace')" title="Change workspace profile">Balanced</button>
         <button type="button" class="topbar-signin" id="topbar-signin" onclick="logout()">Sign in</button>
         <div class="experience-switch" role="group" aria-label="Choose experience">
           <span class="exp-btn active" aria-current="page">Classic</span>
@@ -144,6 +188,7 @@
       </button>
       <div class="topbar-right">
         <span class="sync-chip" id="sync-chip" role="status" aria-live="polite" data-state="saved"><span class="sync-dot"></span><span id="sync-text">Saved</span></span>
+        <button type="button" class="btn-icon" id="classic-focus-mode-btn" onclick="toggleClassicFocusMode()" aria-label="Enter Focus Mode" aria-pressed="false" title="Distraction-free Focus Mode (Alt+F)"><svg class="ic" aria-hidden="true"><use href="#i-focus"/></svg></button>
         <button type="button" class="btn-primary new-btn" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>New</span></button>
         <button class="btn-icon" id="notif-btn" onclick="enableNotifications()" title="Turn on due-date notifications" aria-label="Notifications"><svg class="ic ic-on" aria-hidden="true"><use href="#i-bell"/></svg><svg class="ic ic-off" aria-hidden="true"><use href="#i-bell-off"/></svg></button>
         <button type="button" class="btn-icon theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch theme" aria-label="Switch theme"><svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg></button>
@@ -157,7 +202,7 @@
       <button type="button" data-bnav="kanban" onclick="switchView('kanban')"><svg class="ic" aria-hidden="true"><use href="#i-board"/></svg><span>Tasks</span></button>
       <button type="button" data-bnav="pomodoro" onclick="switchView('pomodoro')"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg><span>Focus</span></button>
       <button type="button" data-bnav="notes" onclick="switchView('notes')"><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg><span>Notes</span></button>
-      <button type="button" data-bnav="ai" onclick="switchView('ai')"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg><span>NexAI</span></button>
+      <button type="button" data-bnav="more" onclick="toggleSidebar()" aria-label="More views and settings"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span>More</span></button>
     </nav>
     <button type="button" class="fab" id="fab" aria-label="Create new" aria-haspopup="menu" onclick="NexUI.toggleNewMenu(event)"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
 
@@ -192,6 +237,20 @@
         <div class="guest-banner" id="guest-banner" style="display:none"></div>
         <div class="guide-card" id="guide-card" style="display:none"></div>
 
+        <div class="dash-adaptive-bar" id="classic-dash-bar">
+          <div class="dash-preset-pills" id="classic-dash-presets" role="group" aria-label="Workspace profiles">
+            <button type="button" class="chip dash-preset-btn active" data-preset="balanced" onclick="applyClassicPreset('balanced')">Balanced</button>
+            <button type="button" class="chip dash-preset-btn" data-preset="deep-work" onclick="applyClassicPreset('deep-work')">Deep Work</button>
+            <button type="button" class="chip dash-preset-btn" data-preset="study" onclick="applyClassicPreset('study')">Study</button>
+            <button type="button" class="chip dash-preset-btn" data-preset="minimal" onclick="applyClassicPreset('minimal')">Minimal</button>
+          </div>
+          <div class="dash-bar-actions">
+            <button type="button" class="btn-sm" id="classic-customize-dash-btn" onclick="toggleClassicDashCustomize()" aria-pressed="false">Customize Home</button>
+            <button type="button" class="btn-sm" id="classic-reset-dash-btn" onclick="resetClassicDashLayout()" hidden>Reset layout</button>
+            <button type="button" class="btn-sm" onclick="openProfile('workspace')">Workspace settings</button>
+          </div>
+        </div>
+
         <div class="stats-grid">
           <div class="stat-card" id="stat-tasks">
             <div class="stat-label">Open tasks</div>
@@ -215,8 +274,12 @@
           </div>
         </div>
 
-        <div class="dashboard-widgets">
-          <div class="widget widget-tasks">
+        <div class="empty-state-lg" id="classic-dash-hidden-banner" hidden>
+          All dashboard widgets are hidden. <button type="button" class="btn-sm" onclick="resetClassicDashLayout()">Restore Dashboard Widgets</button>
+        </div>
+
+        <div class="dashboard-widgets" id="classic-dashboard-widgets">
+          <div class="widget widget-tasks" data-widget="tasks">
             <div class="widget-header">
               <h3>Today’s priorities</h3>
               <button class="btn-sm" onclick="switchView('kanban')">All tasks</button>
@@ -226,7 +289,7 @@
             </div>
           </div>
 
-          <div class="widget widget-pomodoro">
+          <div class="widget widget-pomodoro" data-widget="pomodoro">
             <div class="widget-header">
               <h3>Focus timer</h3>
               <button class="btn-sm" onclick="switchView('pomodoro')">Open</button>
@@ -247,7 +310,7 @@
             <div class="pomo-task-slot" aria-live="polite"></div>
           </div>
 
-          <div class="widget widget-habits">
+          <div class="widget widget-habits" data-widget="habits">
             <div class="widget-header">
               <h3>Habit streaks</h3>
               <button class="btn-sm" onclick="switchView('habits')">All habits</button>
@@ -257,7 +320,7 @@
             </div>
           </div>
 
-          <div class="widget widget-notes">
+          <div class="widget widget-notes" data-widget="notes">
             <div class="widget-header">
               <h3>Recent notes</h3>
               <button class="btn-sm" onclick="switchView('notes')">All notes</button>
@@ -659,14 +722,18 @@
 
 <!-- COMMAND PALETTE / SEARCH -->
 <div class="modal-overlay palette-overlay" id="search-modal" style="display:none" onclick="closeSearchModal(event)">
-  <div class="modal palette" role="dialog" aria-modal="true" aria-label="Search and commands">
+  <div class="modal palette" role="dialog" aria-modal="true" aria-label="Global Command Center">
     <div class="palette-input">
       <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
-      <input type="text" id="global-search-input" placeholder="Search tasks and notes, or type a command" autocomplete="off" aria-label="Search" role="combobox" aria-expanded="true" aria-controls="global-search-results" oninput="runGlobalSearch()">
+      <input type="text" id="global-search-input" placeholder="Search tasks, notes, habits, calendar, study materials, or run a command…" autocomplete="off" aria-label="Search tasks, notes, habits, study materials and commands" role="combobox" aria-expanded="true" aria-controls="global-search-results" oninput="scheduleClassicGlobalSearch()">
       <kbd class="kbd-hint">Esc</kbd>
     </div>
+    <div class="palette-meta-bar" id="classic-cmd-meta">
+      <span>Tasks · Notes · Habits · Calendar · Study · Actions</span>
+      <span id="classic-cmd-status" aria-live="polite"></span>
+    </div>
     <div id="global-search-results" class="search-results-list" role="listbox"></div>
-    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span></div>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>Enter</kbd> run or open</span><span><kbd>Esc</kbd> close</span></div>
   </div>
 </div>
 
@@ -710,10 +777,13 @@
 
 <!-- PROFILE + SETTINGS MODAL -->
 <div class="modal-overlay" id="profile-modal" style="display:none" onclick="closeProfile(event)">
-  <div class="modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+  <div class="modal profile-modal profile-control-center" role="dialog" aria-modal="true" aria-labelledby="profile-title">
     <div class="modal-header">
-      <h3 id="profile-title">Profile and settings</h3>
-      <button onclick="closeProfile()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+      <h3 id="profile-title">Settings Control Center</h3>
+      <div class="settings-head-right">
+        <span class="settings-save-pill" id="classic-settings-save-status" role="status" aria-live="polite">Saved</span>
+        <button onclick="closeProfile()" class="modal-close" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="profile-identity">
@@ -724,7 +794,26 @@
         </div>
       </div>
 
-      <div class="profile-section ps-flat" id="profile-name-section">
+      <div class="settings-toolbar" id="classic-settings-toolbar">
+        <label class="settings-search-wrap" aria-label="Search settings">
+          <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+          <input type="search" id="classic-settings-search" class="modal-input" placeholder="Search settings…" oninput="filterClassicSettings()" autocomplete="off">
+        </label>
+        <div class="settings-cat-tabs" id="classic-settings-cats" role="tablist" aria-label="Settings categories">
+          <button type="button" class="chip active" role="tab" aria-selected="true" data-cat="all" onclick="setClassicSettingsCat('all')">All</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="general" onclick="setClassicSettingsCat('general')">General</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="appearance" onclick="setClassicSettingsCat('appearance')">Appearance</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="workspace" onclick="setClassicSettingsCat('workspace')">Workspace</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="navigation" onclick="setClassicSettingsCat('navigation')">Navigation</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="accessibility" onclick="setClassicSettingsCat('accessibility')">Accessibility</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="notifications" onclick="setClassicSettingsCat('notifications')">Notifications</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="shortcuts" onclick="setClassicSettingsCat('shortcuts')">Shortcuts</button>
+          <button type="button" class="chip" role="tab" aria-selected="false" data-cat="data" onclick="setClassicSettingsCat('data')">Data &amp; Privacy</button>
+        </div>
+        <div class="empty-state" id="classic-settings-empty" hidden>No matching settings found. Clear the filter or choose All.</div>
+      </div>
+
+      <div class="profile-section ps-flat" id="profile-name-section" data-settings-cat="general" data-settings-keywords="display name account profile">
         <label>Display name
           <input type="text" id="profile-name-input" class="modal-input" maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')saveDisplayName()" oninput="syncNameSave()">
         </label>
@@ -734,14 +823,42 @@
         </div>
       </div>
 
-      <div class="profile-section ps-flat ps-setup" id="profile-setup-section">
+      <div class="profile-section ps-flat ps-setup" id="profile-setup-section" data-settings-cat="general workspace" data-settings-keywords="goal quickstart setup preset">
         <div class="profile-row">
           <div class="ps-setup-text"><span class="ps-title">Your setup</span><span class="ps-sum" id="profile-goal-text"></span></div>
           <button type="button" class="btn-sm" onclick="openQuickStart('rerun')">Change…</button>
         </div>
       </div>
 
-      <details class="profile-section ps-fold" id="profile-appearance">
+      <section class="profile-section settings-panel-card" id="classic-settings-general" data-settings-cat="general" data-settings-keywords="general landing default view startup resume focus mode">
+        <div class="settings-sec-head"><span class="ps-title">General</span><span class="ps-sum">Landing page and startup behavior</span></div>
+        <div class="ps-body">
+          <div class="profile-row">
+            <label class="inline-label">Default landing view
+              <select id="classic-pref-landing" class="select-inline" onchange="updateClassicGeneralPref('landingView', this.value)">
+                <option value="dashboard">Home</option>
+                <option value="kanban">Tasks</option>
+                <option value="focus">Focus Timer</option>
+                <option value="habits">Habits</option>
+                <option value="notes">Notes</option>
+                <option value="analytics">Insights</option>
+                <option value="ai">NexAI</option>
+              </select>
+            </label>
+          </div>
+          <div class="profile-row">
+            <label class="inline-label">On startup
+              <select id="classic-pref-startup" class="select-inline" onchange="updateClassicGeneralPref('startupBehavior', this.value)">
+                <option value="landing">Open default landing view</option>
+                <option value="last">Resume last visited section</option>
+              </select>
+            </label>
+          </div>
+          <label class="switch-row"><input type="checkbox" id="classic-pref-autozen" onchange="updateClassicFocusModePref(this.checked)"><span>Automatically enter Focus Mode when timer starts</span></label>
+        </div>
+      </section>
+
+      <details class="profile-section ps-fold" id="profile-appearance" data-settings-cat="appearance" data-settings-keywords="theme light dark soft glass design accent density text scale preview">
         <summary><span class="ps-title">Appearance</span><span class="ps-sum" id="ps-sum-look"></span></summary>
         <div class="ps-body">
           <p class="profile-help desk-only">Pick the look you prefer. NexOS can use a soft, rounded design or a glass design.</p>
@@ -755,7 +872,7 @@
               <span class="design-name">Glass</span><span class="design-sub">Liquid glass, soft and translucent</span>
             </button>
           </div>
-          <p class="profile-help mob-only">Google is rounded and tonal. Apple is soft and translucent.</p>
+          <p class="profile-help mob-only">Soft is rounded and tonal. Glass is soft and translucent.</p>
           <div class="seg seg-wide mob-only" role="group" aria-label="Design">
             <button type="button" class="seg-btn" data-design-pick="google" onclick="NexUI.setDesign('google')" aria-pressed="false">Soft</button>
             <button type="button" class="seg-btn" data-design-pick="apple" onclick="NexUI.setDesign('apple')" aria-pressed="false">Glass</button>
@@ -765,10 +882,90 @@
             <button type="button" class="seg-btn" data-theme-pick="dark" onclick="NexUI.setTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Dark</button>
             <button type="button" class="seg-btn" data-theme-pick="system" onclick="NexUI.setTheme('system')"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Match device</button>
           </div>
+          <div class="settings-subgrid">
+            <div class="settings-control-group">
+              <span class="settings-label">Interface density</span>
+              <div class="seg seg-wide" id="classic-pref-density" role="group" aria-label="Interface density">
+                <button type="button" class="seg-btn" data-density-opt="compact" onclick="updateClassicAppearancePref('interfaceDensity','compact')">Compact</button>
+                <button type="button" class="seg-btn" data-density-opt="comfortable" onclick="updateClassicAppearancePref('interfaceDensity','comfortable')">Comfortable</button>
+                <button type="button" class="seg-btn" data-density-opt="spacious" onclick="updateClassicAppearancePref('interfaceDensity','spacious')">Spacious</button>
+              </div>
+            </div>
+            <div class="settings-control-group">
+              <span class="settings-label">Accent emphasis</span>
+              <div class="seg seg-wide" id="classic-pref-accent" role="group" aria-label="Accent color">
+                <button type="button" class="seg-btn" data-accent-opt="theme" onclick="updateClassicAppearancePref('accentPreset','theme')">Default</button>
+                <button type="button" class="seg-btn" data-accent-opt="cobalt" onclick="updateClassicAppearancePref('accentPreset','cobalt')">Cobalt</button>
+                <button type="button" class="seg-btn" data-accent-opt="emerald" onclick="updateClassicAppearancePref('accentPreset','emerald')">Emerald</button>
+                <button type="button" class="seg-btn" data-accent-opt="violet" onclick="updateClassicAppearancePref('accentPreset','violet')">Violet</button>
+                <button type="button" class="seg-btn" data-accent-opt="amber" onclick="updateClassicAppearancePref('accentPreset','amber')">Amber</button>
+              </div>
+            </div>
+          </div>
+          <div class="settings-preview-box" aria-hidden="true">
+            <span class="settings-preview-badge">Live preview</span>
+            <strong>Sample priority card</strong>
+            <span>Density, accent &amp; typography scale update immediately.</span>
+          </div>
         </div>
       </details>
 
-      <details class="profile-section ps-fold" id="profile-experience">
+      <section class="profile-section settings-panel-card" id="classic-settings-workspace" data-settings-cat="workspace" data-settings-keywords="workspace preset profile dashboard widgets order size hide show reset">
+        <div class="settings-sec-head"><span class="ps-title">Workspace &amp; Dashboard</span><span class="ps-sum" id="ps-sum-workspace">Presets and dashboard layout</span></div>
+        <div class="ps-body">
+          <div class="preset-grid" id="classic-settings-presets">
+            <button type="button" class="preset-card" data-preset-card="balanced" onclick="applyClassicPreset('balanced')"><strong>Balanced</strong><span>All widgets · Comfortable spacing</span></button>
+            <button type="button" class="preset-card" data-preset-card="deep-work" onclick="applyClassicPreset('deep-work')"><strong>Deep Work</strong><span>Focus first · Compact sidebar</span></button>
+            <button type="button" class="preset-card" data-preset-card="study" onclick="applyClassicPreset('study')"><strong>Study</strong><span>Focus, Notes &amp; Study pinned</span></button>
+            <button type="button" class="preset-card" data-preset-card="minimal" onclick="applyClassicPreset('minimal')"><strong>Minimal</strong><span>Tasks &amp; Notes · Quiet chrome</span></button>
+          </div>
+          <label class="switch-row"><input type="checkbox" id="classic-pref-minimal-chrome" onchange="updateClassicWorkspacePref('minimalChrome', this.checked)"><span>Minimal dashboard chrome (hide insight banner)</span></label>
+          <div class="settings-list-box" id="classic-settings-widgets-list" aria-label="Dashboard widget configuration"></div>
+          <div class="profile-row">
+            <button type="button" class="btn-sm" onclick="resetClassicDashLayout()">Reset dashboard layout</button>
+            <button type="button" class="btn-sm" onclick="restoreClassicWorkspaceDefaults()">Restore workspace defaults</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="profile-section settings-panel-card" id="classic-settings-navigation" data-settings-cat="navigation" data-settings-keywords="navigation sidebar compact collapse pin reorder mobile bottom nav recent">
+        <div class="settings-sec-head"><span class="ps-title">Navigation &amp; Mobile Bar</span><span class="ps-sum">Sidebar mode, pins, groups, mobile slots</span></div>
+        <div class="ps-body">
+          <div class="seg seg-wide" role="group" aria-label="Sidebar mode">
+            <button type="button" class="seg-btn" id="classic-sb-mode-expanded" onclick="setClassicSidebarMode('expanded')">Expanded sidebar</button>
+            <button type="button" class="seg-btn" id="classic-sb-mode-compact" onclick="setClassicSidebarMode('compact')">Compact rail</button>
+          </div>
+          <div class="settings-list-box" id="classic-settings-nav-list" aria-label="Sidebar items"></div>
+          <div class="settings-control-group">
+            <span class="settings-label">Mobile bottom bar (4 primary tabs + More)</span>
+            <div class="mobile-slots-grid" id="classic-mobile-slots"></div>
+          </div>
+          <div class="profile-row">
+            <button type="button" class="btn-sm" onclick="resetClassicNavigation()">Reset navigation</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="profile-section settings-panel-card" id="classic-settings-a11y" data-settings-cat="accessibility" data-settings-keywords="accessibility text scale font size contrast focus ring reduced motion keyboard">
+        <div class="settings-sec-head"><span class="ps-title">Accessibility</span><span class="ps-sum">Scale, contrast, focus visibility, motion</span></div>
+        <div class="ps-body">
+          <div class="settings-control-group">
+            <span class="settings-label">Typography scale</span>
+            <div class="seg seg-wide" role="group" aria-label="Text scale">
+              <button type="button" class="seg-btn" data-scale-opt="90" onclick="updateClassicAppearancePref('textScale',90)">90%</button>
+              <button type="button" class="seg-btn" data-scale-opt="100" onclick="updateClassicAppearancePref('textScale',100)">100%</button>
+              <button type="button" class="seg-btn" data-scale-opt="110" onclick="updateClassicAppearancePref('textScale',110)">110%</button>
+              <button type="button" class="seg-btn" data-scale-opt="120" onclick="updateClassicAppearancePref('textScale',120)">120%</button>
+            </div>
+          </div>
+          <label class="switch-row"><input type="checkbox" id="classic-pref-reduced-motion" onchange="updateClassicAppearancePref('reducedMotion', this.checked)"><span>Reduce animations and transitions</span></label>
+          <label class="switch-row"><input type="checkbox" id="classic-pref-high-contrast" onchange="updateClassicAppearancePref('highContrast', this.checked)"><span>High-contrast borders and muted labels</span></label>
+          <label class="switch-row"><input type="checkbox" id="classic-pref-strong-focus" onchange="updateClassicAccessibilityPref('focusHighlight', this.checked ? 'strong' : 'standard')"><span>Enhanced keyboard focus outlines</span></label>
+          <div class="profile-row"><button type="button" class="btn-sm" onclick="NexUI.openShortcuts()">Open keyboard shortcuts guide</button></div>
+        </div>
+      </section>
+
+      <details class="profile-section ps-fold" id="profile-experience" data-settings-cat="general" data-settings-keywords="experience classic enterprise mode switch">
         <summary><span class="ps-title">Experience</span><span class="ps-sum">Classic</span></summary>
         <div class="ps-body">
           <p class="profile-help">Classic is the simple version. Enterprise adds a calendar, a focus studio and more. Both use the same account and data.</p>
@@ -779,7 +976,7 @@
         </div>
       </details>
 
-      <details class="profile-section ps-fold" id="profile-reminders-section">
+      <details class="profile-section ps-fold" id="profile-reminders-section" data-settings-cat="notifications" data-settings-keywords="notifications reminders push timezone schedule">
         <summary><span class="ps-title">Reminders</span><span class="ps-sum" id="ps-sum-reminders"></span></summary>
         <div class="ps-body">
           <label class="switch-row"><input id="task-reminders-enabled" type="checkbox" checked aria-label="Enable task reminders"><span>Remind me about due tasks</span></label>
@@ -789,15 +986,29 @@
               <label class="inline-label">Daily at <input id="task-reminder-time" type="time" value="09:00" aria-label="Daily task reminder time"></label>
               <button type="button" id="save-reminder-time" class="btn-outline" onclick="saveTaskReminderTime()">Save time</button>
             </div>
+            <p class="profile-help" id="classic-push-status-text">Checking browser notification permission…</p>
             <button type="button" class="btn-sm" onclick="enableNotifications()"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>Allow browser notifications</button>
           </div>
         </div>
       </details>
 
-      <details class="profile-section ps-fold" id="profile-data-section">
+      <section class="profile-section settings-panel-card" id="classic-settings-shortcuts" data-settings-cat="shortcuts" data-settings-keywords="keyboard shortcuts keys ctrl k alt f save">
+        <div class="settings-sec-head"><span class="ps-title">Keyboard Shortcuts</span><span class="ps-sum">Quick navigation and focus</span></div>
+        <div class="ps-body shortcut-list">
+          <div><span>Open Global Command Center</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
+          <div><span>Switch views (Home – NexAI)</span><span><kbd>Alt</kbd> <kbd>1</kbd>–<kbd>7</kbd></span></div>
+          <div><span>Toggle Distraction-Free Focus Mode</span><span><kbd>Alt</kbd> <kbd>F</kbd></span></div>
+          <div><span>Save open note</span><span><kbd>Ctrl</kbd> <kbd>S</kbd></span></div>
+          <div><span>Close overlay or exit Focus Mode</span><span><kbd>Esc</kbd></span></div>
+          <div><span>Show shortcut dialog</span><span><kbd>?</kbd></span></div>
+        </div>
+      </section>
+
+      <details class="profile-section ps-fold" id="profile-data-section" data-settings-cat="data" data-settings-keywords="data privacy export backup restore deleted reset preferences">
         <summary><span class="ps-title">Your data</span><span class="ps-sum">Download, restore, deleted items</span></summary>
         <div class="ps-body">
           <p class="profile-help" id="profile-data-help"></p>
+          <p class="profile-help">Workspace preferences save immediately in this browser and sync inside your authenticated workspace state when signed in.</p>
           <div class="profile-row">
             <span class="profile-msg" id="profile-download-msg"></span>
             <span class="btn-pair">
@@ -809,11 +1020,15 @@
             <span class="profile-help">Deleted something by mistake? Kept for 30 days.</span>
             <a class="btn-sm" href="/recover.html" onclick="return openRecentlyDeleted(event)">Recently deleted…</a>
           </div>
+          <div class="profile-row">
+            <span class="profile-help">Reset layout, theme scale &amp; sidebar preferences without deleting tasks, habits, or notes.</span>
+            <button type="button" class="btn-outline" onclick="resetAllClassicPreferences()">Reset preferences</button>
+          </div>
           <input type="file" id="import-file-input" accept=".json,application/json" style="display:none" onchange="importData(event)">
         </div>
       </details>
 
-      <details class="profile-section ps-fold" id="profile-about-section">
+      <details class="profile-section ps-fold" id="profile-about-section" data-settings-cat="general" data-settings-keywords="about contact creator">
         <summary><span class="ps-title">About NexOS</span><span class="ps-sum">Creator, support and links</span></summary>
         <div class="ps-body">
           <p class="profile-help">NexOS and NexAI are independently created by Abhay Yadav. Find the official creator profile, project links and ways to get in touch.</p>
@@ -821,7 +1036,7 @@
         </div>
       </details>
 
-      <details class="profile-section profile-danger ps-fold" id="profile-guest-section">
+      <details class="profile-section profile-danger ps-fold" id="profile-guest-section" data-settings-cat="data" data-settings-keywords="guest clear browser data">
         <summary><span class="ps-title">Guest data</span></summary>
         <div class="ps-body">
           <p class="profile-help">Removes everything NexOS saved in this browser for guest mode: tasks, habits, notes and focus history. Download your data first if you want to keep it.</p>
@@ -829,7 +1044,7 @@
         </div>
       </details>
 
-      <details class="profile-section profile-danger ps-fold" id="profile-delete-section">
+      <details class="profile-section profile-danger ps-fold" id="profile-delete-section" data-settings-cat="data" data-settings-keywords="delete account permanent">
         <summary><span class="ps-title">Delete account data</span></summary>
         <div class="ps-body">
           <p class="profile-help">Permanently deletes your tasks, habits, notes, focus history, NexAI chats and reminder subscriptions. This cannot be undone. Your Google name, email and photo record stays on the server so you can sign in again; ask the site owner if you want it removed too. Type DELETE to confirm.</p>
@@ -852,8 +1067,9 @@
     <div class="modal-body shortcut-list">
       <div><span>Search and commands</span><span><kbd>Ctrl</kbd> <kbd>K</kbd></span></div>
       <div><span>Go to Home, Tasks, Focus, Habits, Notes, Insights, NexAI</span><span><kbd>Alt</kbd> <kbd>1</kbd>–<kbd>7</kbd></span></div>
+      <div><span>Toggle distraction-free Focus Mode</span><span><kbd>Alt</kbd> <kbd>F</kbd></span></div>
       <div><span>Save the open note</span><span><kbd>Ctrl</kbd> <kbd>S</kbd></span></div>
-      <div><span>Close a dialog or menu</span><span><kbd>Esc</kbd></span></div>
+      <div><span>Close a dialog or exit Focus Mode</span><span><kbd>Esc</kbd></span></div>
       <div><span>Show this list</span><span><kbd>?</kbd></span></div>
     </div>
   </div>
@@ -902,6 +1118,7 @@
 <script src="habits.js?v=4.8.0" defer></script>
 <script src="derail.js?v=4.8.0" defer></script>
 <script src="study.js?v=4.8.0" defer></script>
+<script src="adaptive.js?v=4.8.0" defer></script>
 <script src="app.js?v=4.8.0" defer></script>
 <script src="ui.js?v=4.8.0" defer></script>
 </body>

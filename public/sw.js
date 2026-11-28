@@ -5,6 +5,7 @@ const PRECACHE_URLS = [
   '/style.css?v=4.8.0',
   '/design.css?v=4.8.0',
   '/push-client.js?v=4.8.0',
+  '/adaptive.js?v=4.8.0',
   '/attach.js?v=4.8.0',
   '/chat-tasks.js?v=4.8.0',
   '/habits.js?v=4.8.0',

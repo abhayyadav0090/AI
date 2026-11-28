@@ -154,7 +154,7 @@ function normalizeState(saved, replace = false) {
     tasks: [], habits: [], notes: [], pomodoroLog: [], trash: [],
     pomodoroStats: { totalToday: 0, sessionsToday: 0, longestStreak: 0, lastDate: '' },
     dailyPlan: null, dueNotificationsSeen: {}, theme: 'system', design: 'google', currentNoteId: null,
-    seeded: false, hideGuide: false, usedAI: false, profile: null
+    seeded: false, hideGuide: false, usedAI: false, profile: null, adaptivePrefs: null
   };
   const incoming = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
   const next = { ...defaults, ...(replace ? {} : state), ...incoming };
@@ -203,6 +203,9 @@ function normalizeState(saved, replace = false) {
   next.hideGuide = !!next.hideGuide;
   next.usedAI = !!next.usedAI;
   next.profile = sanitizeProfile(next.profile);
+  next.adaptivePrefs = (typeof NexAdaptive !== 'undefined' && NexAdaptive.sanitizePrefs)
+    ? NexAdaptive.sanitizePrefs(next.adaptivePrefs, next.profile && next.profile.goal === 'study' ? 'study' : undefined)
+    : (next.adaptivePrefs && typeof next.adaptivePrefs === 'object' && !Array.isArray(next.adaptivePrefs) ? next.adaptivePrefs : null);
   next.currentNoteId = next.notes.some(n => n.id === next.currentNoteId) ? next.currentNoteId : (next.notes[0]?.id || null);
   if (next.dailyPlan && typeof next.dailyPlan === 'object') {
     const allIds = { task: new Set(next.tasks.map(t => t.id)), habit: new Set(next.habits.map(h => h.id)) };
@@ -345,6 +348,12 @@ function mergeClassicWorkspace(remoteRoot, localRoot, baseCanon) {
       merged.profile = r.profile || l.profile || null;
       merged.seeded = Boolean(r.seeded || l.seeded);
     }
+  }
+  const rAp = r.adaptivePrefs && typeof r.adaptivePrefs === 'object' ? r.adaptivePrefs : null;
+  const lAp = l.adaptivePrefs && typeof l.adaptivePrefs === 'object' ? l.adaptivePrefs : null;
+  if (rAp || lAp) {
+    const winner = (Number(lAp?.updatedAt) || 0) > (Number(rAp?.updatedAt) || 0) ? lAp : (rAp || lAp);
+    merged.adaptivePrefs = (typeof NexAdaptive !== 'undefined' && NexAdaptive.sanitizePrefs) ? NexAdaptive.sanitizePrefs(winner) : winner;
   }
   merged.tasks = mergeRecordsById(remote.tasks, local.tasks, base.tasks);
   merged.habits = mergeRecordsById(remote.habits, local.habits, base.habits);
@@ -934,6 +943,7 @@ async function startApp(user, options = {}) {
     renderAnalytics();
     renderPomTimer();
     renderPomoStats();
+    if (typeof applyClassicAdaptiveOnBoot === 'function') applyClassicAdaptiveOnBoot(options);
     updateContextPanel();
     updateNotifButtonUI();
   }
@@ -5042,4 +5052,811 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') closeNexAIActionMode();
+});
+
+// ═══════════════════════════ PROJECT ADAPTIVE 4.9.0 (CLASSIC) ═══════════════════════════
+let classicDashCustomizing = false;
+let classicActiveSettingsCat = 'all';
+let classicSearchDebounceTimer = null;
+let classicSearchOpener = null;
+let classicStudyDocsCache = null;
+let classicStudyDocsLoading = false;
+let classicPreFocusView = 'dashboard';
+let classicDraggedWidget = null;
+
+const CLASSIC_VIEW_META = {
+  dashboard: { label: 'Home', icon: 'home', classicView: 'dashboard', group: 'workspace' },
+  kanban: { label: 'Tasks', icon: 'board', classicView: 'kanban', group: 'workspace' },
+  focus: { label: 'Focus', icon: 'timer', classicView: 'pomodoro', group: 'growth' },
+  habits: { label: 'Habits', icon: 'check', classicView: 'habits', group: 'growth' },
+  notes: { label: 'Notes', icon: 'note', classicView: 'notes', group: 'workspace' },
+  analytics: { label: 'Insights', icon: 'chart', classicView: 'analytics', group: 'growth' },
+  study: { label: 'Study Studio', icon: 'book', classicView: 'study', group: 'growth' },
+  ai: { label: 'NexAI', icon: 'sparkle', classicView: 'ai', group: 'growth' },
+};
+const CLASSIC_WIDGET_NAMES = { tasks: 'Today’s priorities', pomodoro: 'Focus timer', habits: 'Habit streaks', notes: 'Recent notes' };
+
+function classicAdaptiveIdentity() {
+  if (!currentUser || currentUser.guest) return '';
+  return currentUser.email || currentUser._id || currentUser.id || '';
+}
+
+function getClassicAdaptivePrefs() {
+  if (typeof NexAdaptive === 'undefined') return null;
+  if (!state.adaptivePrefs || typeof state.adaptivePrefs !== 'object') {
+    const dev = NexAdaptive.readDevicePrefs(classicAdaptiveIdentity());
+    const fallbackGoal = state.profile && state.profile.goal === 'study' ? 'study' : 'balanced';
+    state.adaptivePrefs = dev ? NexAdaptive.sanitizePrefs(dev, fallbackGoal) : NexAdaptive.buildDefaults(fallbackGoal);
+  } else {
+    state.adaptivePrefs = NexAdaptive.sanitizePrefs(state.adaptivePrefs);
+  }
+  return state.adaptivePrefs;
+}
+
+function updateClassicSettingsSaveBadge(text) {
+  const el = document.getElementById('classic-settings-save-status');
+  if (el) el.textContent = text;
+}
+
+function commitClassicAdaptivePrefs(nextPrefs, opts = {}) {
+  if (typeof NexAdaptive === 'undefined') return;
+  const clean = NexAdaptive.sanitizePrefs(nextPrefs);
+  if (!opts.preserveTimestamp) clean.updatedAt = Date.now();
+  state.adaptivePrefs = clean;
+  NexAdaptive.writeDevicePrefs(classicAdaptiveIdentity(), clean);
+  NexAdaptive.applyDocumentTokens(clean, 'classic');
+  applyClassicAdaptiveVisuals();
+  if (!opts.skipSave && stateLoadedOk) {
+    updateClassicSettingsSaveBadge(isGuest() ? 'Saved locally' : 'Saving…');
+    saveState();
+  } else {
+    updateClassicSettingsSaveBadge(isGuest() ? 'Saved locally' : 'Saved');
+  }
+}
+
+function applyClassicAdaptiveOnBoot(options) {
+  if (typeof NexAdaptive === 'undefined') return;
+  const id = classicAdaptiveIdentity();
+  const deviceCopy = NexAdaptive.readDevicePrefs(id);
+  const current = getClassicAdaptivePrefs();
+  if (deviceCopy && Number(deviceCopy.updatedAt || 0) > Number(current.updatedAt || 0)) {
+    state.adaptivePrefs = deviceCopy;
+    if (stateLoadedOk && !isGuest()) saveState();
+  } else {
+    NexAdaptive.writeDevicePrefs(id, state.adaptivePrefs);
+  }
+  NexAdaptive.applyDocumentTokens(state.adaptivePrefs, 'classic');
+  const p = NexAdaptive.PRESETS[state.adaptivePrefs.profileId];
+  if (p && state.adaptivePrefs.updatedAt > 0 && !pomState.running) {
+    const put = (elId, v) => { const el = document.getElementById(elId); if (el && Number(el.value) !== v) el.value = v; };
+    put('focus-duration', p.timer.focus); put('short-duration', p.timer.short); put('long-duration', p.timer.long);
+    updateDurations();
+  }
+  applyClassicAdaptiveVisuals();
+  const calStudy = new URLSearchParams(location.search).get('study');
+  if (!calStudy && !(options && options.optimisticPainted)) {
+    const gen = state.adaptivePrefs.general;
+    let targetView = 'dashboard';
+    if (gen.startupBehavior === 'last') {
+      try {
+        const last = localStorage.getItem('nexos_classic_last_view_v1');
+        if (last && document.getElementById('view-' + last)) targetView = last;
+      } catch (_) {}
+    } else if (gen.landingView && gen.landingView !== 'dashboard') {
+      targetView = NexAdaptive.toClassicViewId(gen.landingView);
+    }
+    if (targetView && targetView !== 'dashboard' && document.getElementById('view-' + targetView)) {
+      switchView(targetView);
+    }
+  }
+}
+
+function applyClassicAdaptiveVisuals() {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  const pill = document.getElementById('classic-preset-pill');
+  if (pill) pill.textContent = (NexAdaptive.PRESETS[ap.profileId]?.label || 'Custom').replace(' Workspace', '');
+  document.querySelectorAll('#classic-dash-presets .dash-preset-btn').forEach(b => {
+    const on = b.dataset.preset === ap.profileId;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  const resetBtn = document.getElementById('classic-reset-dash-btn');
+  if (resetBtn) resetBtn.hidden = !(ap.workspace.hiddenWidgets.length || ap.profileId === 'custom' || Object.values(ap.workspace.widgetSizes).some(s => s !== 'normal'));
+  const sbBtn = document.getElementById('classic-sidebar-collapse');
+  if (sbBtn) sbBtn.setAttribute('aria-pressed', String(ap.navigation.sidebarMode === 'compact'));
+  applyHomeOrder();
+  renderClassicWidgetCustomizeStrips();
+  applyClassicSidebarPrefs();
+  renderClassicMobileNav();
+  renderClassicFocusHud();
+  if (document.getElementById('profile-modal')?.classList.contains('is-open')) renderClassicSettingsControls();
+}
+
+function applyClassicPreset(presetId) {
+  if (typeof NexAdaptive === 'undefined') return;
+  const next = NexAdaptive.applyPreset(presetId, getClassicAdaptivePrefs());
+  const p = NexAdaptive.PRESETS[presetId];
+  if (p && !pomState.running) {
+    const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    put('focus-duration', p.timer.focus); put('short-duration', p.timer.short); put('long-duration', p.timer.long);
+    updateDurations();
+  }
+  commitClassicAdaptivePrefs(next);
+  notify((p ? p.label : 'Workspace preset') + ' applied.');
+}
+
+function restoreClassicWorkspaceDefaults() {
+  if (typeof NexAdaptive === 'undefined') return;
+  const next = NexAdaptive.restoreDefaults();
+  if (!pomState.running) {
+    const put = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    put('focus-duration', 25); put('short-duration', 5); put('long-duration', 15);
+    updateDurations();
+  }
+  commitClassicAdaptivePrefs(next);
+  notify('Workspace restored to balanced defaults.');
+}
+
+function resetClassicDashLayout() {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  classicDashCustomizing = false;
+  document.body.classList.remove('dash-customizing');
+  const btn = document.getElementById('classic-customize-dash-btn');
+  if (btn) btn.setAttribute('aria-pressed', 'false');
+  commitClassicAdaptivePrefs(NexAdaptive.resetDashboardLayout(ap));
+  notify('Dashboard layout reset.');
+}
+
+function toggleClassicDashCustomize() {
+  classicDashCustomizing = !classicDashCustomizing;
+  document.body.classList.toggle('dash-customizing', classicDashCustomizing);
+  const btn = document.getElementById('classic-customize-dash-btn');
+  if (btn) btn.setAttribute('aria-pressed', String(classicDashCustomizing));
+  renderClassicWidgetCustomizeStrips();
+}
+
+function renderClassicWidgetCustomizeStrips() {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  document.querySelectorAll('#classic-dashboard-widgets .widget[data-widget]').forEach(w => {
+    const id = w.dataset.widget;
+    let strip = w.querySelector('.widget-customize-strip');
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.className = 'widget-customize-strip';
+      w.insertBefore(strip, w.firstChild);
+    }
+    w.draggable = classicDashCustomizing;
+    if (w.dataset.nxDndBound !== '1') {
+      w.dataset.nxDndBound = '1';
+      w.addEventListener('dragstart', e => {
+        if (!classicDashCustomizing) { e.preventDefault(); return; }
+        classicDraggedWidget = id;
+        w.classList.add('widget-is-dragging');
+        if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); }
+      });
+      w.addEventListener('dragover', e => {
+        if (!classicDashCustomizing || !classicDraggedWidget || classicDraggedWidget === id) return;
+        e.preventDefault();
+        w.classList.add('widget-drop-target');
+      });
+      w.addEventListener('dragleave', () => w.classList.remove('widget-drop-target'));
+      w.addEventListener('drop', e => {
+        if (!classicDashCustomizing || !classicDraggedWidget || classicDraggedWidget === id) return;
+        e.preventDefault();
+        w.classList.remove('widget-drop-target');
+        const fromId = classicDraggedWidget;
+        classicDraggedWidget = null;
+        commitClassicAdaptivePrefs(NexAdaptive.reorderWidgetTo(getClassicAdaptivePrefs(), fromId, id));
+      });
+      w.addEventListener('dragend', () => {
+        classicDraggedWidget = null;
+        document.querySelectorAll('#classic-dashboard-widgets .widget').forEach(el => el.classList.remove('widget-is-dragging', 'widget-drop-target'));
+      });
+    }
+    if (!classicDashCustomizing) return;
+    const size = ap.workspace.widgetSizes[id] || 'normal';
+    const orderIdx = ap.workspace.widgets.indexOf(id);
+    strip.innerHTML = `
+      <span>⋮⋮ ${escHtml(CLASSIC_WIDGET_NAMES[id] || id)}</span>
+      <span class="widget-ctrl-group">
+        <button type="button" class="btn-sm" onclick="moveClassicWidget('${id}',-1)" ${orderIdx <= 0 ? 'disabled' : ''} aria-label="Move ${escHtml(CLASSIC_WIDGET_NAMES[id] || id)} up" title="Move up">↑</button>
+        <button type="button" class="btn-sm" onclick="moveClassicWidget('${id}',1)" ${orderIdx >= ap.workspace.widgets.length - 1 ? 'disabled' : ''} aria-label="Move ${escHtml(CLASSIC_WIDGET_NAMES[id] || id)} down" title="Move down">↓</button>
+        <select class="select-inline" style="height:32px;padding:0 8px;font-size:12px" aria-label="${escHtml(CLASSIC_WIDGET_NAMES[id] || id)} size" onchange="setClassicWidgetSize('${id}', this.value)">
+          <option value="normal" ${size === 'normal' ? 'selected' : ''}>Standard</option>
+          <option value="compact" ${size === 'compact' ? 'selected' : ''}>Compact</option>
+          <option value="wide" ${size === 'wide' ? 'selected' : ''}>Wide</option>
+        </select>
+        <button type="button" class="btn-sm" onclick="toggleClassicWidgetVisibility('${id}', true)" aria-label="Hide ${escHtml(CLASSIC_WIDGET_NAMES[id] || id)}">Hide</button>
+      </span>`;
+  });
+}
+
+function moveClassicWidget(id, delta) { commitClassicAdaptivePrefs(NexAdaptive.moveWidget(getClassicAdaptivePrefs(), id, delta)); }
+function toggleClassicWidgetVisibility(id, forceHidden) { commitClassicAdaptivePrefs(NexAdaptive.toggleWidgetHidden(getClassicAdaptivePrefs(), id, forceHidden)); }
+function setClassicWidgetSize(id, size) { commitClassicAdaptivePrefs(NexAdaptive.setWidgetSize(getClassicAdaptivePrefs(), id, size)); }
+
+const _origApplyHomeOrderClassic = applyHomeOrder;
+applyHomeOrder = function () {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap || ap.updatedAt === 0) {
+    _origApplyHomeOrderClassic();
+    document.querySelectorAll('#classic-dashboard-widgets .widget').forEach(el => {
+      delete el.dataset.widgetHidden;
+      el.dataset.widgetSize = 'normal';
+    });
+    const hb = document.getElementById('classic-dash-hidden-banner');
+    if (hb) hb.hidden = true;
+    return;
+  }
+  let visibleCount = 0;
+  ap.workspace.widgets.forEach((key, idx) => {
+    const el = document.querySelector('#classic-dashboard-widgets .widget[data-widget="' + key + '"]') || document.querySelector('.dashboard-widgets .widget-' + key);
+    if (!el) return;
+    const isHidden = ap.workspace.hiddenWidgets.includes(key);
+    el.style.order = String(idx);
+    el.dataset.widgetHidden = isHidden ? '1' : '0';
+    el.dataset.widgetSize = ap.workspace.widgetSizes[key] || 'normal';
+    if (!isHidden) visibleCount++;
+  });
+  const hb = document.getElementById('classic-dash-hidden-banner');
+  if (hb) hb.hidden = visibleCount > 0;
+};
+
+const _origRenderDashboardClassic = renderDashboard;
+renderDashboard = function () {
+  _origRenderDashboardClassic();
+  renderClassicWidgetCustomizeStrips();
+};
+
+// Sidebar & Mobile Nav Personalization
+function toggleClassicSidebarCompact() {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  const nextMode = ap.navigation.sidebarMode === 'compact' ? 'expanded' : 'compact';
+  setClassicSidebarMode(nextMode);
+}
+
+function setClassicSidebarMode(mode) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, navigation: { ...ap.navigation, sidebarMode: mode === 'compact' ? 'compact' : 'expanded' } });
+}
+
+function applyClassicSidebarPrefs() {
+  const ap = getClassicAdaptivePrefs();
+  const nav = document.getElementById('classic-sidebar-nav');
+  if (!ap || !nav) return;
+
+  // Ensure group toggle headers exist cleanly without disturbing static button markup
+  let grpWs = document.getElementById('classic-grp-workspace');
+  let grpGr = document.getElementById('classic-grp-growth');
+  if (!grpWs) {
+    grpWs = document.createElement('button');
+    grpWs.type = 'button'; grpWs.id = 'classic-grp-workspace'; grpWs.className = 'nav-group-toggle';
+    grpWs.onclick = () => commitClassicAdaptivePrefs(NexAdaptive.toggleGroup(getClassicAdaptivePrefs(), 'workspace'));
+    nav.prepend(grpWs);
+  }
+  if (!grpGr) {
+    grpGr = document.createElement('button');
+    grpGr.type = 'button'; grpGr.id = 'classic-grp-growth'; grpGr.className = 'nav-group-toggle';
+    grpGr.onclick = () => commitClassicAdaptivePrefs(NexAdaptive.toggleGroup(getClassicAdaptivePrefs(), 'growth'));
+    nav.insertBefore(grpGr, document.getElementById('nav-profile'));
+  }
+  const wsCollapsed = ap.navigation.collapsedGroups.includes('workspace');
+  const grCollapsed = ap.navigation.collapsedGroups.includes('growth');
+  grpWs.textContent = `Workspace ${wsCollapsed ? '▸' : '▾'}`;
+  grpWs.setAttribute('aria-expanded', String(!wsCollapsed));
+  grpWs.style.order = '1';
+  grpGr.textContent = `Focus & Growth ${grCollapsed ? '▸' : '▾'}`;
+  grpGr.setAttribute('aria-expanded', String(!grCollapsed));
+  grpGr.style.order = '20';
+
+  nav.querySelectorAll('.nav-item').forEach(btn => {
+    const rawView = btn.dataset.view || '';
+    if (btn.id === 'nav-profile') { btn.style.order = '99'; return; }
+    const canon = NexAdaptive.canonicalViewId(rawView);
+    const orderIdx = ap.navigation.order.indexOf(canon);
+    const grp = (CLASSIC_VIEW_META[canon] && CLASSIC_VIEW_META[canon].group) || 'workspace';
+    const isHidden = ap.navigation.hidden.includes(canon);
+    const isCollapsed = (grp === 'workspace' && wsCollapsed) || (grp === 'growth' && grCollapsed);
+    btn.dataset.navHidden = isHidden ? '1' : '0';
+    btn.dataset.navCollapsed = isCollapsed ? '1' : '0';
+    btn.style.order = String((grp === 'growth' ? 21 : 2) + (orderIdx >= 0 ? orderIdx : 0));
+  });
+  const spacer = nav.querySelector('.nav-spacer');
+  if (spacer) spacer.style.order = '90';
+  const recentHost = document.getElementById('classic-nav-recent');
+  if (recentHost) recentHost.style.order = '95';
+
+  // Pinned bar
+  const pinHost = document.getElementById('classic-nav-pinned');
+  const activeCanon = NexAdaptive.canonicalViewId(document.querySelector('.view.active')?.id?.replace('view-', '') || 'dashboard');
+  if (pinHost) {
+    const validPins = ap.navigation.pinned.filter(v => CLASSIC_VIEW_META[v]);
+    const sig = validPins.join(',');
+    if (pinHost.dataset.clsPinSig !== sig) {
+      pinHost.dataset.clsPinSig = sig;
+      pinHost.hidden = !validPins.length;
+      pinHost.innerHTML = validPins.length
+        ? '<div class="sidebar-aux-label">Pinned</div>' + validPins.map(v => {
+          const m = CLASSIC_VIEW_META[v];
+          return `<button type="button" class="sidebar-aux-item" data-cview="${v}" onclick="switchView('${m.classicView}')"><svg class="ic" aria-hidden="true"><use href="#i-${m.icon}"/></svg><span>${m.label}</span></button>`;
+        }).join('')
+        : '';
+    }
+    pinHost.querySelectorAll('.sidebar-aux-item').forEach(btn => btn.classList.toggle('active', btn.dataset.cview === activeCanon));
+  }
+
+  // Recent bar (fixed 3-slot pool avoids DOM churn on view switch)
+  if (recentHost) {
+    const rec = ap.navigation.recent.filter(v => CLASSIC_VIEW_META[v]).slice(0, 3);
+    if (!recentHost.dataset.clsSlotsReady) {
+      recentHost.dataset.clsSlotsReady = '1';
+      recentHost.innerHTML = '<div class="sidebar-aux-label">Recent</div>' + [0, 1, 2].map(() =>
+        '<button type="button" class="sidebar-aux-item" hidden><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span></span></button>'
+      ).join('');
+    }
+    recentHost.hidden = !rec.length;
+    recentHost.querySelectorAll('.sidebar-aux-item').forEach((btn, i) => {
+      const v = rec[i];
+      if (!v) { btn.hidden = true; btn.classList.remove('active'); return; }
+      const m = CLASSIC_VIEW_META[v];
+      btn.hidden = false;
+      btn.classList.toggle('active', activeCanon === v);
+      btn.querySelector('use')?.setAttribute('href', `#i-${m.icon}`);
+      btn.querySelector('span').textContent = m.label;
+      btn.onclick = () => switchView(m.classicView);
+    });
+  }
+}
+
+function renderClassicMobileNav() {
+  const ap = getClassicAdaptivePrefs();
+  const bar = document.getElementById('bottom-nav');
+  if (!ap || !bar) return;
+  const activeRaw = document.querySelector('.view.active')?.id?.replace('view-', '') || (document.body.classList.contains('nexos-study-view-active') ? 'study' : 'dashboard');
+  const slots = ap.navigation.mobilePrimary.filter(v => CLASSIC_VIEW_META[v]).slice(0, 4);
+  const sig = slots.join(',');
+  if (bar.dataset.clsMobSig !== sig) {
+    bar.dataset.clsMobSig = sig;
+    const slotHtml = slots.map(v => {
+      const m = CLASSIC_VIEW_META[v];
+      return `<button type="button" data-bnav="${m.classicView}" onclick="${v === 'study' ? 'openStudyStudio()' : `switchView('${m.classicView}')`}"><svg class="ic" aria-hidden="true"><use href="#i-${m.icon}"/></svg><span>${m.label}</span></button>`;
+    }).join('');
+    bar.innerHTML = slotHtml + '<button type="button" data-bnav="more" onclick="toggleSidebar()" aria-label="More views and settings"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span>More</span></button>';
+  }
+  const inMore = !slots.some(v => CLASSIC_VIEW_META[v].classicView === activeRaw);
+  bar.querySelectorAll('button[data-bnav]').forEach(btn => {
+    const on = btn.dataset.bnav === 'more' ? inMore : btn.dataset.bnav === activeRaw;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-current', on ? 'page' : 'false');
+  });
+}
+
+const _origSwitchViewClassic = switchView;
+switchView = function (name) {
+  _origSwitchViewClassic(name);
+  if (typeof NexAdaptive !== 'undefined' && currentUser) {
+    const canon = NexAdaptive.canonicalViewId(name);
+    const updated = NexAdaptive.recordVisit(getClassicAdaptivePrefs(), canon);
+    if (updated !== state.adaptivePrefs) {
+      state.adaptivePrefs = updated;
+      NexAdaptive.writeDevicePrefs(classicAdaptiveIdentity(), updated);
+    }
+    try { if (name !== 'study') localStorage.setItem('nexos_classic_last_view_v1', name); } catch (_) {}
+  }
+  applyClassicSidebarPrefs();
+  renderClassicMobileNav();
+  renderClassicFocusHud();
+};
+
+const _origApplyThemeClassic = applyTheme;
+applyTheme = function () {
+  _origApplyThemeClassic();
+  if (typeof NexAdaptive !== 'undefined') {
+    NexAdaptive.applyDocumentTokens(getClassicAdaptivePrefs(), 'classic');
+  }
+};
+
+const _origSaveStateClassic = saveState;
+saveState = function () {
+  _origSaveStateClassic();
+  if (!isGuest() && stateLoadedOk) updateClassicSettingsSaveBadge('Saving…');
+};
+
+const _origPerformPushClassic = performPushAttempt;
+performPushAttempt = async function () {
+  const ok = await _origPerformPushClassic();
+  updateClassicSettingsSaveBadge(ok ? 'Saved ✓' : 'Offline · saved locally');
+  return ok;
+};
+
+// Contextual Focus Mode (Classic)
+function toggleClassicFocusMode(force) {
+  const next = typeof force === 'boolean' ? force : !document.body.classList.contains('nexos-focus-mode');
+  if (next) {
+    const cur = document.querySelector('.view.active')?.id?.replace('view-', '') || 'dashboard';
+    classicPreFocusView = cur;
+    closeSidebar();
+    document.body.classList.add('nexos-focus-mode');
+  } else {
+    document.body.classList.remove('nexos-focus-mode');
+    if (classicPreFocusView && document.getElementById('view-' + classicPreFocusView)) {
+      switchView(classicPreFocusView);
+    }
+  }
+  const btn = document.getElementById('classic-focus-mode-btn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', String(next));
+    btn.setAttribute('aria-label', next ? 'Exit Focus Mode' : 'Enter Focus Mode');
+  }
+  renderClassicFocusHud();
+}
+
+function renderClassicFocusHud() {
+  const hud = document.getElementById('classic-focus-hud');
+  if (!hud) return;
+  const active = document.body.classList.contains('nexos-focus-mode');
+  hud.hidden = !active;
+  if (!active) return;
+  const mins = Math.floor(pomState.remaining / 60);
+  const secs = pomState.remaining % 60;
+  const tEl = document.getElementById('classic-focus-hud-timer');
+  if (tEl) tEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const playEl = document.getElementById('classic-focus-hud-play');
+  if (playEl) playEl.textContent = pomState.running ? 'Pause' : 'Start Focus';
+  const task = focusTaskId ? state.tasks.find(t => t.id === focusTaskId) : null;
+  const curNote = state.currentNoteId ? state.notes.find(n => n.id === state.currentNoteId) : null;
+  const ctxEl = document.getElementById('classic-focus-hud-ctx');
+  if (ctxEl) {
+    ctxEl.textContent = task ? `Task: ${task.title}` : (document.body.classList.contains('nexos-study-view-active') ? 'Study Studio Session' : (curNote ? `Note: ${curNote.title}` : 'Deep Work Context'));
+  }
+}
+
+const _origTogglePomodoroClassic = togglePomodoro;
+togglePomodoro = function () {
+  _origTogglePomodoroClassic();
+  const ap = getClassicAdaptivePrefs();
+  if (pomState.running && ap && ap.focusMode.autoZenOnStart && !document.body.classList.contains('nexos-focus-mode')) {
+    toggleClassicFocusMode(true);
+  }
+  renderClassicFocusHud();
+};
+
+const _origRenderPomTimerClassic = renderPomTimer;
+renderPomTimer = function () {
+  _origRenderPomTimerClassic();
+  renderClassicFocusHud();
+};
+
+// Rebuilt Settings Control Center (Classic)
+function setClassicSettingsCat(cat) {
+  classicActiveSettingsCat = cat || 'all';
+  document.querySelectorAll('#classic-settings-cats .chip').forEach(b => {
+    const on = b.dataset.cat === classicActiveSettingsCat;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  filterClassicSettings();
+}
+
+function filterClassicSettings() {
+  const q = (document.getElementById('classic-settings-search')?.value || '').trim().toLowerCase();
+  const cat = classicActiveSettingsCat;
+  const wide = settingsIsWide();
+  let visibleCount = 0;
+  document.querySelectorAll('#profile-modal [data-settings-cat]').forEach(sec => {
+    if (isGuest() && (sec.id === 'profile-name-section' || sec.id === 'profile-delete-section' || sec.id === 'profile-reminders-section')) return;
+    if (!isGuest() && sec.id === 'profile-guest-section') return;
+    const cats = String(sec.dataset.settingsCat || '').split(/\s+/);
+    const catOk = cat === 'all' || cats.includes(cat);
+    const textBlob = `${sec.textContent || ''} ${sec.dataset.settingsKeywords || ''}`.toLowerCase();
+    const searchOk = !q || textBlob.includes(q);
+    const show = q ? searchOk : catOk;
+    sec.hidden = !show;
+    if (show) {
+      visibleCount++;
+      if (sec.tagName === 'DETAILS' && (q || cat !== 'all' || wide)) sec.open = true;
+    }
+  });
+  const empty = document.getElementById('classic-settings-empty');
+  if (empty) empty.hidden = visibleCount > 0;
+}
+
+function updateClassicGeneralPref(key, value) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, general: { ...ap.general, [key]: value } });
+}
+
+function updateClassicFocusModePref(enabled) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, focusMode: { ...ap.focusMode, autoZenOnStart: Boolean(enabled) } });
+}
+
+function updateClassicAppearancePref(key, value) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, appearance: { ...ap.appearance, [key]: value } });
+}
+
+function updateClassicWorkspacePref(key, value) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, profileId: 'custom', workspace: { ...ap.workspace, [key]: value } });
+}
+
+function updateClassicAccessibilityPref(key, value) {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  commitClassicAdaptivePrefs({ ...ap, accessibility: { ...ap.accessibility, [key]: value } });
+}
+
+function resetClassicNavigation() {
+  commitClassicAdaptivePrefs(NexAdaptive.resetNavigation(getClassicAdaptivePrefs()));
+  notify('Navigation preferences reset.');
+}
+
+function resetAllClassicPreferences() {
+  if (!window.confirm('Reset all workspace, navigation, appearance and accessibility preferences to defaults? Your tasks, habits and notes are preserved.')) return;
+  classicDashCustomizing = false;
+  document.body.classList.remove('dash-customizing');
+  if (window.NexUI) { NexUI.setDesign('google'); NexUI.setTheme('system'); }
+  restoreClassicWorkspaceDefaults();
+}
+
+function refreshClassicPushStatus() {
+  const el = document.getElementById('classic-push-status-text');
+  if (!el) return;
+  if (!('Notification' in window)) { el.textContent = 'Browser notifications are not supported on this browser.'; return; }
+  const perm = Notification.permission;
+  const label = perm === 'granted' ? 'Granted (notifications allowed)' : perm === 'denied' ? 'Blocked in browser settings' : 'Not requested yet';
+  el.textContent = 'Browser notification permission: ' + label + (isGuest() ? ' · Sign in to receive background push delivery.' : '.');
+}
+
+function renderClassicSettingsControls() {
+  const ap = getClassicAdaptivePrefs();
+  if (!ap) return;
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = Boolean(v); };
+
+  setVal('classic-pref-landing', ap.general.landingView);
+  setVal('classic-pref-startup', ap.general.startupBehavior);
+  setChk('classic-pref-autozen', ap.focusMode.autoZenOnStart);
+  setChk('classic-pref-minimal-chrome', ap.workspace.minimalChrome);
+  setChk('classic-pref-reduced-motion', ap.appearance.reducedMotion);
+  setChk('classic-pref-high-contrast', ap.appearance.highContrast);
+  setChk('classic-pref-strong-focus', ap.accessibility.focusHighlight === 'strong');
+
+  document.querySelectorAll('[data-density-opt]').forEach(b => {
+    const on = b.dataset.densityOpt === ap.appearance.interfaceDensity;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+  document.querySelectorAll('[data-accent-opt]').forEach(b => {
+    const on = b.dataset.accentOpt === ap.appearance.accentPreset;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+  document.querySelectorAll('[data-scale-opt]').forEach(b => {
+    const on = Number(b.dataset.scaleOpt) === ap.appearance.textScale;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+  document.querySelectorAll('#classic-settings-presets .preset-card').forEach(b => {
+    const on = b.dataset.presetCard === ap.profileId;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+  const expBtn = document.getElementById('classic-sb-mode-expanded');
+  const cmpBtn = document.getElementById('classic-sb-mode-compact');
+  if (expBtn && cmpBtn) {
+    expBtn.classList.toggle('active', ap.navigation.sidebarMode === 'expanded');
+    cmpBtn.classList.toggle('active', ap.navigation.sidebarMode === 'compact');
+  }
+
+  const wList = document.getElementById('classic-settings-widgets-list');
+  if (wList) {
+    wList.innerHTML = ap.workspace.widgets.map((wId, idx) => {
+      const hidden = ap.workspace.hiddenWidgets.includes(wId);
+      const size = ap.workspace.widgetSizes[wId] || 'normal';
+      const label = CLASSIC_WIDGET_NAMES[wId] || wId;
+      return `<div class="settings-item-row">
+        <label class="settings-item-title"><input type="checkbox" ${!hidden ? 'checked' : ''} onchange="toggleClassicWidgetVisibility('${wId}', !this.checked)"><span>${escHtml(label)}</span></label>
+        <div class="settings-item-actions">
+          <select class="select-inline" style="height:32px;padding:0 8px;font-size:12px" aria-label="${escHtml(label)} size" onchange="setClassicWidgetSize('${wId}', this.value)">
+            <option value="normal" ${size === 'normal' ? 'selected' : ''}>Standard</option>
+            <option value="compact" ${size === 'compact' ? 'selected' : ''}>Compact</option>
+            <option value="wide" ${size === 'wide' ? 'selected' : ''}>Wide</option>
+          </select>
+          <button type="button" class="btn-sm" onclick="moveClassicWidget('${wId}', -1)" ${idx === 0 ? 'disabled' : ''} aria-label="Move ${escHtml(label)} up">↑</button>
+          <button type="button" class="btn-sm" onclick="moveClassicWidget('${wId}', 1)" ${idx === ap.workspace.widgets.length - 1 ? 'disabled' : ''} aria-label="Move ${escHtml(label)} down">↓</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const nList = document.getElementById('classic-settings-nav-list');
+  if (nList) {
+    const views = ap.navigation.order.filter(v => CLASSIC_VIEW_META[v]);
+    nList.innerHTML = views.map((v, idx) => {
+      const m = CLASSIC_VIEW_META[v];
+      const pinned = ap.navigation.pinned.includes(v);
+      const hidden = ap.navigation.hidden.includes(v);
+      return `<div class="settings-item-row">
+        <span class="settings-item-title">${escHtml(m.label)}</span>
+        <div class="settings-item-actions">
+          <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.togglePin(getClassicAdaptivePrefs(),'${v}'))" aria-pressed="${pinned}">${pinned ? 'Pinned ★' : 'Pin'}</button>
+          ${v !== 'dashboard' ? `<button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.toggleNavHidden(getClassicAdaptivePrefs(),'${v}'))">${hidden ? 'Show' : 'Hide'}</button>` : ''}
+          <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.moveNav(getClassicAdaptivePrefs(),'${v}',-1))" ${idx === 0 ? 'disabled' : ''} aria-label="Move ${escHtml(m.label)} up">↑</button>
+          <button type="button" class="btn-sm" onclick="commitClassicAdaptivePrefs(NexAdaptive.moveNav(getClassicAdaptivePrefs(),'${v}',1))" ${idx === views.length - 1 ? 'disabled' : ''} aria-label="Move ${escHtml(m.label)} down">↓</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const mBox = document.getElementById('classic-mobile-slots');
+  if (mBox) {
+    const viewOpts = Object.keys(CLASSIC_VIEW_META);
+    mBox.innerHTML = [0, 1, 2, 3].map(slot => {
+      const cur = ap.navigation.mobilePrimary[slot] || 'dashboard';
+      return `<label class="inline-label">Tab ${slot + 1} <select class="select-inline" aria-label="Mobile navigation tab ${slot + 1}" onchange="commitClassicAdaptivePrefs(NexAdaptive.setMobilePrimary(getClassicAdaptivePrefs(), ${slot}, this.value))">${viewOpts.map(v => `<option value="${v}" ${cur === v ? 'selected' : ''}>${escHtml(CLASSIC_VIEW_META[v].label)}</option>`).join('')}</select></label>`;
+    }).join('');
+  }
+
+  refreshClassicPushStatus();
+}
+
+const _origOpenProfileClassic = openProfile;
+openProfile = function (cat) {
+  _origOpenProfileClassic();
+  renderClassicSettingsControls();
+  const s = document.getElementById('classic-settings-search');
+  if (s) s.value = '';
+  setClassicSettingsCat(typeof cat === 'string' && cat ? cat : 'all');
+  updateClassicSettingsSaveBadge(isGuest() ? 'Saved locally' : 'Saved');
+};
+
+// Upgraded Global Command Center (Classic)
+async function warmClassicStudySearchCache() {
+  if (isGuest() || !currentUser || classicStudyDocsLoading) return;
+  if (window.NexStudy && typeof NexStudy.getCachedDocs === 'function') {
+    const localDocs = NexStudy.getCachedDocs();
+    if (localDocs && localDocs.length) { classicStudyDocsCache = localDocs; return; }
+  }
+  if (classicStudyDocsCache !== null) return;
+  classicStudyDocsLoading = true;
+  const status = document.getElementById('classic-cmd-status');
+  if (status) status.textContent = 'Indexing study library…';
+  try {
+    const res = await fetch('/api/study/docs', { credentials: 'same-origin', cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      classicStudyDocsCache = Array.isArray(data.docs) ? data.docs : [];
+    } else {
+      classicStudyDocsCache = [];
+    }
+  } catch (_) {
+    classicStudyDocsCache = [];
+  } finally {
+    classicStudyDocsLoading = false;
+    if (status) status.textContent = classicStudyDocsCache.length ? `${classicStudyDocsCache.length} study docs indexed` : '';
+    if (document.getElementById('search-modal')?.classList.contains('is-open')) runGlobalSearch();
+  }
+}
+
+openSearchModal = function () {
+  const modal = document.getElementById('search-modal');
+  const input = document.getElementById('global-search-input');
+  if (!modal || !input) return;
+  classicSearchOpener = document.activeElement;
+  closeSidebar();
+  modal.classList.add('is-open');
+  input.value = '';
+  runGlobalSearch();
+  warmClassicStudySearchCache();
+  setTimeout(() => input.focus(), 0);
+};
+
+closeSearchModal = function (event) {
+  if (!event || event.target?.id === 'search-modal' || event.target?.closest?.('.modal-close')) {
+    const m = document.getElementById('search-modal');
+    if (m && m.classList.contains('is-open')) {
+      m.classList.remove('is-open');
+      if (!event && classicSearchOpener && classicSearchOpener.isConnected && classicSearchOpener.focus) {
+        try { classicSearchOpener.focus({ preventScroll: true }); } catch (_) {}
+      }
+      classicSearchOpener = null;
+    }
+  }
+};
+
+function scheduleClassicGlobalSearch() {
+  clearTimeout(classicSearchDebounceTimer);
+  classicSearchDebounceTimer = setTimeout(runGlobalSearch, 60);
+}
+
+runGlobalSearch = function () {
+  const input = document.getElementById('global-search-input');
+  const raw = (input?.value || '').trim();
+  const resultsEl = document.getElementById('global-search-results');
+  if (!resultsEl) return;
+
+  const actions = [
+    { id: 'act-task', icon: '➕', title: 'Create Task', detail: 'Open Tasks input', category: 'Quick Action', featured: true, featuredScore: 90, keywords: 'new add todo', run: () => { switchView('kanban'); setTimeout(() => document.getElementById('new-task-input')?.focus(), 50); } },
+    { id: 'act-note', icon: '◧', title: 'Create Note', detail: 'Start a blank note in Smart Notes', category: 'Quick Action', featured: true, featuredScore: 88, keywords: 'new doc write', run: () => { switchView('notes'); newNote(); } },
+    { id: 'act-habit', icon: '◈', title: 'Create Habit', detail: 'Add a daily or weekly habit', category: 'Quick Action', featured: true, featuredScore: 85, keywords: 'new track streak', run: () => { switchView('habits'); setTimeout(() => document.getElementById('new-habit-input')?.focus(), 50); } },
+    { id: 'act-focus', icon: '◎', title: 'Open Focus Timer', detail: pomState.running ? 'Focus session in progress' : 'Start a timed focus sprint', category: 'Quick Action', featured: true, featuredScore: 84, run: () => switchView('pomodoro') },
+    { id: 'act-study', icon: '📚', title: 'Open Study Studio', detail: 'Tutor, Quiz, Flashcards, Mindmaps & Revision', category: 'Quick Action', featured: true, featuredScore: 82, run: () => openStudyStudio() },
+    { id: 'act-cal', icon: '📅', title: 'Open Calendar / Day Plan', detail: 'Review or schedule today’s blocks', category: 'Quick Action', featured: true, featuredScore: 80, run: openPlanModal },
+    { id: 'act-insights', icon: '◬', title: 'Open Analytics', detail: 'Velocity, focus hours and scores', category: 'Quick Action', featured: false, run: () => switchView('analytics') },
+    { id: 'act-settings', icon: '⚙', title: 'Navigate to Settings', detail: 'Personalization, Accessibility & Data', category: 'Quick Action', featured: true, featuredScore: 78, run: () => openProfile('general') },
+    { id: 'act-zen', icon: '⛶', title: document.body.classList.contains('nexos-focus-mode') ? 'Exit Focus Mode' : 'Enter Distraction-Free Focus Mode', detail: 'Reduce navigation distractions (Alt+F)', category: 'Focus Mode', featured: false, run: () => toggleClassicFocusMode() },
+    { id: 'act-p-study', icon: '◈', title: 'Switch to Study Workspace', detail: 'Focus + Notes + Study shortcuts', category: 'Preset', featured: false, run: () => applyClassicPreset('study') },
+    { id: 'act-p-deep', icon: '◈', title: 'Switch to Deep Work Workspace', detail: 'Focus-first compact layout', category: 'Preset', featured: false, run: () => applyClassicPreset('deep-work') },
+    { id: 'act-p-bal', icon: '◈', title: 'Switch to Balanced Workspace', detail: 'Standard 4-widget layout', category: 'Preset', featured: false, run: () => applyClassicPreset('balanced') },
+    { id: 'act-p-min', icon: '◈', title: 'Switch to Minimal Workspace', detail: 'Tasks & Notes · quiet chrome', category: 'Preset', featured: false, run: () => applyClassicPreset('minimal') },
+    { id: 'act-sb', icon: '⇄', title: 'Toggle Compact Sidebar', detail: 'Expand or collapse navigation rail', category: 'Navigation', featured: false, run: () => toggleClassicSidebarCompact() },
+    { id: 'act-theme', icon: '◐', title: 'Toggle Light / Dark Theme', detail: 'Switch display appearance', category: 'Settings', featured: false, run: toggleTheme },
+    { id: 'act-ent', icon: '✦', title: 'Switch to Enterprise Experience', detail: 'Open /enterprise dual shell', category: 'Navigation', featured: false, run: () => { location.href = '/enterprise'; } },
+  ];
+
+  const results = (typeof NexAdaptive !== 'undefined' && NexAdaptive.queryCommandCenter)
+    ? NexAdaptive.queryCommandCenter({
+      query: raw,
+      state,
+      isGuest: isGuest(),
+      studyDocs: classicStudyDocsCache || [],
+      actions,
+      onOpenTask: t => { switchView('kanban'); openTaskModal(t.id); },
+      onOpenNote: n => {
+        const s = document.getElementById('notes-search'); if (s) s.value = '';
+        const list = document.getElementById('notes-list'); if (list) list.dataset.filter = 'all';
+        document.querySelectorAll('.filter-btn').forEach((btn, i) => btn.classList.toggle('active', i === 0));
+        switchView('notes'); openNote(n.id);
+      },
+      onOpenHabit: () => switchView('habits'),
+      onOpenCalendar: () => openPlanModal(),
+      onOpenStudyDoc: () => openStudyStudio({ tab: 'library' }),
+    })
+    : [];
+
+  if (raw && !isGuest()) {
+    results.push({ id: 'nexai-ask', icon: '✦', title: 'Ask NexAI: “' + raw.slice(0, 60) + '”', detail: 'Send query to assistant', category: 'NexAI', run: () => sendSuggestedPrompt(raw) });
+  }
+
+  paletteRows = results;
+  paletteIndex = 0;
+  if (!results.length) {
+    if (input) input.removeAttribute('aria-activedescendant');
+    resultsEl.innerHTML = '<div class="empty-state">No matching tasks, notes, habits, study materials or actions found.</div>';
+    return;
+  }
+  if (input) input.setAttribute('aria-activedescendant', 'pal-0');
+  resultsEl.innerHTML = (raw ? '' : '<div class="pal-group">Quick Actions &amp; Recent Items</div>') + results.map((r, i) => `
+    <div class="search-result-item pal-item ${i === 0 ? 'active' : ''}" role="option" aria-selected="${i === 0}" id="pal-${i}" data-pal="${i}">
+      <span aria-hidden="true" style="width:20px;text-align:center">${escHtml(r.icon || '⚡')}</span>
+      <div class="pal-text"><div class="pal-title">${escHtml(r.title)}</div>${r.detail ? `<div class="pal-detail">${escHtml(r.detail)}</div>` : ''}</div>
+      <span class="search-result-type">${escHtml(r.category)}</span>
+    </div>`).join('');
+};
+
+const _origMovePaletteClassic = movePalette;
+movePalette = function (delta) {
+  _origMovePaletteClassic(delta);
+  const input = document.getElementById('global-search-input');
+  if (input && paletteRows.length) input.setAttribute('aria-activedescendant', 'pal-' + paletteIndex);
+  document.querySelectorAll('#global-search-results .pal-item').forEach((el, i) => el.setAttribute('aria-selected', String(i === paletteIndex)));
+};
+
+document.addEventListener('keydown', e => {
+  if (!currentUser) return;
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyF') {
+    e.preventDefault();
+    toggleClassicFocusMode();
+    return;
+  }
+  if (e.key === 'Escape' && document.body.classList.contains('nexos-focus-mode') && !document.querySelector('.modal-overlay.is-open')) {
+    toggleClassicFocusMode(false);
+  }
 });

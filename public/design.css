@@ -696,3 +696,39 @@ html[data-design="apple"] .editor-toolbar, html[data-design="apple"] .note-foote
   html[data-design] .breadcrumb { font-size: 15.5px; }
   html[data-design] .topbar.has-signin .topbar-signin { padding: 0 11px; font-size: 12px; }
 }
+
+/* ---------- 19. Project Adaptive 4.9.0 overrides for Soft & Glass designs ---------- */
+html[data-design][data-text-scale="90"] { font-size: 14px; }
+html[data-design][data-text-scale="100"] { font-size: 16px; }
+html[data-design][data-text-scale="110"] { font-size: 17.5px; }
+html[data-design][data-text-scale="120"] { font-size: 19px; }
+
+html[data-design][data-accent="cobalt"] { --accent: #0B57D0; --accent-fill: #0B57D0; --accent-hover: #0842A0; --accent-container: rgba(11, 87, 208, 0.16); --on-accent-container: var(--text); }
+html[data-design][data-accent="emerald"] { --accent: #0F9D58; --accent-fill: #0F9D58; --accent-hover: #0B8043; --accent-container: rgba(15, 157, 88, 0.16); --on-accent-container: var(--text); }
+html[data-design][data-accent="violet"] { --accent: #7C3AED; --accent-fill: #7C3AED; --accent-hover: #6D28D9; --accent-container: rgba(124, 58, 237, 0.16); --on-accent-container: var(--text); }
+html[data-design][data-accent="amber"] { --accent: #B45309; --accent-fill: #D97706; --accent-hover: #B45309; --accent-container: rgba(217, 119, 6, 0.18); --on-accent-container: var(--text); }
+
+html[data-design][data-contrast="high"] {
+  --outline: rgba(255, 255, 255, 0.36);
+  --outline-strong: rgba(255, 255, 255, 0.62);
+}
+html[data-design][data-contrast="high"][data-theme="light"] {
+  --outline: rgba(20, 20, 28, 0.36);
+  --outline-strong: rgba(20, 20, 28, 0.62);
+}
+
+html[data-design][data-density="compact"] .stat-card,
+html[data-design][data-density="compact"] .widget { padding: 14px; }
+html[data-design][data-density="spacious"] .stat-card,
+html[data-design][data-density="spacious"] .widget { padding: 26px; }
+
+@media (min-width: 901px) {
+  html[data-design="apple"] body.sidebar-compact .sidebar { width: calc(var(--sidebar-w) - 10px); }
+  html[data-design] body.sidebar-compact .sidebar-logo { height: auto; min-height: 64px; }
+}
+html[data-design="apple"] .focus-mode-hud { background: var(--g-bg-strong); border-color: var(--g-line); backdrop-filter: var(--g-blur); }
+@media (max-width: 900px) {
+  html[data-design] .bottom-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  html[data-design] .bottom-nav button { min-width: 0; padding: 0 2px; }
+  html[data-design] .bottom-nav button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

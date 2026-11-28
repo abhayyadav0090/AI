@@ -1701,7 +1701,7 @@
     focusRoot();
   }
 
-  const api = { open, close, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, SAMPLE_MINDMAP, MAX_BYTES, layoutMindmapTree, countMindmapNodes };
+  const api = { open, close, formatAnswer, sourceLabel, checkFile, sizeLabel, SAMPLE, SAMPLE_MINDMAP, MAX_BYTES, layoutMindmapTree, countMindmapNodes, getCachedDocs: () => docs.slice() };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NexStudy = api;
 })(typeof window !== 'undefined' ? window : globalThis);
